@@ -9,7 +9,10 @@ servers:
 tags:
   - name: health
   - name: auth
+  - name: jobs
   - name: job_runs
+  - name: module_types
+  - name: connections
 paths:
   /healthz:
     get:
@@ -83,6 +86,245 @@ paths:
                 $ref: "#/components/schemas/MeResponse"
         "401":
           $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Jobs ----
+  /api/v1/jobs:
+    post:
+      tags: [jobs]
+      summary: Create job
+      operationId: createJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRequest"
+      responses:
+        "201":
+          description: Created job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [jobs]
+      summary: List jobs
+      operationId: listJobs
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Job"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/jobs/{id}:
+    get:
+      tags: [jobs]
+      summary: Get job
+      operationId: getJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    put:
+      tags: [jobs]
+      summary: Update job
+      operationId: updateJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateJobRequest"
+      responses:
+        "200":
+          description: Updated job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Job"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Job Versions ----
+  /api/v1/jobs/{job_id}/versions:
+    post:
+      tags: [jobs]
+      summary: Create job version (with modules and edges)
+      operationId: createJobVersion
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobVersionRequest"
+      responses:
+        "201":
+          description: Created job version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobVersion"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [jobs]
+      summary: List job versions
+      operationId: listJobVersions
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of job versions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JobVersion"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/jobs/{job_id}/versions/{version_id}:
+    get:
+      tags: [jobs]
+      summary: Get job version detail (with modules and edges)
+      operationId: getJobVersionDetail
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job version detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobVersionDetail"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/jobs/{job_id}/versions/{version_id}/publish:
+    post:
+      tags: [jobs]
+      summary: Publish job version
+      operationId: publishJobVersion
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: version_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Published job version
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobVersion"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Job Runs ----
   /api/v1/job_runs:
     get:
       tags: [job_runs]
@@ -162,6 +404,278 @@ paths:
           $ref: "#/components/responses/ErrorResponse"
         "404":
           $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Module Types ----
+  /api/v1/module_types:
+    post:
+      tags: [module_types]
+      summary: Create module type
+      operationId: createModuleType
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModuleTypeRequest"
+      responses:
+        "201":
+          description: Created module type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleType"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [module_types]
+      summary: List module types
+      operationId: listModuleTypes
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of module types
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ModuleType"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/module_types/{id}:
+    get:
+      tags: [module_types]
+      summary: Get module type
+      operationId: getModuleType
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Module type detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleType"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/module_types/{id}/schemas:
+    post:
+      tags: [module_types]
+      summary: Create module type schema version
+      operationId: createModuleTypeSchema
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateModuleTypeSchemaRequest"
+      responses:
+        "201":
+          description: Created module type schema
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModuleTypeSchema"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [module_types]
+      summary: List module type schema versions
+      operationId: listModuleTypeSchemas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of module type schemas
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ModuleTypeSchema"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Connections ----
+  /api/v1/connections:
+    post:
+      tags: [connections]
+      summary: Create connection
+      operationId: createConnection
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateConnectionRequest"
+      responses:
+        "201":
+          description: Created connection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [connections]
+      summary: List connections
+      operationId: listConnections
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of connections
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Connection"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/connections/{id}:
+    get:
+      tags: [connections]
+      summary: Get connection
+      operationId: getConnection
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Connection detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    put:
+      tags: [connections]
+      summary: Update connection
+      operationId: updateConnection
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateConnectionRequest"
+      responses:
+        "200":
+          description: Updated connection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Connection"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+    delete:
+      tags: [connections]
+      summary: Delete connection
+      operationId: deleteConnection
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
 components:
   parameters:
     XTenantID:
@@ -256,32 +770,301 @@ components:
           type: string
         name:
           type: string
-    CreateJobRunRequest:
+
+    # ---- Job schemas ----
+    Job:
       type: object
-      required: [project_id, job_id]
-      properties:
-        project_id:
-          type: string
-        job_id:
-          type: string
-    JobRun:
-      type: object
-      required: [id, tenant_id, project_id, job_id, status]
+      required: [id, tenant_id, name, slug, is_active]
       properties:
         id:
           type: string
         tenant_id:
           type: string
-        project_id:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateJobRequest:
+      type: object
+      required: [name, slug]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+    UpdateJobRequest:
+      type: object
+      required: [name, slug, is_active]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        is_active:
+          type: boolean
+
+    # ---- Job Version schemas ----
+    JobVersion:
+      type: object
+      required: [id, tenant_id, job_id, version, status]
+      properties:
+        id:
+          type: string
+        tenant_id:
           type: string
         job_id:
           type: string
+        version:
+          type: integer
         status:
           type: string
-          enum: [queued, running, success, failed]
+          enum: [draft, published]
+        published_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    JobVersionDetail:
+      type: object
+      required: [version, modules, edges]
+      properties:
+        version:
+          $ref: "#/components/schemas/JobVersion"
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobModule"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/JobModuleEdge"
+    CreateJobVersionRequest:
+      type: object
+      required: [modules]
+      properties:
+        modules:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateJobModuleInput"
+        edges:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateEdgeInput"
+    CreateJobModuleInput:
+      type: object
+      required: [module_type_id, name]
+      properties:
+        module_type_id:
+          type: string
+        module_type_schema_id:
+          type: string
+        connection_id:
+          type: string
+        name:
+          type: string
+        config_json:
+          type: string
+        position_x:
+          type: number
+        position_y:
+          type: number
+    CreateEdgeInput:
+      type: object
+      required: [source_module_index, target_module_index]
+      properties:
+        source_module_index:
+          type: integer
+        target_module_index:
+          type: integer
+
+    # ---- Job Module schemas ----
+    JobModule:
+      type: object
+      required: [id, tenant_id, job_version_id, module_type_id, name]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        job_version_id:
+          type: string
+        module_type_id:
+          type: string
+        module_type_schema_id:
+          type: string
+        connection_id:
+          type: string
+        name:
+          type: string
+        config_json:
+          type: string
+        position_x:
+          type: number
+        position_y:
+          type: number
+    JobModuleEdge:
+      type: object
+      required: [id, tenant_id, job_version_id, source_module_id, target_module_id]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        job_version_id:
+          type: string
+        source_module_id:
+          type: string
+        target_module_id:
+          type: string
+
+    # ---- Job Run schemas ----
+    CreateJobRunRequest:
+      type: object
+      required: [job_id]
+      properties:
+        job_id:
+          type: string
+        job_version_id:
+          type: string
+    JobRun:
+      type: object
+      required: [id, tenant_id, job_id, status]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        job_id:
+          type: string
+        job_version_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/JobRunStatus"
         started_at:
           type: string
           format: date-time
         finished_at:
           type: string
           format: date-time
+    JobRunStatus:
+      type: string
+      enum: [queued, running, success, failed, canceled]
+
+    # ---- Module Type schemas ----
+    ModuleType:
+      type: object
+      required: [id, tenant_id, name, category]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+          enum: [source, transform, destination]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateModuleTypeRequest:
+      type: object
+      required: [name, category]
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [source, transform, destination]
+    ModuleTypeSchema:
+      type: object
+      required: [id, tenant_id, module_type_id, version, json_schema]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        module_type_id:
+          type: string
+        version:
+          type: integer
+        json_schema:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    CreateModuleTypeSchemaRequest:
+      type: object
+      required: [json_schema]
+      properties:
+        json_schema:
+          type: string
+
+    # ---- Connection schemas ----
+    Connection:
+      type: object
+      required: [id, tenant_id, name, type]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+        config_json:
+          type: string
+        secret_ref:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateConnectionRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        config_json:
+          type: string
+        secret_ref:
+          type: string
+    UpdateConnectionRequest:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        config_json:
+          type: string
+        secret_ref:
+          type: string

@@ -9,10 +9,10 @@ import (
 )
 
 type UserRepo struct {
-	db *sql.DB
+	db DBTX
 }
 
-func NewUserRepo(db *sql.DB) *UserRepo {
+func NewUserRepo(db DBTX) *UserRepo {
 	return &UserRepo{db: db}
 }
 

@@ -8,10 +8,10 @@ import (
 )
 
 type TenantRepo struct {
-	db *sql.DB
+	db DBTX
 }
 
-func NewTenantRepo(db *sql.DB) *TenantRepo {
+func NewTenantRepo(db DBTX) *TenantRepo {
 	return &TenantRepo{db: db}
 }
 
