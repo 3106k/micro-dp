@@ -5,6 +5,12 @@ import (
 	"github.com/user/micro-dp/internal/openapi"
 )
 
+type tenantResponse struct {
+	Id       string `json:"id"`
+	Name     string `json:"name"`
+	IsActive bool   `json:"is_active"`
+}
+
 func toOpenAPIJobRun(jr *domain.JobRun) openapi.JobRun {
 	out := openapi.JobRun{
 		Id:           jr.ID,
@@ -20,10 +26,11 @@ func toOpenAPIJobRun(jr *domain.JobRun) openapi.JobRun {
 	return out
 }
 
-func toOpenAPITenant(t domain.Tenant) openapi.Tenant {
-	return openapi.Tenant{
-		Id:   t.ID,
-		Name: t.Name,
+func toOpenAPITenant(t domain.Tenant) tenantResponse {
+	return tenantResponse{
+		Id:       t.ID,
+		Name:     t.Name,
+		IsActive: t.IsActive,
 	}
 }
 

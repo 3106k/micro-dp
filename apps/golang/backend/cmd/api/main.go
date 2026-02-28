@@ -57,6 +57,7 @@ func main() {
 	moduleTypeRepo := db.NewModuleTypeRepo(sqlDB)
 	moduleTypeSchemaRepo := db.NewModuleTypeSchemaRepo(sqlDB)
 	connectionRepo := db.NewConnectionRepo(sqlDB)
+	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
 	// Services
@@ -65,6 +66,7 @@ func main() {
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo)
+	adminTenantService := usecase.NewAdminTenantService(tenantRepo, adminAuditLogRepo)
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
@@ -73,13 +75,18 @@ func main() {
 	jobH := handler.NewJobHandler(jobService)
 	moduleTypeH := handler.NewModuleTypeHandler(moduleTypeService)
 	connectionH := handler.NewConnectionHandler(connectionService)
+	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
 	tenantMW := handler.TenantMiddleware(tenantRepo)
+	superadminMW := handler.SuperadminMiddleware(userRepo)
 
 	protected := func(h http.HandlerFunc) http.Handler {
 		return authMW(tenantMW(http.HandlerFunc(h)))
+	}
+	adminProtected := func(h http.HandlerFunc) http.Handler {
+		return authMW(superadminMW(http.HandlerFunc(h)))
 	}
 
 	mux := http.NewServeMux()
@@ -125,6 +132,11 @@ func main() {
 	mux.Handle("GET /api/v1/connections/{id}", protected(connectionH.Get))
 	mux.Handle("PUT /api/v1/connections/{id}", protected(connectionH.Update))
 	mux.Handle("DELETE /api/v1/connections/{id}", protected(connectionH.Delete))
+
+	// Admin tenants
+	mux.Handle("POST /api/v1/admin/tenants", adminProtected(adminTenantH.Create))
+	mux.Handle("GET /api/v1/admin/tenants", adminProtected(adminTenantH.List))
+	mux.Handle("PATCH /api/v1/admin/tenants/{id}", adminProtected(adminTenantH.Patch))
 
 	addr := ":8080"
 	log.Printf("api server starting on %s", addr)

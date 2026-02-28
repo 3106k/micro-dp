@@ -53,6 +53,10 @@ func (c *Client) Delete(ctx context.Context, path string) (int, []byte, error) {
 	return c.doJSON(ctx, http.MethodDelete, path, nil, nil)
 }
 
+func (c *Client) PatchJSON(ctx context.Context, path string, in any, out any) (int, []byte, error) {
+	return c.doJSON(ctx, http.MethodPatch, path, in, out)
+}
+
 func (c *Client) doJSON(ctx context.Context, method, path string, in any, out any) (int, []byte, error) {
 	var body io.Reader
 	if in != nil {

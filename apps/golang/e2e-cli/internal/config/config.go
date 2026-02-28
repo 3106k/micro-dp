@@ -8,14 +8,16 @@ import (
 )
 
 type Config struct {
-	BaseURL      string
-	Token        string
-	TenantID     string
-	Suites       []string
-	JSONOut      string
-	AuthEmail    string
-	AuthPassword string
-	DisplayName  string
+	BaseURL       string
+	Token         string
+	TenantID      string
+	Suites        []string
+	JSONOut       string
+	AuthEmail     string
+	AuthPassword  string
+	DisplayName   string
+	AdminEmail    string
+	AdminPassword string
 }
 
 func Load(args []string) (*Config, error) {
@@ -30,6 +32,8 @@ func Load(args []string) (*Config, error) {
 	authEmail := fs.String("auth-email", envOr("E2E_AUTH_EMAIL", ""), "Email for auth suite (optional)")
 	authPassword := fs.String("auth-password", envOr("E2E_AUTH_PASSWORD", "Passw0rd!123"), "Password for auth suite")
 	displayName := fs.String("display-name", envOr("E2E_DISPLAY_NAME", "E2E User"), "Display name for auth suite")
+	adminEmail := fs.String("admin-email", envOr("E2E_ADMIN_EMAIL", ""), "Email for tenant admin suite")
+	adminPassword := fs.String("admin-password", envOr("E2E_ADMIN_PASSWORD", ""), "Password for tenant admin suite")
 
 	if err := fs.Parse(args); err != nil {
 		return nil, err
@@ -41,14 +45,16 @@ func Load(args []string) (*Config, error) {
 	}
 
 	return &Config{
-		BaseURL:      strings.TrimRight(*baseURL, "/"),
-		Token:        *token,
-		TenantID:     *tenantID,
-		Suites:       suites,
-		JSONOut:      *jsonOut,
-		AuthEmail:    *authEmail,
-		AuthPassword: *authPassword,
-		DisplayName:  *displayName,
+		BaseURL:       strings.TrimRight(*baseURL, "/"),
+		Token:         *token,
+		TenantID:      *tenantID,
+		Suites:        suites,
+		JSONOut:       *jsonOut,
+		AuthEmail:     *authEmail,
+		AuthPassword:  *authPassword,
+		DisplayName:   *displayName,
+		AdminEmail:    *adminEmail,
+		AdminPassword: *adminPassword,
 	}, nil
 }
 
