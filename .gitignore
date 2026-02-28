@@ -11,6 +11,7 @@ Thumbs.db
 # Go
 apps/golang/backend/backend
 apps/golang/backend/tmp/
+apps/golang/e2e-cli/e2e-report.json
 
 # Node
 apps/node/web/node_modules/
