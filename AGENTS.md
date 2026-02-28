@@ -35,3 +35,36 @@
   - OpenAPI lint
   - OpenAPI generation
   - drift detection via `git diff --exit-code`
+
+## Backend Image CI
+
+- On changes under `apps/golang/backend/**`, backend image build/push CI is expected to run.
+- Workflow: `.github/workflows/backend-image.yml`
+- Registry target: `ghcr.io/<owner>/<repo>/backend`
+- Tag strategy:
+  - `sha-<commit>`
+  - branch tag (for branch pushes)
+  - `latest` on default branch
+  - `staging` on `staging` branch
+
+## Observability Verification Notes
+
+- Traces require reachable OTLP endpoint (`OTEL_EXPORTER_OTLP_ENDPOINT`).
+- If observability stack and app stack are on different Docker networks/projects, traces may not be exported.
+- For local verification, confirm both:
+  - Jaeger has `micro-dp-api` / `micro-dp-worker` services and traces
+  - Grafana Prometheus datasource returns query results (for example `up`)
+
+## SDK Tracker Change Checklist
+
+- When changing `apps/node/sdk-tracker`, run:
+  - `make sdk-tracker-build`
+  - `make sdk-tracker-test`
+- Do not commit generated `dist/` or `node_modules/` for `sdk-tracker`.
+
+## Issue Closing Flow
+
+- Standard order:
+  1. Commit changes
+  2. Push branch
+  3. Close related GitHub issue with commit reference
