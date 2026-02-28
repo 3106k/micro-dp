@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
+	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/usecase"
 )
 
@@ -29,6 +32,14 @@ func main() {
 		log.Println("migration complete, exiting")
 		return
 	}
+
+	obsCfg := observability.LoadConfig("micro-dp-api")
+	obsShutdown, err := observability.Init(context.Background(), obsCfg)
+	if err != nil {
+		log.Fatalf("observability init: %v", err)
+	}
+	defer observability.ShutdownWithTimeout(obsShutdown, 5*time.Second)
+	observability.LogStartup(obsCfg)
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -55,6 +66,7 @@ func main() {
 
 	// Public routes
 	mux.HandleFunc("GET /healthz", healthH.Healthz)
+	mux.Handle("GET /metrics", observability.MetricsHandler())
 	mux.HandleFunc("POST /api/v1/auth/register", authH.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authH.Login)
 
@@ -68,7 +80,7 @@ func main() {
 
 	addr := ":8080"
 	log.Printf("api server starting on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, observability.WrapHTTPHandler(mux, "api-http")); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
+	"github.com/user/micro-dp/internal/observability"
 )
 
 func main() {
@@ -20,10 +23,19 @@ func main() {
 		log.Fatalf("db migrate: %v", err)
 	}
 
+	obsCfg := observability.LoadConfig("micro-dp-worker")
+	obsShutdown, err := observability.Init(context.Background(), obsCfg)
+	if err != nil {
+		log.Fatalf("observability init: %v", err)
+	}
+	defer observability.ShutdownWithTimeout(obsShutdown, 5*time.Second)
+	observability.LogStartup(obsCfg)
+
 	healthH := handler.NewHealthHandler(sqlDB)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthH.Healthz)
+	mux.Handle("GET /metrics", observability.MetricsHandler())
 
 	addr := ":8081"
 	log.Printf("worker starting (healthcheck on %s)", addr)
@@ -33,7 +45,7 @@ func main() {
 	// TODO: MinIO/Iceberg export
 
 	fmt.Println("worker: waiting for jobs...")
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, observability.WrapHTTPHandler(mux, "worker-http")); err != nil {
 		log.Fatal(err)
 	}
 }
