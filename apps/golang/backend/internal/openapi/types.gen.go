@@ -29,8 +29,8 @@ const (
 
 // CreateJobRunRequest defines model for CreateJobRunRequest.
 type CreateJobRunRequest struct {
-	JobName  string                  `json:"job_name"`
-	Metadata *map[string]interface{} `json:"metadata,omitempty"`
+	JobId     string `json:"job_id"`
+	ProjectId string `json:"project_id"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -51,7 +51,9 @@ type HealthResponseStatus string
 type JobRun struct {
 	FinishedAt *time.Time   `json:"finished_at,omitempty"`
 	Id         string       `json:"id"`
-	StartedAt  time.Time    `json:"started_at"`
+	JobId      string       `json:"job_id"`
+	ProjectId  string       `json:"project_id"`
+	StartedAt  *time.Time   `json:"started_at,omitempty"`
 	Status     JobRunStatus `json:"status"`
 	TenantId   string       `json:"tenant_id"`
 }
@@ -97,9 +99,23 @@ type Tenant struct {
 	Name string `json:"name"`
 }
 
+// XTenantID defines model for XTenantID.
+type XTenantID = string
+
 // ListJobRunsParams defines parameters for ListJobRuns.
 type ListJobRunsParams struct {
-	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+	Limit     *int      `form:"limit,omitempty" json:"limit,omitempty"`
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateJobRunParams defines parameters for CreateJobRun.
+type CreateJobRunParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetJobRunParams defines parameters for GetJobRun.
+type GetJobRunParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.

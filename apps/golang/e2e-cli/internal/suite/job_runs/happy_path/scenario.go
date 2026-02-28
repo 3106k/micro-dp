@@ -67,7 +67,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	client.SetToken(loginResp.Token)
 	client.SetTenantID(registerResp.TenantID)
 
-	// POST /api/v1/job-runs → 201
+	// POST /api/v1/job_runs → 201
 	var createResp struct {
 		ID        string `json:"id"`
 		TenantID  string `json:"tenant_id"`
@@ -79,7 +79,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		"project_id": "proj-001",
 		"job_id":     "job-001",
 	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/job-runs", createReq, &createResp)
+	code, body, err = client.PostJSON(ctx, "/api/v1/job_runs", createReq, &createResp)
 	if err != nil {
 		return err
 	}
@@ -96,11 +96,13 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("create job run: expected status 'queued', got '%s'", createResp.Status)
 	}
 
-	// GET /api/v1/job-runs → 200
-	var listResp []struct {
-		ID string `json:"id"`
+	// GET /api/v1/job_runs → 200
+	var listResp struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
 	}
-	code, body, err = client.GetJSON(ctx, "/api/v1/job-runs", &listResp)
+	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs", &listResp)
 	if err != nil {
 		return err
 	}
@@ -108,7 +110,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("list job runs: expected 200, got %d body=%s", code, string(body))
 	}
 	found := false
-	for _, jr := range listResp {
+	for _, jr := range listResp.Items {
 		if jr.ID == createResp.ID {
 			found = true
 			break
@@ -118,14 +120,14 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("list job runs: created job run %s not found in list", createResp.ID)
 	}
 
-	// GET /api/v1/job-runs/{id} → 200
+	// GET /api/v1/job_runs/{id} → 200
 	var getResp struct {
 		ID        string `json:"id"`
 		TenantID  string `json:"tenant_id"`
 		ProjectID string `json:"project_id"`
 		JobID     string `json:"job_id"`
 	}
-	code, body, err = client.GetJSON(ctx, "/api/v1/job-runs/"+createResp.ID, &getResp)
+	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs/"+createResp.ID, &getResp)
 	if err != nil {
 		return err
 	}

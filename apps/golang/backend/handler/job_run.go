@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/openapi"
 	"github.com/user/micro-dp/usecase"
 )
 
@@ -17,26 +18,23 @@ func NewJobRunHandler(jobRuns *usecase.JobRunService) *JobRunHandler {
 }
 
 func (h *JobRunHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		ProjectID string `json:"project_id"`
-		JobID     string `json:"job_id"`
-	}
+	var req openapi.CreateJobRunRequest
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.ProjectID == "" || req.JobID == "" {
+	if req.ProjectId == "" || req.JobId == "" {
 		writeError(w, http.StatusBadRequest, "project_id and job_id are required")
 		return
 	}
 
-	jr, err := h.jobRuns.Create(r.Context(), req.ProjectID, req.JobID)
+	jr, err := h.jobRuns.Create(r.Context(), req.ProjectId, req.JobId)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, jr)
+	writeJSON(w, http.StatusCreated, toOpenAPIJobRun(jr))
 }
 
 func (h *JobRunHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +47,14 @@ func (h *JobRunHandler) List(w http.ResponseWriter, r *http.Request) {
 		jobRuns = []domain.JobRun{}
 	}
 
-	writeJSON(w, http.StatusOK, jobRuns)
+	items := make([]openapi.JobRun, len(jobRuns))
+	for i := range jobRuns {
+		items[i] = toOpenAPIJobRun(&jobRuns[i])
+	}
+
+	writeJSON(w, http.StatusOK, struct {
+		Items []openapi.JobRun `json:"items"`
+	}{Items: items})
 }
 
 func (h *JobRunHandler) Get(w http.ResponseWriter, r *http.Request) {
@@ -69,5 +74,5 @@ func (h *JobRunHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusOK, jr)
+	writeJSON(w, http.StatusOK, toOpenAPIJobRun(jr))
 }

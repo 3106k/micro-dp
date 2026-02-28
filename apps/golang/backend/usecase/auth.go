@@ -26,18 +26,13 @@ func NewAuthService(users domain.UserRepository, tenants domain.TenantRepository
 	}
 }
 
-type RegisterResult struct {
-	UserID   string `json:"user_id"`
-	TenantID string `json:"tenant_id"`
-}
-
-func (s *AuthService) Register(ctx context.Context, email, password, displayName string) (*RegisterResult, error) {
+func (s *AuthService) Register(ctx context.Context, email, password, displayName string) (userID, tenantID string, err error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, err
+		return "", "", err
 	}
 
-	userID := uuid.New().String()
+	userID = uuid.New().String()
 	user := &domain.User{
 		ID:           userID,
 		Email:        email,
@@ -45,16 +40,16 @@ func (s *AuthService) Register(ctx context.Context, email, password, displayName
 		DisplayName:  displayName,
 	}
 	if err := s.users.Create(ctx, user); err != nil {
-		return nil, err
+		return "", "", err
 	}
 
-	tenantID := uuid.New().String()
+	tenantID = uuid.New().String()
 	tenant := &domain.Tenant{
 		ID:   tenantID,
 		Name: displayName + "'s Workspace",
 	}
 	if err := s.tenants.Create(ctx, tenant); err != nil {
-		return nil, err
+		return "", "", err
 	}
 
 	ut := &domain.UserTenant{
@@ -63,27 +58,23 @@ func (s *AuthService) Register(ctx context.Context, email, password, displayName
 		Role:     "owner",
 	}
 	if err := s.tenants.AddUserToTenant(ctx, ut); err != nil {
-		return nil, err
+		return "", "", err
 	}
 
-	return &RegisterResult{UserID: userID, TenantID: tenantID}, nil
+	return userID, tenantID, nil
 }
 
-type LoginResult struct {
-	Token string `json:"token"`
-}
-
-func (s *AuthService) Login(ctx context.Context, email, password string) (*LoginResult, error) {
+func (s *AuthService) Login(ctx context.Context, email, password string) (token string, err error) {
 	user, err := s.users.FindByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
-			return nil, errors.New("invalid credentials")
+			return "", errors.New("invalid credentials")
 		}
-		return nil, err
+		return "", err
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return nil, errors.New("invalid credentials")
+		return "", errors.New("invalid credentials")
 	}
 
 	claims := jwt.RegisteredClaims{
@@ -91,37 +82,25 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (*Login
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString(s.jwtSecret)
+	t := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := t.SignedString(s.jwtSecret)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &LoginResult{Token: signed}, nil
+	return signed, nil
 }
 
-type MeResult struct {
-	UserID      string          `json:"user_id"`
-	Email       string          `json:"email"`
-	DisplayName string          `json:"display_name"`
-	Tenants     []domain.Tenant `json:"tenants"`
-}
-
-func (s *AuthService) Me(ctx context.Context, userID string) (*MeResult, error) {
+func (s *AuthService) Me(ctx context.Context, userID string) (*domain.User, []domain.Tenant, error) {
 	user, err := s.users.FindByID(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	tenants, err := s.tenants.ListByUserID(ctx, userID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &MeResult{
-		UserID:      user.ID,
-		Email:       user.Email,
-		DisplayName: user.DisplayName,
-		Tenants:     tenants,
-	}, nil
+	return user, tenants, nil
 }

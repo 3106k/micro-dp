@@ -113,9 +113,9 @@ Internal container ports are fixed; only host-side ports change per environment.
 | POST | `/api/v1/auth/register` | — | Register user (creates tenant) |
 | POST | `/api/v1/auth/login` | — | Login (returns JWT) |
 | GET | `/api/v1/auth/me` | Bearer | Current user + tenants |
-| POST | `/api/v1/job-runs` | Bearer + X-Tenant-ID | Create job run |
-| GET | `/api/v1/job-runs` | Bearer + X-Tenant-ID | List job runs (tenant-scoped) |
-| GET | `/api/v1/job-runs/{id}` | Bearer + X-Tenant-ID | Get job run (tenant-scoped) |
+| POST | `/api/v1/job_runs` | Bearer + X-Tenant-ID | Create job run |
+| GET | `/api/v1/job_runs` | Bearer + X-Tenant-ID | List job runs (tenant-scoped) |
+| GET | `/api/v1/job_runs/{id}` | Bearer + X-Tenant-ID | Get job run (tenant-scoped) |
 
 ## Contract-First OpenAPI (SSOT)
 

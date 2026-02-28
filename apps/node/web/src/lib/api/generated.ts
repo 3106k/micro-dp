@@ -79,11 +79,28 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List job runs (planned) */
+        /** List job runs */
         get: operations["listJobRuns"];
         put?: never;
-        /** Create job run (planned) */
+        /** Create job run */
         post: operations["createJobRun"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/job_runs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get job run by ID */
+        get: operations["getJobRun"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -132,18 +149,18 @@ export interface components {
             name: string;
         };
         CreateJobRunRequest: {
-            job_name: string;
-            metadata?: {
-                [key: string]: unknown;
-            };
+            project_id: string;
+            job_id: string;
         };
         JobRun: {
             id: string;
             tenant_id: string;
+            project_id: string;
+            job_id: string;
             /** @enum {string} */
             status: "queued" | "running" | "success" | "failed";
             /** Format: date-time */
-            started_at: string;
+            started_at?: string;
             /** Format: date-time */
             finished_at?: string;
         };
@@ -159,7 +176,9 @@ export interface components {
             };
         };
     };
-    parameters: never;
+    parameters: {
+        XTenantID: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -264,7 +283,9 @@ export interface operations {
             query?: {
                 limit?: number;
             };
-            header?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -287,7 +308,9 @@ export interface operations {
     createJobRun: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
             path?: never;
             cookie?: never;
         };
@@ -307,6 +330,32 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorResponse"];
+        };
+    };
+    getJobRun: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job run detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRun"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
         };
     };
 }

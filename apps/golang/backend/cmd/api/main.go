@@ -62,9 +62,9 @@ func main() {
 	mux.Handle("GET /api/v1/auth/me", authMW(http.HandlerFunc(authH.Me)))
 
 	// Authenticated + tenant-scoped routes
-	mux.Handle("POST /api/v1/job-runs", protected(jobRunH.Create))
-	mux.Handle("GET /api/v1/job-runs", protected(jobRunH.List))
-	mux.Handle("GET /api/v1/job-runs/{id}", protected(jobRunH.Get))
+	mux.Handle("POST /api/v1/job_runs", protected(jobRunH.Create))
+	mux.Handle("GET /api/v1/job_runs", protected(jobRunH.List))
+	mux.Handle("GET /api/v1/job_runs/{id}", protected(jobRunH.Get))
 
 	addr := ":8080"
 	log.Printf("api server starting on %s", addr)

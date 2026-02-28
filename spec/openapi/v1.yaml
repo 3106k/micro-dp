@@ -86,11 +86,12 @@ paths:
   /api/v1/job_runs:
     get:
       tags: [job_runs]
-      summary: List job runs (planned)
+      summary: List job runs
       operationId: listJobRuns
       security:
         - bearerAuth: []
       parameters:
+        - $ref: "#/components/parameters/XTenantID"
         - name: limit
           in: query
           required: false
@@ -115,10 +116,12 @@ paths:
           $ref: "#/components/responses/ErrorResponse"
     post:
       tags: [job_runs]
-      summary: Create job run (planned)
+      summary: Create job run
       operationId: createJobRun
       security:
         - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
       requestBody:
         required: true
         content:
@@ -134,7 +137,39 @@ paths:
                 $ref: "#/components/schemas/JobRun"
         "401":
           $ref: "#/components/responses/ErrorResponse"
+  /api/v1/job_runs/{id}:
+    get:
+      tags: [job_runs]
+      summary: Get job run by ID
+      operationId: getJobRun
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRun"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
 components:
+  parameters:
+    XTenantID:
+      name: X-Tenant-ID
+      in: header
+      required: true
+      schema:
+        type: string
   securitySchemes:
     bearerAuth:
       type: http
@@ -223,20 +258,23 @@ components:
           type: string
     CreateJobRunRequest:
       type: object
-      required: [job_name]
+      required: [project_id, job_id]
       properties:
-        job_name:
+        project_id:
           type: string
-        metadata:
-          type: object
-          additionalProperties: true
+        job_id:
+          type: string
     JobRun:
       type: object
-      required: [id, tenant_id, status, started_at]
+      required: [id, tenant_id, project_id, job_id, status]
       properties:
         id:
           type: string
         tenant_id:
+          type: string
+        project_id:
+          type: string
+        job_id:
           type: string
         status:
           type: string

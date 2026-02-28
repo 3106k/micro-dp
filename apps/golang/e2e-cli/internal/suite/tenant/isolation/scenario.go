@@ -85,7 +85,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	var errResp struct {
 		Error string `json:"error"`
 	}
-	code, body, err = client.GetJSON(ctx, "/api/v1/job-runs", &errResp)
+	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs", &errResp)
 	if err != nil {
 		return err
 	}
