@@ -37,11 +37,19 @@ func main() {
 
 	userRepo := db.NewUserRepo(sqlDB)
 	tenantRepo := db.NewTenantRepo(sqlDB)
+	jobRunRepo := db.NewJobRunRepo(sqlDB)
 	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret)
+	jobRunService := usecase.NewJobRunService(jobRunRepo)
 
 	healthH := handler.NewHealthHandler(sqlDB)
 	authH := handler.NewAuthHandler(authService)
+	jobRunH := handler.NewJobRunHandler(jobRunService)
 	authMW := handler.AuthMiddleware(jwtSecret)
+	tenantMW := handler.TenantMiddleware(tenantRepo)
+
+	protected := func(h http.HandlerFunc) http.Handler {
+		return authMW(tenantMW(http.HandlerFunc(h)))
+	}
 
 	mux := http.NewServeMux()
 
@@ -52,6 +60,11 @@ func main() {
 
 	// Authenticated routes
 	mux.Handle("GET /api/v1/auth/me", authMW(http.HandlerFunc(authH.Me)))
+
+	// Authenticated + tenant-scoped routes
+	mux.Handle("POST /api/v1/job-runs", protected(jobRunH.Create))
+	mux.Handle("GET /api/v1/job-runs", protected(jobRunH.List))
+	mux.Handle("GET /api/v1/job-runs/{id}", protected(jobRunH.Get))
 
 	addr := ":8080"
 	log.Printf("api server starting on %s", addr)

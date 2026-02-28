@@ -5,9 +5,11 @@ import (
 
 	"github.com/user/micro-dp/e2e-cli/internal/config"
 	"github.com/user/micro-dp/e2e-cli/internal/runner"
+	authfailure "github.com/user/micro-dp/e2e-cli/internal/suite/auth/failure"
 	authcase "github.com/user/micro-dp/e2e-cli/internal/suite/auth/happy_path"
 	healthcase "github.com/user/micro-dp/e2e-cli/internal/suite/health/healthz"
-	jobrunscase "github.com/user/micro-dp/e2e-cli/internal/suite/job_runs/not_implemented"
+	jobrunscase "github.com/user/micro-dp/e2e-cli/internal/suite/job_runs/happy_path"
+	tenantisolation "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/isolation"
 )
 
 func Build(cfg *config.Config) ([]runner.Scenario, error) {
@@ -17,9 +19,14 @@ func Build(cfg *config.Config) ([]runner.Scenario, error) {
 		case "health":
 			scenarios = append(scenarios, healthcase.NewScenario())
 		case "auth":
-			scenarios = append(scenarios, authcase.NewScenario(cfg.AuthEmail, cfg.AuthPassword, cfg.DisplayName))
+			scenarios = append(scenarios,
+				authcase.NewScenario(cfg.AuthEmail, cfg.AuthPassword, cfg.DisplayName),
+				authfailure.NewScenario(cfg.AuthPassword),
+			)
 		case "job_runs":
-			scenarios = append(scenarios, jobrunscase.NewScenario())
+			scenarios = append(scenarios, jobrunscase.NewScenario("", cfg.AuthPassword, cfg.DisplayName))
+		case "tenant":
+			scenarios = append(scenarios, tenantisolation.NewScenario(cfg.AuthPassword, cfg.DisplayName))
 		default:
 			return nil, fmt.Errorf("unknown suite: %s", suiteName)
 		}

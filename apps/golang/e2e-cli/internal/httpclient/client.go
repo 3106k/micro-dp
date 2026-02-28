@@ -33,6 +33,10 @@ func (c *Client) SetToken(token string) {
 	c.token = token
 }
 
+func (c *Client) SetTenantID(id string) {
+	c.tenantID = id
+}
+
 func (c *Client) GetJSON(ctx context.Context, path string, out any) (int, []byte, error) {
 	return c.doJSON(ctx, http.MethodGet, path, nil, out)
 }
