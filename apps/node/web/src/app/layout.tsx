@@ -1,3 +1,5 @@
+import "./globals.css";
+
 export const metadata = {
   title: "micro-dp",
   description: "Data pipeline management",
@@ -10,7 +12,9 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body className="min-h-screen bg-background text-foreground antialiased">
+        {children}
+      </body>
     </html>
   );
 }
