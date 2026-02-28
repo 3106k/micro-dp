@@ -30,3 +30,6 @@ data/minio/
 
 # Environment
 .env
+
+# playwright
+.playwright-mcp/

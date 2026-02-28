@@ -45,8 +45,9 @@ func (s *AuthService) Register(ctx context.Context, email, password, displayName
 
 	tenantID = uuid.New().String()
 	tenant := &domain.Tenant{
-		ID:   tenantID,
-		Name: displayName + "'s Workspace",
+		ID:       tenantID,
+		Name:     displayName + "'s Workspace",
+		IsActive: true,
 	}
 	if err := s.tenants.Create(ctx, tenant); err != nil {
 		return "", "", err

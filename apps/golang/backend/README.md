@@ -50,6 +50,23 @@ air -c .air.<api|worker>.toml
    - API: `http://localhost:8080/healthz`
    - Worker: `http://localhost:8081/healthz`
 
+## Superadmin bootstrap and admin tenant API
+
+Create or promote a superadmin account:
+
+```bash
+cd apps/golang/backend
+go run ./cmd/bootstrap --email=admin@example.com --password='Passw0rd!123' --display-name='Platform Admin'
+```
+
+Admin tenant endpoints (JWT required, superadmin only):
+
+- `POST /api/v1/admin/tenants` (create tenant and add actor as `owner`)
+- `GET /api/v1/admin/tenants` (list all tenants)
+- `PATCH /api/v1/admin/tenants/{id}` (update `name` / `is_active`)
+
+Non-superadmin users receive `403`.
+
 ## Observability (OpenTelemetry + Prometheus)
 
 ### Environment variables

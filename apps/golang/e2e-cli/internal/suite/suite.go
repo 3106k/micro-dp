@@ -10,6 +10,7 @@ import (
 	eventscase "github.com/user/micro-dp/e2e-cli/internal/suite/events/happy_path"
 	healthcase "github.com/user/micro-dp/e2e-cli/internal/suite/health/healthz"
 	jobrunscase "github.com/user/micro-dp/e2e-cli/internal/suite/job_runs/happy_path"
+	adminmultitenant "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/admin_multi_tenant"
 	tenantisolation "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/isolation"
 )
 
@@ -29,7 +30,10 @@ func Build(cfg *config.Config) ([]runner.Scenario, error) {
 		case "events":
 			scenarios = append(scenarios, eventscase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
 		case "tenant":
-			scenarios = append(scenarios, tenantisolation.NewScenario(cfg.AuthPassword, cfg.DisplayName))
+			scenarios = append(scenarios,
+				tenantisolation.NewScenario(cfg.AuthPassword, cfg.DisplayName),
+				adminmultitenant.NewScenario(cfg.AdminEmail, cfg.AdminPassword),
+			)
 		default:
 			return nil, fmt.Errorf("unknown suite: %s", suiteName)
 		}

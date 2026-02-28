@@ -10,6 +10,7 @@ tags:
   - name: health
   - name: auth
   - name: events
+  - name: admin
   - name: jobs
   - name: job_runs
   - name: module_types
@@ -116,6 +117,92 @@ paths:
         "401":
           $ref: "#/components/responses/ErrorResponse"
         "409":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Admin Tenants ----
+  /api/v1/admin/tenants:
+    post:
+      tags: [admin]
+      summary: Create tenant (superadmin only)
+      operationId: adminCreateTenant
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCreateTenantRequest"
+      responses:
+        "201":
+          description: Created tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [admin]
+      summary: List tenants (superadmin only)
+      operationId: adminListTenants
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of tenants
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Tenant"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /api/v1/admin/tenants/{id}:
+    patch:
+      tags: [admin]
+      summary: Update tenant (superadmin only)
+      operationId: adminUpdateTenant
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminUpdateTenantRequest"
+      responses:
+        "200":
+          description: Updated tenant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tenant"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
           $ref: "#/components/responses/ErrorResponse"
 
   # ---- Jobs ----
@@ -780,7 +867,7 @@ components:
           type: string
     MeResponse:
       type: object
-      required: [user_id, email, display_name, tenants]
+      required: [user_id, email, display_name, is_superadmin, tenants]
       properties:
         user_id:
           type: string
@@ -789,18 +876,35 @@ components:
           format: email
         display_name:
           type: string
+        is_superadmin:
+          type: boolean
         tenants:
           type: array
           items:
             $ref: "#/components/schemas/Tenant"
     Tenant:
       type: object
-      required: [id, name]
+      required: [id, name, is_active]
       properties:
         id:
           type: string
         name:
           type: string
+        is_active:
+          type: boolean
+    AdminCreateTenantRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    AdminUpdateTenantRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        is_active:
+          type: boolean
 
     # ---- Event schemas ----
     IngestEventRequest:
