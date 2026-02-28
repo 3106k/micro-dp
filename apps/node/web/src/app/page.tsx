@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Button } from "@/components/ui/button";
 
 export default function Home() {
@@ -6,12 +8,16 @@ export default function Home() {
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">micro-dp</h1>
         <p className="text-muted-foreground">
-          Data pipeline management UI foundation with shadcn/ui
+          Data pipeline management platform
         </p>
       </div>
       <div className="flex gap-2">
-        <Button>Primary Button</Button>
-        <Button variant="outline">Outline Button</Button>
+        <Link href="/signin">
+          <Button>Sign In</Button>
+        </Link>
+        <Link href="/signup">
+          <Button variant="outline">Sign Up</Button>
+        </Link>
       </div>
     </main>
   );

@@ -65,6 +65,11 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-micro-dp}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      OTEL_TRACES_ENABLED: ${OTEL_TRACES_ENABLED:-true}
+      OTEL_METRICS_ENABLED: ${OTEL_METRICS_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_API:-micro-dp-api}
     volumes:
       - ./.data/sqlite:/data/sqlite
     depends_on:
@@ -93,6 +98,11 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-micro-dp}
+      OTEL_TRACES_ENABLED: ${OTEL_TRACES_ENABLED:-true}
+      OTEL_METRICS_ENABLED: ${OTEL_METRICS_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
+      OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_WORKER:-micro-dp-worker}
     volumes:
       - ./.data/sqlite:/data/sqlite
     depends_on:
@@ -116,7 +126,7 @@ services:
     ports:
       - "${WEB_HOST_PORT:-3000}:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8080
+      API_BACKEND_URL: http://api:8080
     depends_on:
       api:
         condition: service_healthy

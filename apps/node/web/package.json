@@ -11,19 +11,21 @@
     "openapi:generate": "openapi-typescript ../../../spec/openapi/v1.yaml -o src/lib/api/generated.ts"
   },
   "dependencies": {
+    "@radix-ui/react-label": "^2.1.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.575.0",
     "next": "15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "server-only": "^0.0.1",
     "tailwind-merge": "^3.5.0"
   },
   "devDependencies": {
+    "@redocly/cli": "^2.1.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@redocly/cli": "^2.1.0",
     "autoprefixer": "^10.4.27",
     "openapi-typescript": "^7.10.1",
     "postcss": "^8.5.6",
