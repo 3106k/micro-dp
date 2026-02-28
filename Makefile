@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps health clean setup-env dev-api dev-worker e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate openapi-check worktree worktree-rm worktree-ls
+.PHONY: up down build logs ps health clean setup-env dev-api dev-worker sdk-tracker-build sdk-tracker-test e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate openapi-check worktree worktree-rm worktree-ls
 
 COMPOSE_DIR := apps/docker
 COMPOSE     := cd $(COMPOSE_DIR) && docker compose
@@ -46,6 +46,12 @@ dev-api:
 
 dev-worker:
 	cd apps/golang/backend && air -c .air.worker.toml
+
+sdk-tracker-build:
+	cd apps/node/sdk-tracker && npm run build
+
+sdk-tracker-test:
+	cd apps/node/sdk-tracker && npm test
 
 e2e-cli:
 	cd apps/golang/e2e-cli && go run ./cmd/run --base-url=http://localhost:$(API_HOST_PORT)
