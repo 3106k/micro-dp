@@ -67,17 +67,35 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	client.SetToken(loginResp.Token)
 	client.SetTenantID(registerResp.TenantID)
 
+	// POST /api/v1/jobs → 201 (create a job first)
+	var jobResp struct {
+		ID   string `json:"id"`
+		Slug string `json:"slug"`
+	}
+	jobReq := map[string]string{
+		"name": "Test Job",
+		"slug": "test-job",
+	}
+	code, body, err = client.PostJSON(ctx, "/api/v1/jobs", jobReq, &jobResp)
+	if err != nil {
+		return err
+	}
+	if code != 201 {
+		return fmt.Errorf("create job: expected 201, got %d body=%s", code, string(body))
+	}
+	if jobResp.ID == "" {
+		return fmt.Errorf("create job: missing id in response")
+	}
+
 	// POST /api/v1/job_runs → 201
 	var createResp struct {
-		ID        string `json:"id"`
-		TenantID  string `json:"tenant_id"`
-		ProjectID string `json:"project_id"`
-		JobID     string `json:"job_id"`
-		Status    string `json:"status"`
+		ID       string `json:"id"`
+		TenantID string `json:"tenant_id"`
+		JobID    string `json:"job_id"`
+		Status   string `json:"status"`
 	}
 	createReq := map[string]string{
-		"project_id": "proj-001",
-		"job_id":     "job-001",
+		"job_id": jobResp.ID,
 	}
 	code, body, err = client.PostJSON(ctx, "/api/v1/job_runs", createReq, &createResp)
 	if err != nil {
@@ -122,10 +140,8 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 
 	// GET /api/v1/job_runs/{id} → 200
 	var getResp struct {
-		ID        string `json:"id"`
-		TenantID  string `json:"tenant_id"`
-		ProjectID string `json:"project_id"`
-		JobID     string `json:"job_id"`
+		ID    string `json:"id"`
+		JobID string `json:"job_id"`
 	}
 	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs/"+createResp.ID, &getResp)
 	if err != nil {

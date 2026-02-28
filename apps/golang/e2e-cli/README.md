@@ -6,7 +6,10 @@ API E2E verification CLI for `micro-dp` (API First workflow).
 
 - `health` suite: `GET /healthz`
 - `auth` suite: register/login/me happy path
-- `job_runs` suite: stub (currently `skipped`)
+- `job_runs` suite: create/list/get happy path
+- `tenant` suite:
+  - cross-tenant forbidden
+  - admin multi-tenant creation and membership check (skipped when admin credentials are not provided)
 
 ## Prerequisites
 
@@ -48,6 +51,11 @@ Optional inputs:
 - `--auth-email` / `E2E_AUTH_EMAIL`
 - `--auth-password` / `E2E_AUTH_PASSWORD` (default: `Passw0rd!123`)
 - `--display-name` / `E2E_DISPLAY_NAME` (default: `E2E User`)
+
+Tenant admin scenario inputs:
+
+- `--admin-email` / `E2E_ADMIN_EMAIL`
+- `--admin-password` / `E2E_ADMIN_PASSWORD`
 
 If `auth-email` is not set, a unique email is generated per run.
 

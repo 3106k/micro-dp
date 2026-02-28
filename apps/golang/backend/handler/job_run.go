@@ -23,13 +23,17 @@ func (h *JobRunHandler) Create(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	if req.ProjectId == "" || req.JobId == "" {
-		writeError(w, http.StatusBadRequest, "project_id and job_id are required")
+	if req.JobId == "" {
+		writeError(w, http.StatusBadRequest, "job_id is required")
 		return
 	}
 
-	jr, err := h.jobRuns.Create(r.Context(), req.ProjectId, req.JobId)
+	jr, err := h.jobRuns.Create(r.Context(), req.JobId, req.JobVersionId)
 	if err != nil {
+		if errors.Is(err, domain.ErrJobNotFound) {
+			writeError(w, http.StatusNotFound, "job not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}

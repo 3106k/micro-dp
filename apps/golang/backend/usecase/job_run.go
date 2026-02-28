@@ -10,24 +10,30 @@ import (
 
 type JobRunService struct {
 	jobRuns domain.JobRunRepository
+	jobs    domain.JobRepository
 }
 
-func NewJobRunService(jobRuns domain.JobRunRepository) *JobRunService {
-	return &JobRunService{jobRuns: jobRuns}
+func NewJobRunService(jobRuns domain.JobRunRepository, jobs domain.JobRepository) *JobRunService {
+	return &JobRunService{jobRuns: jobRuns, jobs: jobs}
 }
 
-func (s *JobRunService) Create(ctx context.Context, projectID, jobID string) (*domain.JobRun, error) {
+func (s *JobRunService) Create(ctx context.Context, jobID string, jobVersionID *string) (*domain.JobRun, error) {
 	tenantID, ok := domain.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("tenant id not found in context")
 	}
 
+	// Verify job exists
+	if _, err := s.jobs.FindByID(ctx, tenantID, jobID); err != nil {
+		return nil, err
+	}
+
 	jr := &domain.JobRun{
-		ID:        uuid.New().String(),
-		TenantID:  tenantID,
-		ProjectID: projectID,
-		JobID:     jobID,
-		Status:    "queued",
+		ID:           uuid.New().String(),
+		TenantID:     tenantID,
+		JobID:        jobID,
+		JobVersionID: jobVersionID,
+		Status:       domain.StatusQueued,
 	}
 
 	if err := s.jobRuns.Create(ctx, jr); err != nil {

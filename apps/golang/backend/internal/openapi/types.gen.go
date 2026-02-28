@@ -13,6 +13,13 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for CreateModuleTypeRequestCategory.
+const (
+	CreateModuleTypeRequestCategoryDestination CreateModuleTypeRequestCategory = "destination"
+	CreateModuleTypeRequestCategorySource      CreateModuleTypeRequestCategory = "source"
+	CreateModuleTypeRequestCategoryTransform   CreateModuleTypeRequestCategory = "transform"
+)
+
 // Defines values for HealthResponseStatus.
 const (
 	Degraded HealthResponseStatus = "degraded"
@@ -21,16 +28,94 @@ const (
 
 // Defines values for JobRunStatus.
 const (
-	Failed  JobRunStatus = "failed"
-	Queued  JobRunStatus = "queued"
-	Running JobRunStatus = "running"
-	Success JobRunStatus = "success"
+	Canceled JobRunStatus = "canceled"
+	Failed   JobRunStatus = "failed"
+	Queued   JobRunStatus = "queued"
+	Running  JobRunStatus = "running"
+	Success  JobRunStatus = "success"
 )
+
+// Defines values for JobVersionStatus.
+const (
+	Draft     JobVersionStatus = "draft"
+	Published JobVersionStatus = "published"
+)
+
+// Defines values for ModuleTypeCategory.
+const (
+	ModuleTypeCategoryDestination ModuleTypeCategory = "destination"
+	ModuleTypeCategorySource      ModuleTypeCategory = "source"
+	ModuleTypeCategoryTransform   ModuleTypeCategory = "transform"
+)
+
+// Connection defines model for Connection.
+type Connection struct {
+	ConfigJson *string    `json:"config_json,omitempty"`
+	CreatedAt  *time.Time `json:"created_at,omitempty"`
+	Id         string     `json:"id"`
+	Name       string     `json:"name"`
+	SecretRef  *string    `json:"secret_ref,omitempty"`
+	TenantId   string     `json:"tenant_id"`
+	Type       string     `json:"type"`
+	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+}
+
+// CreateConnectionRequest defines model for CreateConnectionRequest.
+type CreateConnectionRequest struct {
+	ConfigJson *string `json:"config_json,omitempty"`
+	Name       string  `json:"name"`
+	SecretRef  *string `json:"secret_ref,omitempty"`
+	Type       string  `json:"type"`
+}
+
+// CreateEdgeInput defines model for CreateEdgeInput.
+type CreateEdgeInput struct {
+	SourceModuleIndex int `json:"source_module_index"`
+	TargetModuleIndex int `json:"target_module_index"`
+}
+
+// CreateJobModuleInput defines model for CreateJobModuleInput.
+type CreateJobModuleInput struct {
+	ConfigJson         *string  `json:"config_json,omitempty"`
+	ConnectionId       *string  `json:"connection_id,omitempty"`
+	ModuleTypeId       string   `json:"module_type_id"`
+	ModuleTypeSchemaId *string  `json:"module_type_schema_id,omitempty"`
+	Name               string   `json:"name"`
+	PositionX          *float32 `json:"position_x,omitempty"`
+	PositionY          *float32 `json:"position_y,omitempty"`
+}
+
+// CreateJobRequest defines model for CreateJobRequest.
+type CreateJobRequest struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+}
 
 // CreateJobRunRequest defines model for CreateJobRunRequest.
 type CreateJobRunRequest struct {
-	JobId     string `json:"job_id"`
-	ProjectId string `json:"project_id"`
+	JobId        string  `json:"job_id"`
+	JobVersionId *string `json:"job_version_id,omitempty"`
+}
+
+// CreateJobVersionRequest defines model for CreateJobVersionRequest.
+type CreateJobVersionRequest struct {
+	Edges   *[]CreateEdgeInput     `json:"edges,omitempty"`
+	Modules []CreateJobModuleInput `json:"modules"`
+}
+
+// CreateModuleTypeRequest defines model for CreateModuleTypeRequest.
+type CreateModuleTypeRequest struct {
+	Category CreateModuleTypeRequestCategory `json:"category"`
+	Name     string                          `json:"name"`
+}
+
+// CreateModuleTypeRequestCategory defines model for CreateModuleTypeRequest.Category.
+type CreateModuleTypeRequestCategory string
+
+// CreateModuleTypeSchemaRequest defines model for CreateModuleTypeSchemaRequest.
+type CreateModuleTypeSchemaRequest struct {
+	JsonSchema string `json:"json_schema"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -47,19 +132,76 @@ type HealthResponse struct {
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
 
-// JobRun defines model for JobRun.
-type JobRun struct {
-	FinishedAt *time.Time   `json:"finished_at,omitempty"`
-	Id         string       `json:"id"`
-	JobId      string       `json:"job_id"`
-	ProjectId  string       `json:"project_id"`
-	StartedAt  *time.Time   `json:"started_at,omitempty"`
-	Status     JobRunStatus `json:"status"`
-	TenantId   string       `json:"tenant_id"`
+// Job defines model for Job.
+type Job struct {
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	Id          string     `json:"id"`
+	IsActive    bool       `json:"is_active"`
+	Name        string     `json:"name"`
+	Slug        string     `json:"slug"`
+	TenantId    string     `json:"tenant_id"`
+	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 }
 
-// JobRunStatus defines model for JobRun.Status.
+// JobModule defines model for JobModule.
+type JobModule struct {
+	ConfigJson         *string  `json:"config_json,omitempty"`
+	ConnectionId       *string  `json:"connection_id,omitempty"`
+	Id                 string   `json:"id"`
+	JobVersionId       string   `json:"job_version_id"`
+	ModuleTypeId       string   `json:"module_type_id"`
+	ModuleTypeSchemaId *string  `json:"module_type_schema_id,omitempty"`
+	Name               string   `json:"name"`
+	PositionX          *float32 `json:"position_x,omitempty"`
+	PositionY          *float32 `json:"position_y,omitempty"`
+	TenantId           string   `json:"tenant_id"`
+}
+
+// JobModuleEdge defines model for JobModuleEdge.
+type JobModuleEdge struct {
+	Id             string `json:"id"`
+	JobVersionId   string `json:"job_version_id"`
+	SourceModuleId string `json:"source_module_id"`
+	TargetModuleId string `json:"target_module_id"`
+	TenantId       string `json:"tenant_id"`
+}
+
+// JobRun defines model for JobRun.
+type JobRun struct {
+	FinishedAt   *time.Time   `json:"finished_at,omitempty"`
+	Id           string       `json:"id"`
+	JobId        string       `json:"job_id"`
+	JobVersionId *string      `json:"job_version_id,omitempty"`
+	StartedAt    *time.Time   `json:"started_at,omitempty"`
+	Status       JobRunStatus `json:"status"`
+	TenantId     string       `json:"tenant_id"`
+}
+
+// JobRunStatus defines model for JobRunStatus.
 type JobRunStatus string
+
+// JobVersion defines model for JobVersion.
+type JobVersion struct {
+	CreatedAt   *time.Time       `json:"created_at,omitempty"`
+	Id          string           `json:"id"`
+	JobId       string           `json:"job_id"`
+	PublishedAt *time.Time       `json:"published_at,omitempty"`
+	Status      JobVersionStatus `json:"status"`
+	TenantId    string           `json:"tenant_id"`
+	UpdatedAt   *time.Time       `json:"updated_at,omitempty"`
+	Version     int              `json:"version"`
+}
+
+// JobVersionStatus defines model for JobVersion.Status.
+type JobVersionStatus string
+
+// JobVersionDetail defines model for JobVersionDetail.
+type JobVersionDetail struct {
+	Edges   []JobModuleEdge `json:"edges"`
+	Modules []JobModule     `json:"modules"`
+	Version JobVersion      `json:"version"`
+}
 
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
@@ -78,6 +220,29 @@ type MeResponse struct {
 	Email       openapi_types.Email `json:"email"`
 	Tenants     []Tenant            `json:"tenants"`
 	UserId      string              `json:"user_id"`
+}
+
+// ModuleType defines model for ModuleType.
+type ModuleType struct {
+	Category  ModuleTypeCategory `json:"category"`
+	CreatedAt *time.Time         `json:"created_at,omitempty"`
+	Id        string             `json:"id"`
+	Name      string             `json:"name"`
+	TenantId  string             `json:"tenant_id"`
+	UpdatedAt *time.Time         `json:"updated_at,omitempty"`
+}
+
+// ModuleTypeCategory defines model for ModuleType.Category.
+type ModuleTypeCategory string
+
+// ModuleTypeSchema defines model for ModuleTypeSchema.
+type ModuleTypeSchema struct {
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
+	Id           string     `json:"id"`
+	JsonSchema   string     `json:"json_schema"`
+	ModuleTypeId string     `json:"module_type_id"`
+	TenantId     string     `json:"tenant_id"`
+	Version      int        `json:"version"`
 }
 
 // RegisterRequest defines model for RegisterRequest.
@@ -99,8 +264,49 @@ type Tenant struct {
 	Name string `json:"name"`
 }
 
+// UpdateConnectionRequest defines model for UpdateConnectionRequest.
+type UpdateConnectionRequest struct {
+	ConfigJson *string `json:"config_json,omitempty"`
+	Name       string  `json:"name"`
+	SecretRef  *string `json:"secret_ref,omitempty"`
+	Type       string  `json:"type"`
+}
+
+// UpdateJobRequest defines model for UpdateJobRequest.
+type UpdateJobRequest struct {
+	Description *string `json:"description,omitempty"`
+	IsActive    bool    `json:"is_active"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+}
+
 // XTenantID defines model for XTenantID.
 type XTenantID = string
+
+// ListConnectionsParams defines parameters for ListConnections.
+type ListConnectionsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateConnectionParams defines parameters for CreateConnection.
+type CreateConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// DeleteConnectionParams defines parameters for DeleteConnection.
+type DeleteConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetConnectionParams defines parameters for GetConnection.
+type GetConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// UpdateConnectionParams defines parameters for UpdateConnection.
+type UpdateConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
 
 // ListJobRunsParams defines parameters for ListJobRuns.
 type ListJobRunsParams struct {
@@ -118,11 +324,97 @@ type GetJobRunParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// ListJobsParams defines parameters for ListJobs.
+type ListJobsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateJobParams defines parameters for CreateJob.
+type CreateJobParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetJobParams defines parameters for GetJob.
+type GetJobParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// UpdateJobParams defines parameters for UpdateJob.
+type UpdateJobParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListJobVersionsParams defines parameters for ListJobVersions.
+type ListJobVersionsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateJobVersionParams defines parameters for CreateJobVersion.
+type CreateJobVersionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetJobVersionDetailParams defines parameters for GetJobVersionDetail.
+type GetJobVersionDetailParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// PublishJobVersionParams defines parameters for PublishJobVersion.
+type PublishJobVersionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListModuleTypesParams defines parameters for ListModuleTypes.
+type ListModuleTypesParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateModuleTypeParams defines parameters for CreateModuleType.
+type CreateModuleTypeParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetModuleTypeParams defines parameters for GetModuleType.
+type GetModuleTypeParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListModuleTypeSchemasParams defines parameters for ListModuleTypeSchemas.
+type ListModuleTypeSchemasParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateModuleTypeSchemaParams defines parameters for CreateModuleTypeSchema.
+type CreateModuleTypeSchemaParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
 // RegisterJSONRequestBody defines body for Register for application/json ContentType.
 type RegisterJSONRequestBody = RegisterRequest
 
+// CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
+type CreateConnectionJSONRequestBody = CreateConnectionRequest
+
+// UpdateConnectionJSONRequestBody defines body for UpdateConnection for application/json ContentType.
+type UpdateConnectionJSONRequestBody = UpdateConnectionRequest
+
 // CreateJobRunJSONRequestBody defines body for CreateJobRun for application/json ContentType.
 type CreateJobRunJSONRequestBody = CreateJobRunRequest
+
+// CreateJobJSONRequestBody defines body for CreateJob for application/json ContentType.
+type CreateJobJSONRequestBody = CreateJobRequest
+
+// UpdateJobJSONRequestBody defines body for UpdateJob for application/json ContentType.
+type UpdateJobJSONRequestBody = UpdateJobRequest
+
+// CreateJobVersionJSONRequestBody defines body for CreateJobVersion for application/json ContentType.
+type CreateJobVersionJSONRequestBody = CreateJobVersionRequest
+
+// CreateModuleTypeJSONRequestBody defines body for CreateModuleType for application/json ContentType.
+type CreateModuleTypeJSONRequestBody = CreateModuleTypeRequest
+
+// CreateModuleTypeSchemaJSONRequestBody defines body for CreateModuleTypeSchema for application/json ContentType.
+type CreateModuleTypeSchemaJSONRequestBody = CreateModuleTypeSchemaRequest

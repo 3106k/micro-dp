@@ -11,6 +11,8 @@ const statusStyles: Record<JobRun["status"], string> = {
     "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   failed:
     "bg-destructive/10 text-destructive",
+  canceled:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
 };
 
 function StatusBadge({ status }: { status: JobRun["status"] }) {
@@ -38,7 +40,6 @@ export function JobRunsTable({ jobRuns }: { jobRuns: JobRun[] }) {
         <thead>
           <tr className="border-b bg-muted/50">
             <th className="px-4 py-3 text-left font-medium">ID</th>
-            <th className="px-4 py-3 text-left font-medium">Project</th>
             <th className="px-4 py-3 text-left font-medium">Job</th>
             <th className="px-4 py-3 text-left font-medium">Status</th>
             <th className="px-4 py-3 text-left font-medium">Started</th>
@@ -51,7 +52,6 @@ export function JobRunsTable({ jobRuns }: { jobRuns: JobRun[] }) {
               <td className="px-4 py-3 font-mono text-xs">
                 {run.id.slice(0, 8)}
               </td>
-              <td className="px-4 py-3">{run.project_id}</td>
               <td className="px-4 py-3">{run.job_id}</td>
               <td className="px-4 py-3">
                 <StatusBadge status={run.status} />

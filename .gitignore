@@ -18,6 +18,8 @@ spec/openapi/dist/
 apps/node/web/node_modules/
 apps/node/web/.next/
 apps/node/web/out/
+apps/node/sdk-tracker/node_modules/
+apps/node/sdk-tracker/dist/
 
 # Docker data
 data/sqlite/
