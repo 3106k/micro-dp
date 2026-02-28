@@ -1,5 +1,6 @@
-FROM golang:1.26-alpine
+FROM golang:1.26
 
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*
 RUN go install github.com/air-verse/air@latest
 
 WORKDIR /app
@@ -9,4 +10,5 @@ RUN go mod download
 COPY apps/golang/backend/ .
 RUN mkdir -p /data/sqlite
 
+ENV CGO_ENABLED=1
 ENTRYPOINT ["air"]

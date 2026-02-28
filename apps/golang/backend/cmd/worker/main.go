@@ -2,17 +2,24 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"net/http"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/observability"
+	"github.com/user/micro-dp/queue"
+	"github.com/user/micro-dp/storage"
+	"github.com/user/micro-dp/worker"
 )
 
 func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+	defer stop()
+
 	sqlDB, err := db.Open()
 	if err != nil {
 		log.Fatalf("db open: %v", err)
@@ -24,15 +31,36 @@ func main() {
 	}
 
 	obsCfg := observability.LoadConfig("micro-dp-worker")
-	obsShutdown, err := observability.Init(context.Background(), obsCfg)
+	obsShutdown, err := observability.Init(ctx, obsCfg)
 	if err != nil {
 		log.Fatalf("observability init: %v", err)
 	}
 	defer observability.ShutdownWithTimeout(obsShutdown, 5*time.Second)
 	observability.LogStartup(obsCfg)
 
-	healthH := handler.NewHealthHandler(sqlDB)
+	// Valkey
+	valkeyClient, err := queue.NewValkeyClient()
+	if err != nil {
+		log.Fatalf("valkey connect: %v", err)
+	}
+	defer valkeyClient.Close()
+	eventQueue := queue.NewEventQueue(valkeyClient)
 
+	// MinIO
+	minioClient, err := storage.NewMinIOClient()
+	if err != nil {
+		log.Fatalf("minio connect: %v", err)
+	}
+
+	// Event consumer
+	eventMetrics := observability.NewEventMetrics()
+	parquetWriter := worker.NewParquetWriter(minioClient)
+	consumer := worker.NewEventConsumer(eventQueue, parquetWriter, eventMetrics)
+
+	go consumer.Run(ctx)
+
+	// Health check server
+	healthH := handler.NewHealthHandler(sqlDB)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthH.Healthz)
 	mux.Handle("GET /metrics", observability.MetricsHandler())
@@ -40,12 +68,21 @@ func main() {
 	addr := ":8081"
 	log.Printf("worker starting (healthcheck on %s)", addr)
 
-	// TODO: start queue consumer goroutine
-	// TODO: DuckDB processing
-	// TODO: MinIO/Iceberg export
+	srv := &http.Server{Addr: addr, Handler: observability.WrapHTTPHandler(mux, "worker-http")}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("http server: %v", err)
+		}
+	}()
 
-	fmt.Println("worker: waiting for jobs...")
-	if err := http.ListenAndServe(addr, observability.WrapHTTPHandler(mux, "worker-http")); err != nil {
-		log.Fatal(err)
+	<-ctx.Done()
+	log.Println("worker shutting down...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Printf("http shutdown error: %v", err)
 	}
+
+	log.Println("worker stopped")
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/observability"
+	"github.com/user/micro-dp/queue"
 	"github.com/user/micro-dp/usecase"
 )
 
@@ -46,6 +47,14 @@ func main() {
 		log.Fatal("JWT_SECRET environment variable is required")
 	}
 
+	// Valkey
+	valkeyClient, err := queue.NewValkeyClient()
+	if err != nil {
+		log.Fatalf("valkey connect: %v", err)
+	}
+	defer valkeyClient.Close()
+	eventQueue := queue.NewEventQueue(valkeyClient)
+
 	// Repositories
 	userRepo := db.NewUserRepo(sqlDB)
 	tenantRepo := db.NewTenantRepo(sqlDB)
@@ -65,6 +74,8 @@ func main() {
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo)
+	eventService := usecase.NewEventService(eventQueue)
+	eventMetrics := observability.NewEventMetrics()
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
@@ -73,6 +84,7 @@ func main() {
 	jobH := handler.NewJobHandler(jobService)
 	moduleTypeH := handler.NewModuleTypeHandler(moduleTypeService)
 	connectionH := handler.NewConnectionHandler(connectionService)
+	eventH := handler.NewEventHandler(eventService, eventMetrics)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -94,6 +106,9 @@ func main() {
 	mux.Handle("GET /api/v1/auth/me", authMW(http.HandlerFunc(authH.Me)))
 
 	// Authenticated + tenant-scoped routes
+
+	// Events
+	mux.Handle("POST /api/v1/events", protected(eventH.Ingest))
 
 	// Job runs
 	mux.Handle("POST /api/v1/job_runs", protected(jobRunH.Create))

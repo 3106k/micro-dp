@@ -26,6 +26,11 @@ const (
 	Ok       HealthResponseStatus = "ok"
 )
 
+// Defines values for IngestEventResponseStatus.
+const (
+	Accepted IngestEventResponseStatus = "accepted"
+)
+
 // Defines values for JobRunStatus.
 const (
 	Canceled JobRunStatus = "canceled"
@@ -131,6 +136,23 @@ type HealthResponse struct {
 
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
+
+// IngestEventRequest defines model for IngestEventRequest.
+type IngestEventRequest struct {
+	EventId    string                  `json:"event_id"`
+	EventName  string                  `json:"event_name"`
+	EventTime  time.Time               `json:"event_time"`
+	Properties *map[string]interface{} `json:"properties,omitempty"`
+}
+
+// IngestEventResponse defines model for IngestEventResponse.
+type IngestEventResponse struct {
+	EventId string                    `json:"event_id"`
+	Status  IngestEventResponseStatus `json:"status"`
+}
+
+// IngestEventResponseStatus defines model for IngestEventResponse.Status.
+type IngestEventResponseStatus string
 
 // Job defines model for Job.
 type Job struct {
@@ -308,6 +330,11 @@ type UpdateConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// IngestEventParams defines parameters for IngestEvent.
+type IngestEventParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // ListJobRunsParams defines parameters for ListJobRuns.
 type ListJobRunsParams struct {
 	Limit     *int      `form:"limit,omitempty" json:"limit,omitempty"`
@@ -400,6 +427,9 @@ type CreateConnectionJSONRequestBody = CreateConnectionRequest
 
 // UpdateConnectionJSONRequestBody defines body for UpdateConnection for application/json ContentType.
 type UpdateConnectionJSONRequestBody = UpdateConnectionRequest
+
+// IngestEventJSONRequestBody defines body for IngestEvent for application/json ContentType.
+type IngestEventJSONRequestBody = IngestEventRequest
 
 // CreateJobRunJSONRequestBody defines body for CreateJobRun for application/json ContentType.
 type CreateJobRunJSONRequestBody = CreateJobRunRequest

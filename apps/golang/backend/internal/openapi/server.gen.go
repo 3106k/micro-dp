@@ -41,6 +41,9 @@ type ServerInterface interface {
 	// Update connection
 	// (PUT /api/v1/connections/{id})
 	UpdateConnection(w http.ResponseWriter, r *http.Request, id string, params UpdateConnectionParams)
+	// Ingest event
+	// (POST /api/v1/events)
+	IngestEvent(w http.ResponseWriter, r *http.Request, params IngestEventParams)
 	// List job runs
 	// (GET /api/v1/job_runs)
 	ListJobRuns(w http.ResponseWriter, r *http.Request, params ListJobRunsParams)
@@ -419,6 +422,56 @@ func (siw *ServerInterfaceWrapper) UpdateConnection(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateConnection(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// IngestEvent operation middleware
+func (siw *ServerInterfaceWrapper) IngestEvent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params IngestEventParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IngestEvent(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1486,6 +1539,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/connections/{id}", wrapper.DeleteConnection)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections/{id}", wrapper.GetConnection)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/connections/{id}", wrapper.UpdateConnection)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/events", wrapper.IngestEvent)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs", wrapper.ListJobRuns)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/job_runs", wrapper.CreateJobRun)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{id}", wrapper.GetJobRun)
@@ -1797,6 +1851,51 @@ func (response UpdateConnection404JSONResponse) VisitUpdateConnectionResponse(w 
 type UpdateConnection409JSONResponse ErrorResponse
 
 func (response UpdateConnection409JSONResponse) VisitUpdateConnectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IngestEventRequestObject struct {
+	Params IngestEventParams
+	Body   *IngestEventJSONRequestBody
+}
+
+type IngestEventResponseObject interface {
+	VisitIngestEventResponse(w http.ResponseWriter) error
+}
+
+type IngestEvent202JSONResponse IngestEventResponse
+
+func (response IngestEvent202JSONResponse) VisitIngestEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IngestEvent400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response IngestEvent400JSONResponse) VisitIngestEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IngestEvent401JSONResponse ErrorResponse
+
+func (response IngestEvent401JSONResponse) VisitIngestEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IngestEvent409JSONResponse ErrorResponse
+
+func (response IngestEvent409JSONResponse) VisitIngestEventResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
 
@@ -2442,6 +2541,9 @@ type StrictServerInterface interface {
 	// Update connection
 	// (PUT /api/v1/connections/{id})
 	UpdateConnection(ctx context.Context, request UpdateConnectionRequestObject) (UpdateConnectionResponseObject, error)
+	// Ingest event
+	// (POST /api/v1/events)
+	IngestEvent(ctx context.Context, request IngestEventRequestObject) (IngestEventResponseObject, error)
 	// List job runs
 	// (GET /api/v1/job_runs)
 	ListJobRuns(ctx context.Context, request ListJobRunsRequestObject) (ListJobRunsResponseObject, error)
@@ -2750,6 +2852,39 @@ func (sh *strictHandler) UpdateConnection(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateConnectionResponseObject); ok {
 		if err := validResponse.VisitUpdateConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// IngestEvent operation middleware
+func (sh *strictHandler) IngestEvent(w http.ResponseWriter, r *http.Request, params IngestEventParams) {
+	var request IngestEventRequestObject
+
+	request.Params = params
+
+	var body IngestEventJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.IngestEvent(ctx, request.(IngestEventRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "IngestEvent")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(IngestEventResponseObject); ok {
+		if err := validResponse.VisitIngestEventResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
