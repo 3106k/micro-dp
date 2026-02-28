@@ -1,0 +1,36 @@
+name: openapi-contract
+
+on:
+  pull_request:
+    paths:
+      - "spec/openapi/**"
+      - "apps/node/web/package.json"
+      - "apps/node/web/package-lock.json"
+      - "apps/golang/backend/oapi-*.cfg.yaml"
+      - "Makefile"
+      - ".github/workflows/openapi-contract.yml"
+  workflow_dispatch:
+
+jobs:
+  contract-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: apps/node/web
+
+      - name: OpenAPI lint and generation drift check
+        run: make openapi-check

@@ -104,3 +104,28 @@ Internal container ports are fixed; only host-side ports change per environment.
 - `docker-compose.yaml` — production services (context is repo root `../..`)
 - `docker-compose.override.yaml` — dev mode with volume mounts + hot reload (air for Go, next dev for Node)
 - Production builds use multi-stage Dockerfiles; dev builds mount source directly
+
+## Contract-First OpenAPI (SSOT)
+
+`spec/openapi/v1.yaml` is the single source of truth for API contracts.
+
+### OpenAPI workflow
+
+Run from repo root:
+
+```bash
+make openapi-lint         # Redocly lint for spec/openapi/v1.yaml
+make openapi-bundle       # bundle output to spec/openapi/dist/v1.bundle.yaml
+make openapi-generate-fe  # generate TS types to apps/node/web/src/lib/api/generated.ts
+make openapi-generate-be  # generate Go types/server interfaces to apps/golang/backend/internal/openapi/*.gen.go
+make openapi-generate     # run FE + BE generation
+make openapi-check        # lint + generate + git diff --exit-code (drift detection)
+```
+
+### Rule
+
+When API contract is changed:
+
+1. Update `spec/openapi/v1.yaml`
+2. Run `make openapi-generate` (or `make openapi-check`)
+3. Commit spec and generated artifacts together

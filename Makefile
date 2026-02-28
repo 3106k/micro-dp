@@ -65,8 +65,8 @@ openapi-generate-fe:
 	cd apps/node/web && npm run openapi:generate
 
 openapi-generate-be:
-	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-types.cfg.yaml ../../spec/openapi/v1.yaml
-	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-server.cfg.yaml ../../spec/openapi/v1.yaml
+	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-types.cfg.yaml ../../../spec/openapi/v1.yaml
+	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-server.cfg.yaml ../../../spec/openapi/v1.yaml
 
 openapi-generate: openapi-generate-fe openapi-generate-be
 

@@ -1,0 +1,249 @@
+openapi: 3.0.3
+info:
+  title: micro-dp API
+  version: 1.0.0
+  description: |
+    Contract-first API specification for micro-dp.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: health
+  - name: auth
+  - name: job_runs
+paths:
+  /healthz:
+    get:
+      tags: [health]
+      summary: Health check
+      operationId: getHealthz
+      responses:
+        "200":
+          description: Health status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      summary: Register user
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RegisterResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      summary: Login
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/auth/me:
+    get:
+      tags: [auth]
+      summary: Current user profile
+      operationId: me
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/job_runs:
+    get:
+      tags: [job_runs]
+      summary: List job runs (planned)
+      operationId: listJobRuns
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: List of job runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JobRun"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+    post:
+      tags: [job_runs]
+      summary: Create job run (planned)
+      operationId: createJobRun
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateJobRunRequest"
+      responses:
+        "201":
+          description: Created job run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRun"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  responses:
+    ErrorResponse:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        db:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    RegisterRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        display_name:
+          type: string
+    RegisterResponse:
+      type: object
+      required: [user_id, tenant_id]
+      properties:
+        user_id:
+          type: string
+        tenant_id:
+          type: string
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+    MeResponse:
+      type: object
+      required: [user_id, email, display_name, tenants]
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        tenants:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tenant"
+    Tenant:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+    CreateJobRunRequest:
+      type: object
+      required: [job_name]
+      properties:
+        job_name:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+    JobRun:
+      type: object
+      required: [id, tenant_id, status, started_at]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        status:
+          type: string
+          enum: [queued, running, success, failed]
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
