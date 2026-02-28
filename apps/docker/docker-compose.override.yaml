@@ -3,6 +3,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/docker/backend/Dockerfile.dev
+    command: ["--mode=api"]
     volumes:
       - ../../apps/golang/backend:/app
       - sqlite-data:/data/sqlite
@@ -11,6 +12,7 @@ services:
     build:
       context: ../..
       dockerfile: apps/docker/backend/Dockerfile.dev
+    command: ["--mode=worker"]
     volumes:
       - ../../apps/golang/backend:/app
       - sqlite-data:/data/sqlite

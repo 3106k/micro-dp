@@ -1,7 +1,7 @@
-.PHONY: up down build logs ps health clean setup-env worktree worktree-rm worktree-ls
+.PHONY: up down build logs ps health clean setup-env dev-api dev-worker worktree worktree-rm worktree-ls
 
 COMPOSE_DIR := apps/docker
-COMPOSE     := cd $(COMPOSE_DIR) && docker compose -f docker-compose.yaml
+COMPOSE     := cd $(COMPOSE_DIR) && docker compose
 
 # .env があれば読み込む（ポート変数を Makefile 内で参照するため）
 -include .env
@@ -40,6 +40,12 @@ health:
 
 clean:
 	$(COMPOSE) down -v --rmi local
+
+dev-api:
+	cd apps/golang/backend && air -c .air.toml -- --mode=api
+
+dev-worker:
+	cd apps/golang/backend && air -c .air.toml -- --mode=worker
 
 # --- Git Worktree ---
 # 使い方:
