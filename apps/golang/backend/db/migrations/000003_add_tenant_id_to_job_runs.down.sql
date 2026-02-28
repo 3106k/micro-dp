@@ -1,0 +1,5 @@
+DROP INDEX IF EXISTS idx_job_runs_tenant_id;
+
+ALTER TABLE job_runs DROP COLUMN tenant_id;
+
+DELETE FROM tenants WHERE id = '00000000-0000-0000-0000-000000000000';

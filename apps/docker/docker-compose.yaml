@@ -64,8 +64,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-micro-dp}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
     volumes:
-      - sqlite-data:/data/sqlite
+      - ./.data/sqlite:/data/sqlite
     depends_on:
       valkey:
         condition: service_healthy
@@ -92,8 +93,9 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-micro-dp}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
     volumes:
-      - sqlite-data:/data/sqlite
+      - ./.data/sqlite:/data/sqlite
     depends_on:
       api:
         condition: service_healthy
@@ -128,7 +130,6 @@ services:
       retries: 5
 
 volumes:
-  sqlite-data:
   minio-data:
 
 networks:
