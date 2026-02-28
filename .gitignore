@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Go
+apps/golang/backend/backend
+apps/golang/backend/tmp/
+
+# Node
+apps/node/web/node_modules/
+apps/node/web/.next/
+apps/node/web/out/
+
+# Docker data
+data/sqlite/
+data/minio/
+
+# Claude Code
+.claude/settings.local.json
+
+# Environment
+.env

@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/docker/backend/Dockerfile.dev
+    volumes:
+      - ../../apps/golang/backend:/app
+      - sqlite-data:/data/sqlite
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: apps/docker/backend/Dockerfile.dev
+    volumes:
+      - ../../apps/golang/backend:/app
+      - sqlite-data:/data/sqlite
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/docker/web/Dockerfile.dev
+    volumes:
+      - ../../apps/node/web:/app
+      - /app/node_modules
+      - /app/.next
