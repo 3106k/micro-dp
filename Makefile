@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps health clean setup-env dev-api dev-worker e2e-cli e2e-ci-template worktree worktree-rm worktree-ls
+.PHONY: up down build logs ps health clean setup-env dev-api dev-worker e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate openapi-check worktree worktree-rm worktree-ls
 
 COMPOSE_DIR := apps/docker
 COMPOSE     := cd $(COMPOSE_DIR) && docker compose
@@ -42,10 +42,10 @@ clean:
 	$(COMPOSE) down -v --rmi local
 
 dev-api:
-	cd apps/golang/backend && air -c .air.toml -- --mode=api
+	cd apps/golang/backend && air -c .air.api.toml
 
 dev-worker:
-	cd apps/golang/backend && air -c .air.toml -- --mode=worker
+	cd apps/golang/backend && air -c .air.worker.toml
 
 e2e-cli:
 	cd apps/golang/e2e-cli && go run ./cmd/run --base-url=http://localhost:$(API_HOST_PORT)
@@ -54,6 +54,26 @@ e2e-ci-template:
 	$(MAKE) up
 	$(MAKE) e2e-cli || (ret=$$?; $(MAKE) down; exit $$ret)
 	$(MAKE) down
+
+openapi-lint:
+	cd apps/node/web && npm run openapi:lint
+
+openapi-bundle:
+	cd apps/node/web && npm run openapi:bundle
+
+openapi-generate-fe:
+	cd apps/node/web && npm run openapi:generate
+
+openapi-generate-be:
+	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-types.cfg.yaml ../../spec/openapi/v1.yaml
+	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-server.cfg.yaml ../../spec/openapi/v1.yaml
+
+openapi-generate: openapi-generate-fe openapi-generate-be
+
+openapi-check:
+	$(MAKE) openapi-lint
+	$(MAKE) openapi-generate
+	git diff --exit-code
 
 # --- Git Worktree ---
 # 使い方:

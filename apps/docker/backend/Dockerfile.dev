@@ -9,4 +9,4 @@ RUN go mod download
 COPY apps/golang/backend/ .
 RUN mkdir -p /data/sqlite
 
-ENTRYPOINT ["air", "-c", ".air.toml", "--"]
+ENTRYPOINT ["air"]

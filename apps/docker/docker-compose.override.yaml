@@ -3,7 +3,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/docker/backend/Dockerfile.dev
-    command: ["--mode=api"]
+    entrypoint: ["air", "-c", ".air.api.toml"]
+    command: []
     volumes:
       - ../../apps/golang/backend:/app
       - ./.data/sqlite:/data/sqlite
@@ -12,7 +13,8 @@ services:
     build:
       context: ../..
       dockerfile: apps/docker/backend/Dockerfile.dev
-    command: ["--mode=worker"]
+    entrypoint: ["air", "-c", ".air.worker.toml"]
+    command: []
     volumes:
       - ../../apps/golang/backend:/app
       - ./.data/sqlite:/data/sqlite

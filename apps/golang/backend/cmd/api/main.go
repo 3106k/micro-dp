@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -13,7 +12,7 @@ import (
 )
 
 func main() {
-	mode := flag.String("mode", "api", "Run mode: api, worker, or migrate")
+	migrate := flag.Bool("migrate", false, "Run migrations and exit")
 	flag.Parse()
 
 	sqlDB, err := db.Open()
@@ -26,7 +25,7 @@ func main() {
 		log.Fatalf("db migrate: %v", err)
 	}
 
-	if *mode == "migrate" {
+	if *migrate {
 		log.Println("migration complete, exiting")
 		return
 	}
@@ -44,17 +43,6 @@ func main() {
 	authH := handler.NewAuthHandler(authService)
 	authMW := handler.AuthMiddleware(jwtSecret)
 
-	switch *mode {
-	case "api":
-		runAPI(healthH, authH, authMW)
-	case "worker":
-		runWorker(healthH)
-	default:
-		log.Fatalf("unknown mode: %s", *mode)
-	}
-}
-
-func runAPI(healthH *handler.HealthHandler, authH *handler.AuthHandler, authMW func(http.Handler) http.Handler) {
 	mux := http.NewServeMux()
 
 	// Public routes
@@ -67,21 +55,6 @@ func runAPI(healthH *handler.HealthHandler, authH *handler.AuthHandler, authMW f
 
 	addr := ":8080"
 	log.Printf("api server starting on %s", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatal(err)
-	}
-}
-
-func runWorker(healthH *handler.HealthHandler) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", healthH.Healthz)
-
-	addr := ":8081"
-	log.Printf("worker starting (healthcheck on %s)", addr)
-
-	// TODO: start queue consumer goroutine
-
-	fmt.Println("worker: waiting for jobs...")
 	if err := http.ListenAndServe(addr, mux); err != nil {
 		log.Fatal(err)
 	}
