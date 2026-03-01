@@ -98,7 +98,7 @@ func SuperadminMiddleware(userRepo domain.UserRepository) func(http.Handler) htt
 				writeError(w, http.StatusInternalServerError, "internal server error")
 				return
 			}
-			if !user.IsSuperadmin {
+			if user.PlatformRole != domain.PlatformRoleSuperadmin {
 				writeError(w, http.StatusForbidden, "forbidden")
 				return
 			}

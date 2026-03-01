@@ -38,6 +38,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, displayName
 		Email:        email,
 		PasswordHash: string(hash),
 		DisplayName:  displayName,
+		PlatformRole: domain.PlatformRoleUser,
 	}
 	if err := s.users.Create(ctx, user); err != nil {
 		return "", "", err

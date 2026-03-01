@@ -69,6 +69,12 @@ func main() {
 	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
+	// Bootstrap superadmins
+	bootstrapCfg := usecase.ParseBootstrapConfig(os.Getenv("BOOTSTRAP_SUPERADMINS"), os.Getenv("SUPERADMIN_EMAILS"))
+	if err := usecase.BootstrapSuperadmins(context.Background(), userRepo, bootstrapCfg); err != nil {
+		log.Fatalf("bootstrap superadmins: %v", err)
+	}
+
 	// Services
 	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret)
 	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)

@@ -99,13 +99,13 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		UserID       string           `json:"user_id"`
 		Email        string           `json:"email"`
 		DisplayName  string           `json:"display_name"`
-		IsSuperadmin bool             `json:"is_superadmin"`
+		PlatformRole string           `json:"platform_role"`
 		Tenants      []tenantResponse `json:"tenants"`
 	}{
 		UserID:       user.ID,
 		Email:        user.Email,
 		DisplayName:  user.DisplayName,
-		IsSuperadmin: user.IsSuperadmin,
+		PlatformRole: user.PlatformRole,
 		Tenants:      oaTenants,
 	})
 }

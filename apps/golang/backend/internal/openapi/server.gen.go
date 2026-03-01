@@ -17,6 +17,15 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List tenants (superadmin only)
+	// (GET /api/v1/admin/tenants)
+	AdminListTenants(w http.ResponseWriter, r *http.Request)
+	// Create tenant (superadmin only)
+	// (POST /api/v1/admin/tenants)
+	AdminCreateTenant(w http.ResponseWriter, r *http.Request)
+	// Update tenant (superadmin only)
+	// (PATCH /api/v1/admin/tenants/{id})
+	AdminUpdateTenant(w http.ResponseWriter, r *http.Request, id string)
 	// Login
 	// (POST /api/v1/auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -105,6 +114,77 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// AdminListTenants operation middleware
+func (siw *ServerInterfaceWrapper) AdminListTenants(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListTenants(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCreateTenant operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreateTenant(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreateTenant(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdateTenant operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdateTenant(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdateTenant(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // Login operation middleware
 func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
@@ -1531,6 +1611,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/admin/tenants", wrapper.AdminListTenants)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/admin/tenants", wrapper.AdminCreateTenant)
+	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/admin/tenants/{id}", wrapper.AdminUpdateTenant)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/login", wrapper.Login)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/me", wrapper.Me)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/register", wrapper.Register)
@@ -1562,6 +1645,140 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 }
 
 type ErrorResponseJSONResponse ErrorResponse
+
+type AdminListTenantsRequestObject struct {
+}
+
+type AdminListTenantsResponseObject interface {
+	VisitAdminListTenantsResponse(w http.ResponseWriter) error
+}
+
+type AdminListTenants200JSONResponse struct {
+	Items []Tenant `json:"items"`
+}
+
+func (response AdminListTenants200JSONResponse) VisitAdminListTenantsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminListTenants401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminListTenants401JSONResponse) VisitAdminListTenantsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminListTenants403JSONResponse ErrorResponse
+
+func (response AdminListTenants403JSONResponse) VisitAdminListTenantsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreateTenantRequestObject struct {
+	Body *AdminCreateTenantJSONRequestBody
+}
+
+type AdminCreateTenantResponseObject interface {
+	VisitAdminCreateTenantResponse(w http.ResponseWriter) error
+}
+
+type AdminCreateTenant201JSONResponse Tenant
+
+func (response AdminCreateTenant201JSONResponse) VisitAdminCreateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreateTenant400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminCreateTenant400JSONResponse) VisitAdminCreateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreateTenant401JSONResponse ErrorResponse
+
+func (response AdminCreateTenant401JSONResponse) VisitAdminCreateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreateTenant403JSONResponse ErrorResponse
+
+func (response AdminCreateTenant403JSONResponse) VisitAdminCreateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdateTenantRequestObject struct {
+	Id   string `json:"id"`
+	Body *AdminUpdateTenantJSONRequestBody
+}
+
+type AdminUpdateTenantResponseObject interface {
+	VisitAdminUpdateTenantResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdateTenant200JSONResponse Tenant
+
+func (response AdminUpdateTenant200JSONResponse) VisitAdminUpdateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdateTenant400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminUpdateTenant400JSONResponse) VisitAdminUpdateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdateTenant401JSONResponse ErrorResponse
+
+func (response AdminUpdateTenant401JSONResponse) VisitAdminUpdateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdateTenant403JSONResponse ErrorResponse
+
+func (response AdminUpdateTenant403JSONResponse) VisitAdminUpdateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdateTenant404JSONResponse ErrorResponse
+
+func (response AdminUpdateTenant404JSONResponse) VisitAdminUpdateTenantResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
 
 type LoginRequestObject struct {
 	Body *LoginJSONRequestBody
@@ -2517,6 +2734,15 @@ func (response GetHealthz200JSONResponse) VisitGetHealthzResponse(w http.Respons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// List tenants (superadmin only)
+	// (GET /api/v1/admin/tenants)
+	AdminListTenants(ctx context.Context, request AdminListTenantsRequestObject) (AdminListTenantsResponseObject, error)
+	// Create tenant (superadmin only)
+	// (POST /api/v1/admin/tenants)
+	AdminCreateTenant(ctx context.Context, request AdminCreateTenantRequestObject) (AdminCreateTenantResponseObject, error)
+	// Update tenant (superadmin only)
+	// (PATCH /api/v1/admin/tenants/{id})
+	AdminUpdateTenant(ctx context.Context, request AdminUpdateTenantRequestObject) (AdminUpdateTenantResponseObject, error)
 	// Login
 	// (POST /api/v1/auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -2624,6 +2850,94 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// AdminListTenants operation middleware
+func (sh *strictHandler) AdminListTenants(w http.ResponseWriter, r *http.Request) {
+	var request AdminListTenantsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListTenants(ctx, request.(AdminListTenantsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListTenants")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminListTenantsResponseObject); ok {
+		if err := validResponse.VisitAdminListTenantsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminCreateTenant operation middleware
+func (sh *strictHandler) AdminCreateTenant(w http.ResponseWriter, r *http.Request) {
+	var request AdminCreateTenantRequestObject
+
+	var body AdminCreateTenantJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminCreateTenant(ctx, request.(AdminCreateTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminCreateTenant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminCreateTenantResponseObject); ok {
+		if err := validResponse.VisitAdminCreateTenantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminUpdateTenant operation middleware
+func (sh *strictHandler) AdminUpdateTenant(w http.ResponseWriter, r *http.Request, id string) {
+	var request AdminUpdateTenantRequestObject
+
+	request.Id = id
+
+	var body AdminUpdateTenantJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdateTenant(ctx, request.(AdminUpdateTenantRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdateTenant")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminUpdateTenantResponseObject); ok {
+		if err := validResponse.VisitAdminUpdateTenantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // Login operation middleware

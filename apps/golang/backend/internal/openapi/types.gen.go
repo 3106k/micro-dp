@@ -46,12 +46,29 @@ const (
 	Published JobVersionStatus = "published"
 )
 
+// Defines values for MeResponsePlatformRole.
+const (
+	Superadmin MeResponsePlatformRole = "superadmin"
+	User       MeResponsePlatformRole = "user"
+)
+
 // Defines values for ModuleTypeCategory.
 const (
 	ModuleTypeCategoryDestination ModuleTypeCategory = "destination"
 	ModuleTypeCategorySource      ModuleTypeCategory = "source"
 	ModuleTypeCategoryTransform   ModuleTypeCategory = "transform"
 )
+
+// AdminCreateTenantRequest defines model for AdminCreateTenantRequest.
+type AdminCreateTenantRequest struct {
+	Name string `json:"name"`
+}
+
+// AdminUpdateTenantRequest defines model for AdminUpdateTenantRequest.
+type AdminUpdateTenantRequest struct {
+	IsActive *bool   `json:"is_active,omitempty"`
+	Name     *string `json:"name,omitempty"`
+}
 
 // Connection defines model for Connection.
 type Connection struct {
@@ -238,11 +255,15 @@ type LoginResponse struct {
 
 // MeResponse defines model for MeResponse.
 type MeResponse struct {
-	DisplayName string              `json:"display_name"`
-	Email       openapi_types.Email `json:"email"`
-	Tenants     []Tenant            `json:"tenants"`
-	UserId      string              `json:"user_id"`
+	DisplayName  string                 `json:"display_name"`
+	Email        openapi_types.Email    `json:"email"`
+	PlatformRole MeResponsePlatformRole `json:"platform_role"`
+	Tenants      []Tenant               `json:"tenants"`
+	UserId       string                 `json:"user_id"`
 }
+
+// MeResponsePlatformRole defines model for MeResponse.PlatformRole.
+type MeResponsePlatformRole string
 
 // ModuleType defines model for ModuleType.
 type ModuleType struct {
@@ -282,8 +303,9 @@ type RegisterResponse struct {
 
 // Tenant defines model for Tenant.
 type Tenant struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id       string `json:"id"`
+	IsActive bool   `json:"is_active"`
+	Name     string `json:"name"`
 }
 
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
@@ -415,6 +437,12 @@ type ListModuleTypeSchemasParams struct {
 type CreateModuleTypeSchemaParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
+
+// AdminCreateTenantJSONRequestBody defines body for AdminCreateTenant for application/json ContentType.
+type AdminCreateTenantJSONRequestBody = AdminCreateTenantRequest
+
+// AdminUpdateTenantJSONRequestBody defines body for AdminUpdateTenant for application/json ContentType.
+type AdminUpdateTenantJSONRequestBody = AdminUpdateTenantRequest
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest

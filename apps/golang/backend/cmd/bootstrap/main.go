@@ -47,14 +47,14 @@ func main() {
 		if err != nil {
 			log.Fatalf("register superadmin: %v", err)
 		}
-		if err := userRepo.SetSuperadmin(ctx, userID, true); err != nil {
+		if err := userRepo.UpdatePlatformRole(ctx, userID, domain.PlatformRoleSuperadmin); err != nil {
 			log.Fatalf("set superadmin: %v", err)
 		}
 		fmt.Printf("superadmin created: %s\n", userID)
 		return
 	}
 
-	if err := userRepo.SetSuperadmin(ctx, user.ID, true); err != nil {
+	if err := userRepo.UpdatePlatformRole(ctx, user.ID, domain.PlatformRoleSuperadmin); err != nil {
 		log.Fatalf("set superadmin: %v", err)
 	}
 	fmt.Printf("superadmin updated: %s\n", user.ID)

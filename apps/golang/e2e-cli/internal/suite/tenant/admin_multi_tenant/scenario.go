@@ -77,7 +77,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 
 	var meResp struct {
 		UserID       string `json:"user_id"`
-		IsSuperadmin bool   `json:"is_superadmin"`
+		PlatformRole string `json:"platform_role"`
 		Tenants      []struct {
 			ID string `json:"id"`
 		} `json:"tenants"`
@@ -89,8 +89,8 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 200 {
 		return fmt.Errorf("me: expected 200, got %d body=%s", code, string(body))
 	}
-	if !meResp.IsSuperadmin {
-		return fmt.Errorf("me: expected is_superadmin=true body=%s", string(body))
+	if meResp.PlatformRole != "superadmin" {
+		return fmt.Errorf("me: expected platform_role=superadmin body=%s", string(body))
 	}
 
 	tenantSet := map[string]bool{}
