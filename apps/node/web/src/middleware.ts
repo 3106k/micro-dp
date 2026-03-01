@@ -9,6 +9,7 @@ export function middleware(request: NextRequest) {
   // Protect authenticated routes
   if (
     (pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/datasets") ||
       pathname.startsWith("/connections") ||
       pathname.startsWith("/admin")) &&
     !token
@@ -33,6 +34,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
+    "/datasets/:path*",
     "/connections/:path*",
     "/admin/:path*",
     "/signin",
