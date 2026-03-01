@@ -37,6 +37,7 @@ internal/      — private packages:
   observability/   — OpenTelemetry traces + Prometheus metrics
   openapi/         — oapi-codegen generated types/interfaces
   featureflag/     — OpenFeature feature flag infrastructure
+  notification/    — Email notification (SendGrid / log provider)
 ```
 
 依存方向: `handler/` → `usecase/` → `domain/` ← `db/`, `queue/`。`domain/` は他パッケージに依存しない。
@@ -131,6 +132,15 @@ Internal container ports are fixed; only host-side ports change per environment.
 | `FF_DATASETS_API` | `true` | Datasets API |
 | `FF_ADMIN_TENANTS` | `true` | Admin テナント管理 |
 | `FF_UPLOADS_API` | `true` | Uploads API |
+
+### Notification
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `NOTIFICATION_PROVIDER` | `log` | メール送信プロバイダ (`sendgrid` or `log`) |
+| `SENDGRID_API_KEY` | — | SendGrid API キー (`sendgrid` 時のみ必須) |
+| `NOTIFICATION_FROM_ADDRESS` | `noreply@example.com` | 送信元メールアドレス |
+| `NOTIFICATION_FROM_NAME` | `micro-dp` | 送信元表示名 |
 
 ## Health Checks
 
@@ -436,4 +446,40 @@ featureflag.LogStartup(ffCfg)
 if featureflag.IsEnabled(featureflag.FlagEventsIngest) {
     // feature enabled
 }
+```
+
+## Notification
+
+メール通知基盤。送信プロバイダを環境変数 (`NOTIFICATION_PROVIDER`) で切替可能。開発環境は `log` (ログ出力のみ)、本番は `sendgrid` を使用。
+
+### アーキテクチャ
+
+```
+AuthService.Register() → notification.RenderWelcome() → EmailSender.Send()
+                                                            ↓
+                                                  logSender (dev) or sendGridSender (prod)
+```
+
+- 同期送信: usecase 内で直接送信（シンプルさ優先）
+- 送信失敗時はログ出力のみ（リクエスト自体は失敗させない）
+- SendGrid 実装: 最大 3 回試行 (500ms → 1s backoff)
+
+### パッケージ構成
+
+| ファイル | 役割 |
+|---------|------|
+| `internal/notification/notification.go` | EmailSender interface, Config, LoadConfig, NewEmailSender, LogStartup |
+| `internal/notification/log_sender.go` | ログ出力のみの開発用実装 |
+| `internal/notification/sendgrid_sender.go` | SendGrid API 実装 (リトライ付き) |
+| `internal/notification/templates.go` | `//go:embed` テンプレートレンダリング |
+| `internal/notification/templates/welcome.html` | ウェルカムメール HTML テンプレート |
+
+### 初期化パターン
+
+`cmd/api/main.go` で featureflag 初期化の直後に呼び出し:
+
+```go
+notifCfg := notification.LoadConfig()
+emailSender := notification.NewEmailSender(notifCfg)
+notification.LogStartup(notifCfg)
 ```

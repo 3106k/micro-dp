@@ -11,6 +11,7 @@ import (
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/featureflag"
+	"github.com/user/micro-dp/internal/notification"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
 	"github.com/user/micro-dp/storage"
@@ -47,6 +48,10 @@ func main() {
 	ffCfg := featureflag.LoadConfig()
 	featureflag.Init(ffCfg)
 	featureflag.LogStartup(ffCfg)
+
+	notifCfg := notification.LoadConfig()
+	emailSender := notification.NewEmailSender(notifCfg)
+	notification.LogStartup(notifCfg)
 
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
@@ -87,7 +92,7 @@ func main() {
 	}
 
 	// Services
-	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret)
+	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret, emailSender)
 	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)

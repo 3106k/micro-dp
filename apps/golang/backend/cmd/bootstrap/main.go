@@ -34,7 +34,7 @@ func main() {
 
 	userRepo := db.NewUserRepo(sqlDB)
 	tenantRepo := db.NewTenantRepo(sqlDB)
-	authService := usecase.NewAuthService(userRepo, tenantRepo, "dummy-secret-not-used")
+	authService := usecase.NewAuthService(userRepo, tenantRepo, "dummy-secret-not-used", nil)
 
 	ctx := context.Background()
 	user, err := userRepo.FindByEmail(ctx, *email)
