@@ -5,11 +5,12 @@ import { DashboardHeader } from "@/app/dashboard/dashboard-header";
 import type { components } from "@/lib/api/generated";
 import { backendFetch } from "@/lib/api/server";
 import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
-import { UploadsManager } from "./uploads-manager";
+import { MembersManager } from "./members-manager";
 
 type MeResponse = components["schemas"]["MeResponse"];
+type TenantMember = components["schemas"]["TenantMember"];
 
-export default async function UploadsPage() {
+export default async function MembersPage() {
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
   const tenantId = jar.get(TENANT_COOKIE)?.value;
@@ -23,11 +24,19 @@ export default async function UploadsPage() {
   if (!meRes.ok) {
     redirect("/signin");
   }
-
   const me: MeResponse = await meRes.json();
-  const tenantIds = new Set(me.tenants.map((tenant) => tenant.id));
-  const currentTenantId =
-    tenantId && tenantIds.has(tenantId) ? tenantId : me.tenants[0]?.id ?? "";
+
+  let initialMembers: TenantMember[] = [];
+  const membersRes = await backendFetch("/api/v1/tenants/current/members", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Tenant-ID": tenantId,
+    },
+  });
+  if (membersRes.ok) {
+    const data: { items: TenantMember[] } = await membersRes.json();
+    initialMembers = data.items ?? [];
+  }
 
   return (
     <div className="min-h-screen">
@@ -36,11 +45,14 @@ export default async function UploadsPage() {
         email={me.email}
         platformRole={me.platform_role}
         tenants={me.tenants}
-        currentTenantId={currentTenantId}
+        currentTenantId={tenantId}
       />
       <main className="container space-y-6 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Uploads</h1>
-        <UploadsManager />
+        <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
+        <MembersManager
+          initialMembers={initialMembers}
+          currentUserId={me.user_id}
+        />
       </main>
     </div>
   );

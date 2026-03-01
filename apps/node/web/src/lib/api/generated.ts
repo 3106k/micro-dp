@@ -72,6 +72,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start Google OAuth login */
+        get: operations["startGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Handle Google OAuth callback */
+        get: operations["callbackGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events": {
         parameters: {
             query?: never;
@@ -627,6 +661,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/tenants/current/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List tenant members */
+        get: operations["listTenantMembers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tenants/current/invitations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create invitation */
+        post: operations["createInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tenants/current/invitations/{token}/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Accept invitation */
+        post: operations["acceptInvitation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/tenants/current/members/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove member */
+        delete: operations["removeMember"];
+        options?: never;
+        head?: never;
+        /** Update member role */
+        patch: operations["updateMemberRole"];
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -978,6 +1081,43 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
+        /** @enum {string} */
+        TenantRole: "owner" | "admin" | "member";
+        TenantMember: {
+            user_id: string;
+            /** Format: email */
+            email: string;
+            display_name: string;
+            role: components["schemas"]["TenantRole"];
+            /** Format: date-time */
+            joined_at: string;
+        };
+        TenantInvitation: {
+            id: string;
+            tenant_id: string;
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["TenantRole"];
+            /** @description Invitation token (returned on creation only) */
+            token?: string;
+            /** @enum {string} */
+            status: "pending" | "accepted" | "expired";
+            invited_by?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            /** Format: date-time */
+            accepted_at?: string;
+            /** Format: date-time */
+            created_at: string;
+        };
+        CreateInvitationRequest: {
+            /** Format: email */
+            email: string;
+            role: components["schemas"]["TenantRole"];
+        };
+        UpdateMemberRoleRequest: {
+            role: components["schemas"]["TenantRole"];
+        };
         Plan: {
             id: string;
             name: string;
@@ -1143,6 +1283,51 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorResponse"];
+        };
+    };
+    startGoogleOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to Google OAuth consent page */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["ErrorResponse"];
+        };
+    };
+    callbackGoogleOAuth: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to app after login attempt */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            500: components["responses"]["ErrorResponse"];
         };
     };
     ingestEvent: {
@@ -2317,6 +2502,144 @@ export interface operations {
             401: components["responses"]["ErrorResponse"];
             404: components["responses"]["ErrorResponse"];
             409: components["responses"]["ErrorResponse"];
+        };
+    };
+    listTenantMembers: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of tenant members */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["TenantMember"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    createInvitation: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInvitationRequest"];
+            };
+        };
+        responses: {
+            /** @description Invitation created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantInvitation"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
+            409: components["responses"]["ErrorResponse"];
+        };
+    };
+    acceptInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Invitation accepted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantInvitation"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+            409: components["responses"]["ErrorResponse"];
+            410: components["responses"]["ErrorResponse"];
+        };
+    };
+    removeMember: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Member removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
+            409: components["responses"]["ErrorResponse"];
+        };
+    };
+    updateMemberRole: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateMemberRoleRequest"];
+            };
+        };
+        responses: {
+            /** @description Role updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantMember"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
         };
     };
 }

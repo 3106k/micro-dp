@@ -69,6 +69,7 @@ func main() {
 
 	// Repositories
 	userRepo := db.NewUserRepo(sqlDB)
+	userIdentityRepo := db.NewUserIdentityRepo(sqlDB)
 	tenantRepo := db.NewTenantRepo(sqlDB)
 	jobRunRepo := db.NewJobRunRepo(sqlDB)
 	jobRepo := db.NewJobRepo(sqlDB)
@@ -81,6 +82,7 @@ func main() {
 	datasetRepo := db.NewDatasetRepo(sqlDB)
 	uploadRepo := db.NewUploadRepo(sqlDB)
 	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
+	invitationRepo := db.NewInvitationRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
 	jobRunModuleRepo := db.NewJobRunModuleRepo(sqlDB)
@@ -100,7 +102,20 @@ func main() {
 	}
 
 	// Services
-	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret, emailSender)
+	authService := usecase.NewAuthService(
+		userRepo,
+		userIdentityRepo,
+		tenantRepo,
+		jwtSecret,
+		emailSender,
+		usecase.GoogleOAuthConfig{
+			ClientID:            os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+			ClientSecret:        os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+			RedirectURL:         os.Getenv("GOOGLE_OAUTH_REDIRECT_URI"),
+			PostLoginRedirect:   os.Getenv("GOOGLE_OAUTH_POST_LOGIN_REDIRECT_URI"),
+			PostFailureRedirect: os.Getenv("GOOGLE_OAUTH_POST_FAILURE_REDIRECT_URI"),
+		},
+	)
 	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
@@ -120,6 +135,12 @@ func main() {
 	jobRunArtifactService := usecase.NewJobRunArtifactService(jobRunArtifactRepo)
 	adminTenantService := usecase.NewAdminTenantService(tenantRepo, adminAuditLogRepo)
 
+	appBaseURL := os.Getenv("APP_BASE_URL")
+	if appBaseURL == "" {
+		appBaseURL = "http://localhost:8080"
+	}
+	memberService := usecase.NewMemberService(tenantRepo, userRepo, invitationRepo, emailSender, appBaseURL)
+
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
 	authH := handler.NewAuthHandler(authService)
@@ -134,6 +155,7 @@ func main() {
 	jobRunModuleH := handler.NewJobRunModuleHandler(jobRunModuleService)
 	jobRunArtifactH := handler.NewJobRunArtifactHandler(jobRunArtifactService)
 	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
+	memberH := handler.NewMemberHandler(memberService)
 	planH := handler.NewPlanHandler(planService)
 	adminPlanH := handler.NewAdminPlanHandler(planService)
 
@@ -156,6 +178,8 @@ func main() {
 	mux.Handle("GET /metrics", observability.MetricsHandler())
 	mux.HandleFunc("POST /api/v1/auth/register", authH.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authH.Login)
+	mux.HandleFunc("GET /api/v1/auth/google/start", authH.GoogleStart)
+	mux.HandleFunc("GET /api/v1/auth/google/callback", authH.GoogleCallback)
 
 	// Authenticated routes
 	mux.Handle("GET /api/v1/auth/me", authMW(http.HandlerFunc(authH.Me)))
@@ -217,6 +241,16 @@ func main() {
 	// Uploads
 	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))
 	mux.Handle("POST /api/v1/uploads/{id}/complete", protected(uploadH.Complete))
+
+	// Members (tenant-scoped)
+	mux.Handle("GET /api/v1/tenants/current/members", protected(memberH.List))
+	mux.Handle("POST /api/v1/tenants/current/invitations", protected(memberH.CreateInvitation))
+	mux.Handle("PATCH /api/v1/tenants/current/members/{user_id}", protected(memberH.UpdateRole))
+	mux.Handle("DELETE /api/v1/tenants/current/members/{user_id}", protected(memberH.Remove))
+
+	// Accept invitation (auth only — no tenant middleware)
+	mux.Handle("POST /api/v1/tenants/current/invitations/{token}/accept",
+		authMW(http.HandlerFunc(memberH.AcceptInvitation)))
 
 	// Plan & Usage
 	mux.Handle("GET /api/v1/plan", protected(planH.GetPlan))
