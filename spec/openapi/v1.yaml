@@ -17,6 +17,7 @@ tags:
   - name: jobs
   - name: job_runs
   - name: module_types
+  - name: connectors
   - name: connections
   - name: datasets
   - name: uploads
@@ -1114,6 +1115,62 @@ paths:
         "401":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Connectors ----
+  /api/v1/connectors:
+    get:
+      tags: [connectors]
+      summary: List connector definitions
+      operationId: listConnectors
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: kind
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ConnectorKind"
+      responses:
+        "200":
+          description: List of connector definitions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ConnectorDefinition"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/connectors/{id}:
+    get:
+      tags: [connectors]
+      summary: Get connector definition detail
+      operationId: getConnector
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Connector definition with spec
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorDefinitionDetail"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Connections ----
   /api/v1/connections:
     post:
@@ -1142,6 +1199,8 @@ paths:
         "401":
           $ref: "#/components/responses/ErrorResponse"
         "409":
+          $ref: "#/components/responses/ErrorResponse"
+        "422":
           $ref: "#/components/responses/ErrorResponse"
     get:
       tags: [connections]
@@ -1225,6 +1284,8 @@ paths:
           $ref: "#/components/responses/ErrorResponse"
         "409":
           $ref: "#/components/responses/ErrorResponse"
+        "422":
+          $ref: "#/components/responses/ErrorResponse"
     delete:
       tags: [connections]
       summary: Delete connection
@@ -1244,6 +1305,34 @@ paths:
         "401":
           $ref: "#/components/responses/ErrorResponse"
         "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/connections/test:
+    post:
+      tags: [connections]
+      summary: Test connection
+      operationId: testConnection
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestConnectionRequest"
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestConnectionResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "422":
           $ref: "#/components/responses/ErrorResponse"
 
   # ---- Datasets ----
@@ -1315,6 +1404,47 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Dataset"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  /api/v1/datasets/{id}/rows:
+    get:
+      tags: [datasets]
+      summary: Get dataset rows preview
+      operationId: getDatasetRows
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Dataset rows preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetRowsResponse"
         "401":
           $ref: "#/components/responses/ErrorResponse"
         "404":
@@ -2054,6 +2184,58 @@ components:
           type: string
         secret_ref:
           type: string
+    TestConnectionRequest:
+      type: object
+      required: [type, config_json]
+      properties:
+        type:
+          type: string
+        config_json:
+          type: string
+    TestConnectionResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, failed]
+        message:
+          type: string
+
+    # ---- Connector schemas ----
+    ConnectorKind:
+      type: string
+      enum: [source, destination]
+    ConnectorDefinition:
+      type: object
+      required: [id, name, kind]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ConnectorKind"
+        icon:
+          type: string
+        description:
+          type: string
+    ConnectorDefinitionDetail:
+      type: object
+      required: [id, name, kind, spec]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          $ref: "#/components/schemas/ConnectorKind"
+        icon:
+          type: string
+        description:
+          type: string
+        spec:
+          type: object
 
     # ---- Dataset schemas ----
     Dataset:
@@ -2087,6 +2269,34 @@ components:
     DatasetSourceType:
       type: string
       enum: [tracker, parquet, import]
+    DatasetColumn:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+    DatasetRowsResponse:
+      type: object
+      required: [columns, rows, total_rows, limit, offset]
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasetColumn"
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total_rows:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
 
     # ---- Upload schemas ----
     UploadStatus:

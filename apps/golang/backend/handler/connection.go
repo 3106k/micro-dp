@@ -5,16 +5,18 @@ import (
 	"net/http"
 
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/connector"
 	"github.com/user/micro-dp/internal/openapi"
 	"github.com/user/micro-dp/usecase"
 )
 
 type ConnectionHandler struct {
 	connections *usecase.ConnectionService
+	registry    *connector.Registry
 }
 
-func NewConnectionHandler(connections *usecase.ConnectionService) *ConnectionHandler {
-	return &ConnectionHandler{connections: connections}
+func NewConnectionHandler(connections *usecase.ConnectionService, registry *connector.Registry) *ConnectionHandler {
+	return &ConnectionHandler{connections: connections, registry: registry}
 }
 
 func (h *ConnectionHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +37,14 @@ func (h *ConnectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	c, err := h.connections.Create(r.Context(), req.Name, req.Type, configJSON, req.SecretRef)
 	if err != nil {
+		if errors.Is(err, domain.ErrConnectorTypeUnknown) {
+			writeError(w, http.StatusBadRequest, "unknown connector type")
+			return
+		}
+		if errors.Is(err, domain.ErrConnectionConfigInvalid) {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
 		if errors.Is(err, domain.ErrConnectionNameDuplicate) {
 			writeError(w, http.StatusConflict, "connection name already exists")
 			return
@@ -114,6 +124,14 @@ func (h *ConnectionHandler) Update(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "connection not found")
 			return
 		}
+		if errors.Is(err, domain.ErrConnectorTypeUnknown) {
+			writeError(w, http.StatusBadRequest, "unknown connector type")
+			return
+		}
+		if errors.Is(err, domain.ErrConnectionConfigInvalid) {
+			writeError(w, http.StatusUnprocessableEntity, err.Error())
+			return
+		}
 		if errors.Is(err, domain.ErrConnectionNameDuplicate) {
 			writeError(w, http.StatusConflict, "connection name already exists")
 			return
@@ -142,4 +160,31 @@ func (h *ConnectionHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
+	var req openapi.TestConnectionRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.Type == "" || req.ConfigJson == "" {
+		writeError(w, http.StatusBadRequest, "type and config_json are required")
+		return
+	}
+
+	if !h.registry.Exists(req.Type) {
+		writeError(w, http.StatusBadRequest, "unknown connector type")
+		return
+	}
+
+	if err := h.registry.ValidateConfig(req.Type, req.ConfigJson); err != nil {
+		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		return
+	}
+
+	// Phase 1: stub — always return ok after spec validation passes
+	writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
+		Status: openapi.TestConnectionResponseStatusOk,
+	})
 }

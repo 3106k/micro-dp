@@ -71,6 +71,9 @@ type ServerInterface interface {
 	// Create connection
 	// (POST /api/v1/connections)
 	CreateConnection(w http.ResponseWriter, r *http.Request, params CreateConnectionParams)
+	// Test connection
+	// (POST /api/v1/connections/test)
+	TestConnection(w http.ResponseWriter, r *http.Request, params TestConnectionParams)
 	// Delete connection
 	// (DELETE /api/v1/connections/{id})
 	DeleteConnection(w http.ResponseWriter, r *http.Request, id string, params DeleteConnectionParams)
@@ -80,12 +83,21 @@ type ServerInterface interface {
 	// Update connection
 	// (PUT /api/v1/connections/{id})
 	UpdateConnection(w http.ResponseWriter, r *http.Request, id string, params UpdateConnectionParams)
+	// List connector definitions
+	// (GET /api/v1/connectors)
+	ListConnectors(w http.ResponseWriter, r *http.Request, params ListConnectorsParams)
+	// Get connector definition detail
+	// (GET /api/v1/connectors/{id})
+	GetConnector(w http.ResponseWriter, r *http.Request, id string, params GetConnectorParams)
 	// List datasets
 	// (GET /api/v1/datasets)
 	ListDatasets(w http.ResponseWriter, r *http.Request, params ListDatasetsParams)
 	// Get dataset
 	// (GET /api/v1/datasets/{id})
 	GetDataset(w http.ResponseWriter, r *http.Request, id string, params GetDatasetParams)
+	// Get dataset rows preview
+	// (GET /api/v1/datasets/{id}/rows)
+	GetDatasetRows(w http.ResponseWriter, r *http.Request, id string, params GetDatasetRowsParams)
 	// Ingest event
 	// (POST /api/v1/events)
 	IngestEvent(w http.ResponseWriter, r *http.Request, params IngestEventParams)
@@ -741,6 +753,56 @@ func (siw *ServerInterfaceWrapper) CreateConnection(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// TestConnection operation middleware
+func (siw *ServerInterfaceWrapper) TestConnection(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TestConnectionParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TestConnection(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteConnection operation middleware
 func (siw *ServerInterfaceWrapper) DeleteConnection(w http.ResponseWriter, r *http.Request) {
 
@@ -918,6 +980,123 @@ func (siw *ServerInterfaceWrapper) UpdateConnection(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListConnectors operation middleware
+func (siw *ServerInterfaceWrapper) ListConnectors(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConnectorsParams
+
+	// ------------- Optional query parameter "kind" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "kind", r.URL.Query(), &params.Kind)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConnectors(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetConnector operation middleware
+func (siw *ServerInterfaceWrapper) GetConnector(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetConnectorParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetConnector(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListDatasets operation middleware
 func (siw *ServerInterfaceWrapper) ListDatasets(w http.ResponseWriter, r *http.Request) {
 
@@ -1050,6 +1229,81 @@ func (siw *ServerInterfaceWrapper) GetDataset(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetDataset(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDatasetRows operation middleware
+func (siw *ServerInterfaceWrapper) GetDatasetRows(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDatasetRowsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDatasetRows(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2939,11 +3193,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/billing/webhook", wrapper.BillingWebhook)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections", wrapper.ListConnections)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/connections", wrapper.CreateConnection)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/connections/test", wrapper.TestConnection)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/connections/{id}", wrapper.DeleteConnection)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections/{id}", wrapper.GetConnection)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/connections/{id}", wrapper.UpdateConnection)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connectors", wrapper.ListConnectors)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connectors/{id}", wrapper.GetConnector)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets", wrapper.ListDatasets)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}", wrapper.GetDataset)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}/rows", wrapper.GetDatasetRows)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/events", wrapper.IngestEvent)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/events/summary", wrapper.GetEventsSummary)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs", wrapper.ListJobRuns)
@@ -3720,6 +3978,60 @@ func (response CreateConnection409JSONResponse) VisitCreateConnectionResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateConnection422JSONResponse ErrorResponse
+
+func (response CreateConnection422JSONResponse) VisitCreateConnectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TestConnectionRequestObject struct {
+	Params TestConnectionParams
+	Body   *TestConnectionJSONRequestBody
+}
+
+type TestConnectionResponseObject interface {
+	VisitTestConnectionResponse(w http.ResponseWriter) error
+}
+
+type TestConnection200JSONResponse TestConnectionResponse
+
+func (response TestConnection200JSONResponse) VisitTestConnectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TestConnection400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response TestConnection400JSONResponse) VisitTestConnectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TestConnection401JSONResponse ErrorResponse
+
+func (response TestConnection401JSONResponse) VisitTestConnectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TestConnection422JSONResponse ErrorResponse
+
+func (response TestConnection422JSONResponse) VisitTestConnectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteConnectionRequestObject struct {
 	Id     string `json:"id"`
 	Params DeleteConnectionParams
@@ -3846,6 +4158,79 @@ func (response UpdateConnection409JSONResponse) VisitUpdateConnectionResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type UpdateConnection422JSONResponse ErrorResponse
+
+func (response UpdateConnection422JSONResponse) VisitUpdateConnectionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(422)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListConnectorsRequestObject struct {
+	Params ListConnectorsParams
+}
+
+type ListConnectorsResponseObject interface {
+	VisitListConnectorsResponse(w http.ResponseWriter) error
+}
+
+type ListConnectors200JSONResponse struct {
+	Items []ConnectorDefinition `json:"items"`
+}
+
+func (response ListConnectors200JSONResponse) VisitListConnectorsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListConnectors401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListConnectors401JSONResponse) VisitListConnectorsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetConnectorRequestObject struct {
+	Id     string `json:"id"`
+	Params GetConnectorParams
+}
+
+type GetConnectorResponseObject interface {
+	VisitGetConnectorResponse(w http.ResponseWriter) error
+}
+
+type GetConnector200JSONResponse ConnectorDefinitionDetail
+
+func (response GetConnector200JSONResponse) VisitGetConnectorResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetConnector401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetConnector401JSONResponse) VisitGetConnectorResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetConnector404JSONResponse ErrorResponse
+
+func (response GetConnector404JSONResponse) VisitGetConnectorResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListDatasetsRequestObject struct {
 	Params ListDatasetsParams
 }
@@ -3904,6 +4289,42 @@ func (response GetDataset401JSONResponse) VisitGetDatasetResponse(w http.Respons
 type GetDataset404JSONResponse ErrorResponse
 
 func (response GetDataset404JSONResponse) VisitGetDatasetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDatasetRowsRequestObject struct {
+	Id     string `json:"id"`
+	Params GetDatasetRowsParams
+}
+
+type GetDatasetRowsResponseObject interface {
+	VisitGetDatasetRowsResponse(w http.ResponseWriter) error
+}
+
+type GetDatasetRows200JSONResponse DatasetRowsResponse
+
+func (response GetDatasetRows200JSONResponse) VisitGetDatasetRowsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDatasetRows401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetDatasetRows401JSONResponse) VisitGetDatasetRowsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDatasetRows404JSONResponse ErrorResponse
+
+func (response GetDatasetRows404JSONResponse) VisitGetDatasetRowsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
@@ -5167,6 +5588,9 @@ type StrictServerInterface interface {
 	// Create connection
 	// (POST /api/v1/connections)
 	CreateConnection(ctx context.Context, request CreateConnectionRequestObject) (CreateConnectionResponseObject, error)
+	// Test connection
+	// (POST /api/v1/connections/test)
+	TestConnection(ctx context.Context, request TestConnectionRequestObject) (TestConnectionResponseObject, error)
 	// Delete connection
 	// (DELETE /api/v1/connections/{id})
 	DeleteConnection(ctx context.Context, request DeleteConnectionRequestObject) (DeleteConnectionResponseObject, error)
@@ -5176,12 +5600,21 @@ type StrictServerInterface interface {
 	// Update connection
 	// (PUT /api/v1/connections/{id})
 	UpdateConnection(ctx context.Context, request UpdateConnectionRequestObject) (UpdateConnectionResponseObject, error)
+	// List connector definitions
+	// (GET /api/v1/connectors)
+	ListConnectors(ctx context.Context, request ListConnectorsRequestObject) (ListConnectorsResponseObject, error)
+	// Get connector definition detail
+	// (GET /api/v1/connectors/{id})
+	GetConnector(ctx context.Context, request GetConnectorRequestObject) (GetConnectorResponseObject, error)
 	// List datasets
 	// (GET /api/v1/datasets)
 	ListDatasets(ctx context.Context, request ListDatasetsRequestObject) (ListDatasetsResponseObject, error)
 	// Get dataset
 	// (GET /api/v1/datasets/{id})
 	GetDataset(ctx context.Context, request GetDatasetRequestObject) (GetDatasetResponseObject, error)
+	// Get dataset rows preview
+	// (GET /api/v1/datasets/{id}/rows)
+	GetDatasetRows(ctx context.Context, request GetDatasetRowsRequestObject) (GetDatasetRowsResponseObject, error)
 	// Ingest event
 	// (POST /api/v1/events)
 	IngestEvent(ctx context.Context, request IngestEventRequestObject) (IngestEventResponseObject, error)
@@ -5836,6 +6269,39 @@ func (sh *strictHandler) CreateConnection(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// TestConnection operation middleware
+func (sh *strictHandler) TestConnection(w http.ResponseWriter, r *http.Request, params TestConnectionParams) {
+	var request TestConnectionRequestObject
+
+	request.Params = params
+
+	var body TestConnectionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TestConnection(ctx, request.(TestConnectionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TestConnection")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TestConnectionResponseObject); ok {
+		if err := validResponse.VisitTestConnectionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeleteConnection operation middleware
 func (sh *strictHandler) DeleteConnection(w http.ResponseWriter, r *http.Request, id string, params DeleteConnectionParams) {
 	var request DeleteConnectionRequestObject
@@ -5924,6 +6390,59 @@ func (sh *strictHandler) UpdateConnection(w http.ResponseWriter, r *http.Request
 	}
 }
 
+// ListConnectors operation middleware
+func (sh *strictHandler) ListConnectors(w http.ResponseWriter, r *http.Request, params ListConnectorsParams) {
+	var request ListConnectorsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListConnectors(ctx, request.(ListConnectorsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListConnectors")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListConnectorsResponseObject); ok {
+		if err := validResponse.VisitListConnectorsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetConnector operation middleware
+func (sh *strictHandler) GetConnector(w http.ResponseWriter, r *http.Request, id string, params GetConnectorParams) {
+	var request GetConnectorRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetConnector(ctx, request.(GetConnectorRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetConnector")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetConnectorResponseObject); ok {
+		if err := validResponse.VisitGetConnectorResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListDatasets operation middleware
 func (sh *strictHandler) ListDatasets(w http.ResponseWriter, r *http.Request, params ListDatasetsParams) {
 	var request ListDatasetsRequestObject
@@ -5970,6 +6489,33 @@ func (sh *strictHandler) GetDataset(w http.ResponseWriter, r *http.Request, id s
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetDatasetResponseObject); ok {
 		if err := validResponse.VisitGetDatasetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDatasetRows operation middleware
+func (sh *strictHandler) GetDatasetRows(w http.ResponseWriter, r *http.Request, id string, params GetDatasetRowsParams) {
+	var request GetDatasetRowsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDatasetRows(ctx, request.(GetDatasetRowsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDatasetRows")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetDatasetRowsResponseObject); ok {
+		if err := validResponse.VisitGetDatasetRowsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

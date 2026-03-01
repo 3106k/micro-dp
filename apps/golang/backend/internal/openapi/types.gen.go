@@ -13,6 +13,12 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for ConnectorKind.
+const (
+	ConnectorKindDestination ConnectorKind = "destination"
+	ConnectorKindSource      ConnectorKind = "source"
+)
+
 // Defines values for CreateModuleTypeRequestCategory.
 const (
 	CreateModuleTypeRequestCategoryDestination CreateModuleTypeRequestCategory = "destination"
@@ -29,8 +35,8 @@ const (
 
 // Defines values for HealthResponseStatus.
 const (
-	Degraded HealthResponseStatus = "degraded"
-	Ok       HealthResponseStatus = "ok"
+	HealthResponseStatusDegraded HealthResponseStatus = "degraded"
+	HealthResponseStatusOk       HealthResponseStatus = "ok"
 )
 
 // Defines values for IngestEventResponseStatus.
@@ -70,9 +76,9 @@ const (
 
 // Defines values for ModuleTypeCategory.
 const (
-	ModuleTypeCategoryDestination ModuleTypeCategory = "destination"
-	ModuleTypeCategorySource      ModuleTypeCategory = "source"
-	ModuleTypeCategoryTransform   ModuleTypeCategory = "transform"
+	Destination ModuleTypeCategory = "destination"
+	Source      ModuleTypeCategory = "source"
+	Transform   ModuleTypeCategory = "transform"
 )
 
 // Defines values for TenantInvitationStatus.
@@ -87,6 +93,12 @@ const (
 	Admin  TenantRole = "admin"
 	Member TenantRole = "member"
 	Owner  TenantRole = "owner"
+)
+
+// Defines values for TestConnectionResponseStatus.
+const (
+	TestConnectionResponseStatusFailed TestConnectionResponseStatus = "failed"
+	TestConnectionResponseStatusOk     TestConnectionResponseStatus = "ok"
 )
 
 // Defines values for UploadStatus.
@@ -160,6 +172,28 @@ type CreateBillingPortalSessionRequest struct {
 type CreateBillingPortalSessionResponse struct {
 	Url string `json:"url"`
 }
+
+// ConnectorDefinition defines model for ConnectorDefinition.
+type ConnectorDefinition struct {
+	Description *string       `json:"description,omitempty"`
+	Icon        *string       `json:"icon,omitempty"`
+	Id          string        `json:"id"`
+	Kind        ConnectorKind `json:"kind"`
+	Name        string        `json:"name"`
+}
+
+// ConnectorDefinitionDetail defines model for ConnectorDefinitionDetail.
+type ConnectorDefinitionDetail struct {
+	Description *string                `json:"description,omitempty"`
+	Icon        *string                `json:"icon,omitempty"`
+	Id          string                 `json:"id"`
+	Kind        ConnectorKind          `json:"kind"`
+	Name        string                 `json:"name"`
+	Spec        map[string]interface{} `json:"spec"`
+}
+
+// ConnectorKind defines model for ConnectorKind.
+type ConnectorKind string
 
 // CreateConnectionRequest defines model for CreateConnectionRequest.
 type CreateConnectionRequest struct {
@@ -258,6 +292,21 @@ type Dataset struct {
 	StoragePath   string            `json:"storage_path"`
 	TenantId      string            `json:"tenant_id"`
 	UpdatedAt     *time.Time        `json:"updated_at,omitempty"`
+}
+
+// DatasetColumn defines model for DatasetColumn.
+type DatasetColumn struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// DatasetRowsResponse defines model for DatasetRowsResponse.
+type DatasetRowsResponse struct {
+	Columns   []DatasetColumn          `json:"columns"`
+	Limit     int                      `json:"limit"`
+	Offset    int                      `json:"offset"`
+	Rows      []map[string]interface{} `json:"rows"`
+	TotalRows int64                    `json:"total_rows"`
 }
 
 // DatasetSourceType defines model for DatasetSourceType.
@@ -533,6 +582,21 @@ type TenantPlanResponse struct {
 // TenantRole defines model for TenantRole.
 type TenantRole string
 
+// TestConnectionRequest defines model for TestConnectionRequest.
+type TestConnectionRequest struct {
+	ConfigJson string `json:"config_json"`
+	Type       string `json:"type"`
+}
+
+// TestConnectionResponse defines model for TestConnectionResponse.
+type TestConnectionResponse struct {
+	Message *string                      `json:"message,omitempty"`
+	Status  TestConnectionResponseStatus `json:"status"`
+}
+
+// TestConnectionResponseStatus defines model for TestConnectionResponse.Status.
+type TestConnectionResponseStatus string
+
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
 type UpdateConnectionRequest struct {
 	ConfigJson *string `json:"config_json,omitempty"`
@@ -650,6 +714,11 @@ type CreateConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// TestConnectionParams defines parameters for TestConnection.
+type TestConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // DeleteConnectionParams defines parameters for DeleteConnection.
 type DeleteConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -665,6 +734,17 @@ type UpdateConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// ListConnectorsParams defines parameters for ListConnectors.
+type ListConnectorsParams struct {
+	Kind      *ConnectorKind `form:"kind,omitempty" json:"kind,omitempty"`
+	XTenantID XTenantID      `json:"X-Tenant-ID"`
+}
+
+// GetConnectorParams defines parameters for GetConnector.
+type GetConnectorParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // ListDatasetsParams defines parameters for ListDatasets.
 type ListDatasetsParams struct {
 	Q          *string            `form:"q,omitempty" json:"q,omitempty"`
@@ -676,6 +756,13 @@ type ListDatasetsParams struct {
 
 // GetDatasetParams defines parameters for GetDataset.
 type GetDatasetParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetDatasetRowsParams defines parameters for GetDatasetRows.
+type GetDatasetRowsParams struct {
+	Limit     *int      `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset    *int      `form:"offset,omitempty" json:"offset,omitempty"`
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -862,6 +949,9 @@ type BillingWebhookJSONRequestBody BillingWebhookJSONBody
 
 // CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
 type CreateConnectionJSONRequestBody = CreateConnectionRequest
+
+// TestConnectionJSONRequestBody defines body for TestConnection for application/json ContentType.
+type TestConnectionJSONRequestBody = TestConnectionRequest
 
 // UpdateConnectionJSONRequestBody defines body for UpdateConnection for application/json ContentType.
 type UpdateConnectionJSONRequestBody = UpdateConnectionRequest

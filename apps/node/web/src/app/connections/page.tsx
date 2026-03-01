@@ -9,6 +9,7 @@ import { ConnectionsManager } from "./connections-manager";
 
 type MeResponse = components["schemas"]["MeResponse"];
 type Connection = components["schemas"]["Connection"];
+type ConnectorDefinition = components["schemas"]["ConnectorDefinition"];
 
 export default async function ConnectionsPage() {
   const jar = await cookies();
@@ -18,6 +19,11 @@ export default async function ConnectionsPage() {
     redirect("/signin");
   }
 
+  const authHeaders = {
+    Authorization: `Bearer ${token}`,
+    "X-Tenant-ID": tenantId,
+  };
+
   const meRes = await backendFetch("/api/v1/auth/me", {
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -26,16 +32,22 @@ export default async function ConnectionsPage() {
   }
   const me: MeResponse = await meRes.json();
 
+  // Fetch connections and connectors in parallel
+  const [connectionsRes, connectorsRes] = await Promise.all([
+    backendFetch("/api/v1/connections", { headers: authHeaders }),
+    backendFetch("/api/v1/connectors", { headers: authHeaders }),
+  ]);
+
   let initialConnections: Connection[] = [];
-  const connectionsRes = await backendFetch("/api/v1/connections", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "X-Tenant-ID": tenantId,
-    },
-  });
   if (connectionsRes.ok) {
     const data: { items: Connection[] } = await connectionsRes.json();
     initialConnections = data.items ?? [];
+  }
+
+  let initialConnectors: ConnectorDefinition[] = [];
+  if (connectorsRes.ok) {
+    const data: { items: ConnectorDefinition[] } = await connectorsRes.json();
+    initialConnectors = data.items ?? [];
   }
 
   return (
@@ -49,7 +61,10 @@ export default async function ConnectionsPage() {
       />
       <main className="container space-y-6 py-8">
         <h1 className="text-2xl font-semibold tracking-tight">Connections</h1>
-        <ConnectionsManager initialConnections={initialConnections} />
+        <ConnectionsManager
+          initialConnections={initialConnections}
+          initialConnectors={initialConnectors}
+        />
       </main>
     </div>
   );

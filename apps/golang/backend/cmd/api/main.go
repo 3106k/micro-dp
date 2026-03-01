@@ -10,6 +10,7 @@ import (
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
+	"github.com/user/micro-dp/internal/connector"
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/notification"
 	"github.com/user/micro-dp/internal/observability"
@@ -94,10 +95,19 @@ func main() {
 	tenantPlanRepo := db.NewTenantPlanRepo(sqlDB)
 	usageRepo := db.NewUsageRepo(sqlDB)
 
+	// Connector registry
+	connectorRegistry := connector.Global()
+
 	// Bootstrap superadmins
 	bootstrapCfg := usecase.ParseBootstrapConfig(os.Getenv("BOOTSTRAP_SUPERADMINS"), os.Getenv("SUPERADMIN_EMAILS"))
 	if err := usecase.BootstrapSuperadmins(context.Background(), userRepo, bootstrapCfg); err != nil {
 		log.Fatalf("bootstrap superadmins: %v", err)
+	}
+
+	// MinIO read client (for dataset preview)
+	minioClient, err := storage.NewMinIOClient()
+	if err != nil {
+		log.Fatalf("minio client: %v", err)
 	}
 
 	// Services
@@ -118,8 +128,8 @@ func main() {
 	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
-	connectionService := usecase.NewConnectionService(connectionRepo)
-	datasetService := usecase.NewDatasetService(datasetRepo)
+	connectionService := usecase.NewConnectionService(connectionRepo, connectorRegistry)
+	datasetService := usecase.NewDatasetService(datasetRepo, minioClient)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
 	planService := usecase.NewPlanService(planRepo, tenantPlanRepo, usageRepo)
@@ -161,7 +171,8 @@ func main() {
 	jobRunH := handler.NewJobRunHandler(jobRunService)
 	jobH := handler.NewJobHandler(jobService)
 	moduleTypeH := handler.NewModuleTypeHandler(moduleTypeService)
-	connectionH := handler.NewConnectionHandler(connectionService)
+	connectionH := handler.NewConnectionHandler(connectionService, connectorRegistry)
+	connectorH := handler.NewConnectorHandler(connectorRegistry)
 	datasetH := handler.NewDatasetHandler(datasetService)
 	eventH := handler.NewEventHandler(eventService, planService, eventMetrics)
 	uploadH := handler.NewUploadHandler(uploadService, planService)
@@ -236,16 +247,22 @@ func main() {
 	mux.Handle("POST /api/v1/module_types/{id}/schemas", protected(moduleTypeH.CreateSchema))
 	mux.Handle("GET /api/v1/module_types/{id}/schemas", protected(moduleTypeH.ListSchemas))
 
+	// Connectors
+	mux.Handle("GET /api/v1/connectors", protected(connectorH.List))
+	mux.Handle("GET /api/v1/connectors/{id}", protected(connectorH.Get))
+
 	// Connections
 	mux.Handle("POST /api/v1/connections", protected(connectionH.Create))
 	mux.Handle("GET /api/v1/connections", protected(connectionH.List))
 	mux.Handle("GET /api/v1/connections/{id}", protected(connectionH.Get))
 	mux.Handle("PUT /api/v1/connections/{id}", protected(connectionH.Update))
 	mux.Handle("DELETE /api/v1/connections/{id}", protected(connectionH.Delete))
+	mux.Handle("POST /api/v1/connections/test", protected(connectionH.Test))
 
 	// Datasets
 	mux.Handle("GET /api/v1/datasets", protected(datasetH.List))
 	mux.Handle("GET /api/v1/datasets/{id}", protected(datasetH.Get))
+	mux.Handle("GET /api/v1/datasets/{id}/rows", protected(datasetH.GetRows))
 
 	// Uploads
 	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))
