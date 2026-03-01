@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -45,21 +47,25 @@ func NewMinIOClient() (*MinIOClient, error) {
 	return &MinIOClient{client: client, bucket: bucket}, nil
 }
 
-// MinIOPresignClient is a separate client for generating presigned URLs.
-// It uses MINIO_PRESIGN_ENDPOINT so that browser-accessible URLs point to
-// the external host, not the Docker-internal hostname.
+// MinIOPresignClient generates presigned URLs for browser-direct uploads.
+// The minio-go client connects via MINIO_ENDPOINT (Docker-internal), then
+// the generated URL's host is rewritten to MINIO_PRESIGN_ENDPOINT (external)
+// so that browsers can reach MinIO from outside Docker.
 type MinIOPresignClient struct {
-	client *minio.Client
-	bucket string
+	client           *minio.Client
+	bucket           string
+	presignEndpoint  string // external host:port for URL rewriting
+	internalEndpoint string // internal host:port used by minio-go
 }
 
 func NewMinIOPresignClient() (*MinIOPresignClient, error) {
-	endpoint := os.Getenv("MINIO_PRESIGN_ENDPOINT")
-	if endpoint == "" {
-		endpoint = os.Getenv("MINIO_ENDPOINT")
+	internalEndpoint := os.Getenv("MINIO_ENDPOINT")
+	if internalEndpoint == "" {
+		internalEndpoint = "localhost:9000"
 	}
-	if endpoint == "" {
-		endpoint = "localhost:9000"
+	presignEndpoint := os.Getenv("MINIO_PRESIGN_ENDPOINT")
+	if presignEndpoint == "" {
+		presignEndpoint = internalEndpoint
 	}
 	accessKey := os.Getenv("MINIO_ROOT_USER")
 	if accessKey == "" {
@@ -74,7 +80,7 @@ func NewMinIOPresignClient() (*MinIOPresignClient, error) {
 		bucket = "micro-dp"
 	}
 
-	client, err := minio.New(endpoint, &minio.Options{
+	client, err := minio.New(internalEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: false,
 	})
@@ -82,7 +88,12 @@ func NewMinIOPresignClient() (*MinIOPresignClient, error) {
 		return nil, fmt.Errorf("minio presign client: %w", err)
 	}
 
-	return &MinIOPresignClient{client: client, bucket: bucket}, nil
+	return &MinIOPresignClient{
+		client:           client,
+		bucket:           bucket,
+		presignEndpoint:  presignEndpoint,
+		internalEndpoint: internalEndpoint,
+	}, nil
 }
 
 func (m *MinIOPresignClient) GeneratePresignedPutURL(ctx context.Context, objectKey, contentType string, expiry time.Duration) (string, time.Time, error) {
@@ -90,8 +101,22 @@ func (m *MinIOPresignClient) GeneratePresignedPutURL(ctx context.Context, object
 	if err != nil {
 		return "", time.Time{}, fmt.Errorf("presigned put: %w", err)
 	}
+
+	// Rewrite internal host to external presign endpoint if different.
+	result := presignedURL.String()
+	if m.presignEndpoint != m.internalEndpoint {
+		parsed, err := url.Parse(result)
+		if err == nil {
+			parsed.Host = m.presignEndpoint
+			if !strings.Contains(m.presignEndpoint, "://") {
+				parsed.Scheme = "http"
+			}
+			result = parsed.String()
+		}
+	}
+
 	expiresAt := time.Now().Add(expiry)
-	return presignedURL.String(), expiresAt, nil
+	return result, expiresAt, nil
 }
 
 func (m *MinIOClient) PutParquet(ctx context.Context, objectKey string, data []byte) error {
