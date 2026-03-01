@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/minio/minio-go/v7"
@@ -16,10 +18,28 @@ type MinIOClient struct {
 	bucket string
 }
 
+func parseEndpoint(raw string) (string, bool, error) {
+	if strings.Contains(raw, "://") {
+		parsed, err := url.Parse(raw)
+		if err != nil {
+			return "", false, err
+		}
+		if parsed.Host == "" {
+			return "", false, fmt.Errorf("invalid endpoint: %q", raw)
+		}
+		return parsed.Host, strings.EqualFold(parsed.Scheme, "https"), nil
+	}
+	return raw, false, nil
+}
+
 func NewMinIOClient() (*MinIOClient, error) {
 	endpoint := os.Getenv("MINIO_ENDPOINT")
 	if endpoint == "" {
 		endpoint = "localhost:9000"
+	}
+	normalizedEndpoint, secure, err := parseEndpoint(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("minio endpoint: %w", err)
 	}
 	accessKey := os.Getenv("MINIO_ROOT_USER")
 	if accessKey == "" {
@@ -34,9 +54,9 @@ func NewMinIOClient() (*MinIOClient, error) {
 		bucket = "micro-dp"
 	}
 
-	client, err := minio.New(endpoint, &minio.Options{
+	client, err := minio.New(normalizedEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure: false,
+		Secure: secure,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("minio client: %w", err)
@@ -46,28 +66,27 @@ func NewMinIOClient() (*MinIOClient, error) {
 }
 
 // MinIOPresignClient generates presigned URLs for browser-direct uploads.
-// The minio-go client connects via MINIO_ENDPOINT (Docker-internal), then
-// the generated URL's host is rewritten to MINIO_PRESIGN_ENDPOINT (external)
-// so that browsers can reach MinIO from outside Docker.
-// MinIOPresignClient generates presigned URLs for browser-direct uploads.
-// Uses MINIO_PRESIGN_ENDPOINT (external) for the minio-go client so that
-// the S3 SigV4 signature is computed against the host the browser will use.
-// PresignedPutObject only computes signatures locally — no actual network
-// connection to MinIO is needed.
+// Uses MINIO_PRESIGN_ENDPOINT for signature host matching when set.
 type MinIOPresignClient struct {
 	client *minio.Client
 	bucket string
 }
 
 func NewMinIOPresignClient() (*MinIOPresignClient, error) {
-	// Use external endpoint so presigned URL signatures match the host
-	// that browsers/clients will use.
 	endpoint := os.Getenv("MINIO_PRESIGN_ENDPOINT")
 	if endpoint == "" {
 		endpoint = os.Getenv("MINIO_ENDPOINT")
 	}
 	if endpoint == "" {
 		endpoint = "localhost:9000"
+	}
+	signingEndpoint, secure, err := parseEndpoint(endpoint)
+	if err != nil {
+		return nil, fmt.Errorf("minio presign endpoint: %w", err)
+	}
+	region := os.Getenv("MINIO_REGION")
+	if region == "" {
+		region = "us-east-1"
 	}
 	accessKey := os.Getenv("MINIO_ROOT_USER")
 	if accessKey == "" {
@@ -82,10 +101,10 @@ func NewMinIOPresignClient() (*MinIOPresignClient, error) {
 		bucket = "micro-dp"
 	}
 
-	client, err := minio.New(endpoint, &minio.Options{
+	client, err := minio.New(signingEndpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
-		Secure: false,
-		Region: "us-east-1", // explicit region avoids bucket location lookup
+		Secure: secure,
+		Region: region,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("minio presign client: %w", err)

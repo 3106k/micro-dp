@@ -12,6 +12,7 @@ export function middleware(request: NextRequest) {
       pathname.startsWith("/jobs") ||
       pathname.startsWith("/job-runs") ||
       pathname.startsWith("/datasets") ||
+      pathname.startsWith("/uploads") ||
       pathname.startsWith("/connections") ||
       pathname.startsWith("/admin")) &&
     !token
@@ -39,6 +40,7 @@ export const config = {
     "/jobs/:path*",
     "/job-runs/:path*",
     "/datasets/:path*",
+    "/uploads/:path*",
     "/connections/:path*",
     "/admin/:path*",
     "/signin",

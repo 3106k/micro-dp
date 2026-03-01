@@ -37,6 +37,7 @@ export function DashboardHeader({
     { href: "/jobs", label: "Jobs" },
     { href: "/job-runs", label: "Job Runs" },
     { href: "/datasets", label: "Datasets" },
+    { href: "/uploads", label: "Uploads" },
     { href: "/connections", label: "Connections" },
   ];
   if (platformRole === "superadmin") {

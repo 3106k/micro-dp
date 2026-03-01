@@ -79,3 +79,15 @@ Example env values:
 - local: `NEXT_PUBLIC_TRACKER_ENDPOINT=http://localhost:8080/api/v1/events`
 - staging: `NEXT_PUBLIC_TRACKER_ENDPOINT=https://api-stg.example.com/api/v1/events`
 - production: `NEXT_PUBLIC_TRACKER_ENDPOINT=https://api.example.com/api/v1/events`
+
+## Upload UI manual verification
+
+1. Sign in and open `http://localhost:3000/uploads`.
+2. Select one valid file (`.csv`, `.json`, `.parquet`, `.xlsx`, `.txt`, `.tsv`, `.gz`, `.zip`) and run upload.
+3. Confirm progress reaches 100% and completion message shows `uploaded`.
+4. Enable `multiple` and upload 2+ valid files; confirm all complete successfully.
+5. Failure checks:
+   - Select a file larger than 100MB and confirm size error is shown.
+   - Select a non-allowed extension and confirm extension error is shown.
+   - Stop MinIO/network and confirm direct upload failure is shown.
+6. Verify tenant isolation by signing in with a different tenant and confirming uploaded records are not mixed.

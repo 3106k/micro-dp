@@ -62,6 +62,17 @@
   - `make sdk-tracker-test`
 - Do not commit generated `dist/` or `node_modules/` for `sdk-tracker`.
 
+## Uploads + Worktree Env Checklist
+
+- `apps/shell/setup-worktree-env.sh` generated `.env` must include:
+  - `MINIO_PRESIGN_ENDPOINT=localhost:${MINIO_API_HOST_PORT}`
+- When changing `.env` values (for example MinIO/presign endpoints), hot reload is not enough:
+  - Recreate affected containers, e.g. `docker compose up -d --force-recreate api worker`
+- For upload verification in worktree environments, confirm all of:
+  - Presigned URL host matches the worktree MinIO API port (for example `localhost:9900`)
+  - Browser direct PUT to presigned URL returns 2xx
+  - `POST /api/v1/uploads/{id}/complete` returns upload status `uploaded`
+
 ## Events Ingest Change Checklist
 
 - Worker 側の変更は `worker/` パッケージ内で行う
