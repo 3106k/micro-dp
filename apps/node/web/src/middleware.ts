@@ -6,8 +6,13 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get(TOKEN_COOKIE)?.value;
   const { pathname } = request.nextUrl;
 
-  // Protect /dashboard routes
-  if (pathname.startsWith("/dashboard") && !token) {
+  // Protect authenticated routes
+  if (
+    (pathname.startsWith("/dashboard") ||
+      pathname.startsWith("/connections") ||
+      pathname.startsWith("/admin")) &&
+    !token
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/signin";
     url.searchParams.set("callbackUrl", pathname);
@@ -26,5 +31,11 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/signin", "/signup"],
+  matcher: [
+    "/dashboard/:path*",
+    "/connections/:path*",
+    "/admin/:path*",
+    "/signin",
+    "/signup",
+  ],
 };
