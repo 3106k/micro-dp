@@ -19,19 +19,24 @@ micro-dp is a data pipeline platform built as a monorepo. The stack is Next.js (
 
 **Service dependency chain**: web → api → valkey, minio-init → minio. Worker depends on api (healthy) + valkey.
 
-**SQLite via volume**: `sqlite-data` volume is shared between api and worker containers. Driver: modernc.org/sqlite (pure Go, no CGO).
+**SQLite via volume**: `.data/sqlite` volume is shared between api and worker containers. Driver: modernc.org/sqlite (pure Go). CGO is enabled due to DuckDB (go-duckdb) dependency.
 
 **Go layered architecture**:
 
 ```
-cmd/api/     — API entry point (auth, tenant management)
-cmd/worker/  — Worker entry point (queue consumer, DuckDB, MinIO/Iceberg)
-domain/      — entities, repository interfaces
-usecase/     — application services / business logic
-handler/     — HTTP handlers (adapter)
-db/          — repository implementations, migrations
-queue/       — Valkey queue implementation
-worker/      — job processing
+cmd/api/       — API entry point (auth, tenant management)
+cmd/worker/    — Worker entry point (queue consumer, DuckDB, MinIO/Iceberg)
+domain/        — entities, repository interfaces
+usecase/       — application services / business logic
+handler/       — HTTP handlers (adapter)
+db/            — repository implementations, migrations
+queue/         — Valkey queue implementation (go-redis/v9)
+worker/        — job processing (EventConsumer, ParquetWriter)
+storage/       — MinIO client wrapper (minio-go/v7)
+internal/      — private packages:
+  observability/   — OpenTelemetry traces + Prometheus metrics
+  openapi/         — oapi-codegen generated types/interfaces
+  featureflag/     — OpenFeature feature flag infrastructure
 ```
 
 依存方向: `handler/` → `usecase/` → `domain/` ← `db/`, `queue/`。`domain/` は他パッケージに依存しない。
@@ -41,13 +46,19 @@ worker/      — job processing
 All commands run from the repo root via Makefile:
 
 ```bash
-make up          # docker compose up -d --build (production Dockerfiles)
-make down        # stop all services
-make build       # build images only
-make logs        # stream all service logs
-make ps          # show container status
-make health      # curl healthz endpoints + valkey ping
-make clean       # down + remove volumes and images
+make up                # docker compose up -d --build
+make down              # stop all services
+make build             # build images only
+make logs              # stream all service logs
+make ps                # show container status
+make health            # curl healthz endpoints + valkey ping
+make clean             # down + remove volumes and images
+make dev-api           # run API with hot reload (air)
+make dev-worker        # run Worker with hot reload (air)
+make e2e-cli           # run E2E CLI tests against local API
+make e2e-ci-template   # up → e2e-cli → down (CI 用)
+make sdk-tracker-build # build tracker SDK
+make sdk-tracker-test  # run tracker SDK tests
 ```
 
 ### Worktree workflow
@@ -78,18 +89,48 @@ npm run dev              # Dev server on :3000
 
 ## Environment
 
-All host ports are configurable via `.env` (loaded by docker-compose from `apps/docker/`):
+All variables are configurable via `.env` (loaded by docker-compose from `apps/docker/`). See `.env.example` for full list.
 
-| Variable                  | Default    | Description             |
-| ------------------------- | ---------- | ----------------------- |
-| `COMPOSE_PROJECT_NAME`    | `micro-dp` | Container name prefix   |
-| `API_HOST_PORT`           | `8080`     | Go API host port        |
-| `WEB_HOST_PORT`           | `3000`     | Next.js host port       |
-| `VALKEY_HOST_PORT`        | `6379`     | Valkey host port        |
-| `MINIO_API_HOST_PORT`     | `9000`     | MinIO API host port     |
-| `MINIO_CONSOLE_HOST_PORT` | `9001`     | MinIO console host port |
+### Host Ports
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `COMPOSE_PROJECT_NAME` | `micro-dp` | Container name prefix |
+| `API_HOST_PORT` | `8080` | Go API host port |
+| `WEB_HOST_PORT` | `3000` | Next.js host port |
+| `VALKEY_HOST_PORT` | `6379` | Valkey host port |
+| `MINIO_API_HOST_PORT` | `9000` | MinIO API host port |
+| `MINIO_CONSOLE_HOST_PORT` | `9001` | MinIO console host port |
 
 Internal container ports are fixed; only host-side ports change per environment.
+
+### Backend
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `JWT_SECRET` | `dev-secret-...` | JWT 署名鍵 (必須) |
+| `SQLITE_PATH` | `/data/sqlite/micro-dp.db` | SQLite ファイルパス |
+| `BOOTSTRAP_SUPERADMINS` | `false` | 起動時に superadmin を作成 |
+| `SUPERADMIN_EMAILS` | — | superadmin メールアドレス (カンマ区切り) |
+
+### Infrastructure
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `VALKEY_ADDR` | `valkey:6379` | Valkey 接続先 |
+| `MINIO_ENDPOINT` | `minio:9000` | MinIO 接続先 |
+| `MINIO_ROOT_USER` | `minioadmin` | MinIO 認証 |
+| `MINIO_ROOT_PASSWORD` | `minioadmin` | MinIO 認証 |
+| `MINIO_BUCKET` | `micro-dp` | MinIO バケット名 |
+
+### Feature Flags
+
+| Variable | Default | Description |
+| -------- | ------- | ----------- |
+| `FF_EVENTS_INGEST` | `true` | Events 取り込み |
+| `FF_DATASETS_API` | `true` | Datasets API |
+| `FF_ADMIN_TENANTS` | `true` | Admin テナント管理 |
+| `FF_UPLOADS_API` | `true` | Uploads API |
 
 ## Health Checks
 
@@ -107,19 +148,60 @@ Internal container ports are fixed; only host-side ports change per environment.
 
 ## API Endpoints
 
-| Method | Path | Auth | Description |
-| ------ | ---- | ---- | ----------- |
-| GET | `/healthz` | — | Health check |
-| POST | `/api/v1/auth/register` | — | Register user (creates tenant) |
-| POST | `/api/v1/auth/login` | — | Login (returns JWT) |
-| GET | `/api/v1/auth/me` | Bearer | Current user + tenants |
-| POST | `/api/v1/events` | Bearer + X-Tenant-ID | Ingest event (202 Accepted) |
-| GET | `/api/v1/events/summary` | Bearer + X-Tenant-ID | Event counts summary |
-| POST | `/api/v1/job_runs` | Bearer + X-Tenant-ID | Create job run |
-| GET | `/api/v1/job_runs` | Bearer + X-Tenant-ID | List job runs (tenant-scoped) |
-| GET | `/api/v1/job_runs/{id}` | Bearer + X-Tenant-ID | Get job run (tenant-scoped) |
-| POST | `/api/v1/uploads/presign` | Bearer + X-Tenant-ID | Request presigned upload URLs |
-| POST | `/api/v1/uploads/{id}/complete` | Bearer + X-Tenant-ID | Mark upload complete |
+### Public
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/healthz` | Health check |
+| GET | `/metrics` | Prometheus metrics |
+| POST | `/api/v1/auth/register` | Register user (creates tenant) |
+| POST | `/api/v1/auth/login` | Login (returns JWT) |
+
+### Authenticated (Bearer)
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| GET | `/api/v1/auth/me` | Current user + tenants |
+
+### Tenant-scoped (Bearer + X-Tenant-ID)
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| POST | `/api/v1/events` | Ingest event (202 Accepted) |
+| GET | `/api/v1/events/summary` | Event counts summary |
+| POST | `/api/v1/job_runs` | Create job run |
+| GET | `/api/v1/job_runs` | List job runs |
+| GET | `/api/v1/job_runs/{id}` | Get job run |
+| POST | `/api/v1/jobs` | Create job |
+| GET | `/api/v1/jobs` | List jobs |
+| GET | `/api/v1/jobs/{id}` | Get job |
+| PUT | `/api/v1/jobs/{id}` | Update job |
+| POST | `/api/v1/jobs/{job_id}/versions` | Create job version |
+| GET | `/api/v1/jobs/{job_id}/versions` | List job versions |
+| GET | `/api/v1/jobs/{job_id}/versions/{version_id}` | Get job version detail |
+| POST | `/api/v1/jobs/{job_id}/versions/{version_id}/publish` | Publish job version |
+| POST | `/api/v1/module_types` | Create module type |
+| GET | `/api/v1/module_types` | List module types |
+| GET | `/api/v1/module_types/{id}` | Get module type |
+| POST | `/api/v1/module_types/{id}/schemas` | Create module type schema |
+| GET | `/api/v1/module_types/{id}/schemas` | List module type schemas |
+| POST | `/api/v1/connections` | Create connection |
+| GET | `/api/v1/connections` | List connections |
+| GET | `/api/v1/connections/{id}` | Get connection |
+| PUT | `/api/v1/connections/{id}` | Update connection |
+| DELETE | `/api/v1/connections/{id}` | Delete connection |
+| GET | `/api/v1/datasets` | List datasets |
+| GET | `/api/v1/datasets/{id}` | Get dataset |
+| POST | `/api/v1/uploads/presign` | Request presigned upload URLs |
+| POST | `/api/v1/uploads/{id}/complete` | Mark upload complete |
+
+### Admin (Bearer + Superadmin)
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| POST | `/api/v1/admin/tenants` | Create tenant |
+| GET | `/api/v1/admin/tenants` | List tenants |
+| PATCH | `/api/v1/admin/tenants/{id}` | Update tenant |
 
 ## Events Ingest Pipeline
 
@@ -269,3 +351,41 @@ When API contract is changed:
 1. Update `spec/openapi/v1.yaml`
 2. Run `make openapi-generate` (or `make openapi-check`)
 3. Commit spec and generated artifacts together
+
+## Feature Flags
+
+OpenFeature ベースの feature flag 基盤。初期は環境変数プロバイダ (`FF_*`)、将来 flagd / Unleash 等に差し替え可能。
+
+### パッケージ構成
+
+| ファイル | 役割 |
+|---------|------|
+| `internal/featureflag/featureflag.go` | LoadConfig / Init / IsEnabled / LogStartup |
+| `internal/featureflag/env_provider.go` | OpenFeature EnvProvider 実装 |
+
+### フラグ一覧
+
+| Flag 定数 | 環境変数 | デフォルト | 対象機能 |
+|-----------|---------|-----------|---------|
+| `events_ingest` | `FF_EVENTS_INGEST` | `true` | Events 取り込み |
+| `datasets_api` | `FF_DATASETS_API` | `true` | Datasets API |
+| `admin_tenants` | `FF_ADMIN_TENANTS` | `true` | Admin テナント管理 |
+| `uploads_api` | `FF_UPLOADS_API` | `true` | Uploads API |
+
+### 初期化パターン
+
+`cmd/api/main.go` と `cmd/worker/main.go` で observability 初期化の直後に呼び出し:
+
+```go
+ffCfg := featureflag.LoadConfig()
+featureflag.Init(ffCfg)
+featureflag.LogStartup(ffCfg)
+```
+
+### フラグ判定
+
+```go
+if featureflag.IsEnabled(featureflag.FlagEventsIngest) {
+    // feature enabled
+}
+```
