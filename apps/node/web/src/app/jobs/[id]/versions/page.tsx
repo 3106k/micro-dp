@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -5,12 +6,17 @@ import { DashboardHeader } from "@/app/dashboard/dashboard-header";
 import type { components } from "@/lib/api/generated";
 import { backendFetch } from "@/lib/api/server";
 import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
-import { ConnectionsManager } from "./connections-manager";
+import { VersionsManager } from "./versions-manager";
 
 type MeResponse = components["schemas"]["MeResponse"];
-type Connection = components["schemas"]["Connection"];
+type JobVersion = components["schemas"]["JobVersion"];
 
-export default async function ConnectionsPage() {
+export default async function JobVersionsPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
   const tenantId = jar.get(TENANT_COOKIE)?.value;
@@ -26,16 +32,17 @@ export default async function ConnectionsPage() {
   }
   const me: MeResponse = await meRes.json();
 
-  let initialConnections: Connection[] = [];
-  const connectionsRes = await backendFetch("/api/v1/connections", {
+  let versions: JobVersion[] = [];
+  const versionsRes = await backendFetch(`/api/v1/jobs/${id}/versions`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "X-Tenant-ID": tenantId,
     },
+    cache: "no-store",
   });
-  if (connectionsRes.ok) {
-    const data: { items: Connection[] } = await connectionsRes.json();
-    initialConnections = data.items ?? [];
+  if (versionsRes.ok) {
+    const data: { items: JobVersion[] } = await versionsRes.json();
+    versions = data.items ?? [];
   }
 
   return (
@@ -48,8 +55,13 @@ export default async function ConnectionsPage() {
         currentTenantId={tenantId}
       />
       <main className="container space-y-6 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Connections</h1>
-        <ConnectionsManager initialConnections={initialConnections} />
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">Job Versions</h1>
+          <Link href={`/jobs/${id}`} className="text-sm underline">
+            Back to job
+          </Link>
+        </div>
+        <VersionsManager jobId={id} initialVersions={versions} />
       </main>
     </div>
   );

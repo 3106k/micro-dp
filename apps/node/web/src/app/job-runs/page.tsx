@@ -5,12 +5,12 @@ import { DashboardHeader } from "@/app/dashboard/dashboard-header";
 import type { components } from "@/lib/api/generated";
 import { backendFetch } from "@/lib/api/server";
 import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
-import { ConnectionsManager } from "./connections-manager";
+import { JobRunsManager } from "./job-runs-manager";
 
 type MeResponse = components["schemas"]["MeResponse"];
-type Connection = components["schemas"]["Connection"];
+type JobRun = components["schemas"]["JobRun"];
 
-export default async function ConnectionsPage() {
+export default async function JobRunsPage() {
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
   const tenantId = jar.get(TENANT_COOKIE)?.value;
@@ -26,16 +26,17 @@ export default async function ConnectionsPage() {
   }
   const me: MeResponse = await meRes.json();
 
-  let initialConnections: Connection[] = [];
-  const connectionsRes = await backendFetch("/api/v1/connections", {
+  let runs: JobRun[] = [];
+  const runsRes = await backendFetch("/api/v1/job_runs", {
     headers: {
       Authorization: `Bearer ${token}`,
       "X-Tenant-ID": tenantId,
     },
+    cache: "no-store",
   });
-  if (connectionsRes.ok) {
-    const data: { items: Connection[] } = await connectionsRes.json();
-    initialConnections = data.items ?? [];
+  if (runsRes.ok) {
+    const data: { items: JobRun[] } = await runsRes.json();
+    runs = data.items ?? [];
   }
 
   return (
@@ -48,8 +49,8 @@ export default async function ConnectionsPage() {
         currentTenantId={tenantId}
       />
       <main className="container space-y-6 py-8">
-        <h1 className="text-2xl font-semibold tracking-tight">Connections</h1>
-        <ConnectionsManager initialConnections={initialConnections} />
+        <h1 className="text-2xl font-semibold tracking-tight">Job Runs</h1>
+        <JobRunsManager initialRuns={runs} />
       </main>
     </div>
   );
