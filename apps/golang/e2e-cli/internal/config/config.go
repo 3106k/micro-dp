@@ -27,7 +27,7 @@ func Load(args []string) (*Config, error) {
 	baseURL := fs.String("base-url", envOr("E2E_BASE_URL", "http://localhost:8080"), "API base URL")
 	token := fs.String("token", envOr("E2E_TOKEN", ""), "Bearer token for authenticated requests")
 	tenantID := fs.String("tenant-id", envOr("E2E_TENANT_ID", ""), "Tenant header value")
-	suitesRaw := fs.String("suites", envOr("E2E_SUITES", "health,auth,datasets,events,job_runs,uploads,tenant"), "Comma separated suite names")
+	suitesRaw := fs.String("suites", envOr("E2E_SUITES", "health,auth,connectors,datasets,events,job_runs,uploads,tenant"), "Comma separated suite names")
 	jsonOut := fs.String("json-out", envOr("E2E_JSON_OUT", "e2e-report.json"), "JSON report output path")
 	authEmail := fs.String("auth-email", envOr("E2E_AUTH_EMAIL", ""), "Email for auth suite (optional)")
 	authPassword := fs.String("auth-password", envOr("E2E_AUTH_PASSWORD", "Passw0rd!123"), "Password for auth suite")

@@ -1,0 +1,63 @@
+{
+  "id": "destination-s3",
+  "name": "Amazon S3 Destination",
+  "kind": "destination",
+  "icon": "s3",
+  "description": "Write data to Amazon S3 buckets",
+  "spec": {
+    "type": "object",
+    "required": ["bucket", "region", "auth_method"],
+    "properties": {
+      "bucket": {
+        "type": "string",
+        "title": "Bucket",
+        "description": "S3 bucket name",
+        "x-order": 1
+      },
+      "region": {
+        "type": "string",
+        "title": "Region",
+        "description": "AWS region (e.g. us-east-1)",
+        "x-order": 2
+      },
+      "prefix": {
+        "type": "string",
+        "title": "Prefix",
+        "description": "Object key prefix for output files",
+        "x-order": 3
+      },
+      "output_format": {
+        "type": "string",
+        "title": "Output Format",
+        "enum": ["csv", "json", "parquet"],
+        "default": "parquet",
+        "x-order": 4
+      },
+      "auth_method": {
+        "type": "string",
+        "title": "Authentication Method",
+        "enum": ["iam_role", "access_key"],
+        "x-order": 5
+      },
+      "role_arn": {
+        "type": "string",
+        "title": "IAM Role ARN",
+        "x-visible-when": {"auth_method": "iam_role"},
+        "x-order": 6
+      },
+      "access_key_id": {
+        "type": "string",
+        "title": "Access Key ID",
+        "x-visible-when": {"auth_method": "access_key"},
+        "x-order": 7
+      },
+      "secret_access_key": {
+        "type": "string",
+        "title": "Secret Access Key",
+        "x-secret": true,
+        "x-visible-when": {"auth_method": "access_key"},
+        "x-order": 8
+      }
+    }
+  }
+}

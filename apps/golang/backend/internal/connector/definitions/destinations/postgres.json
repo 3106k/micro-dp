@@ -1,0 +1,58 @@
+{
+  "id": "destination-postgres",
+  "name": "PostgreSQL Destination",
+  "kind": "destination",
+  "icon": "postgres",
+  "description": "Write data to PostgreSQL databases",
+  "spec": {
+    "type": "object",
+    "required": ["host", "port", "database", "username", "password"],
+    "properties": {
+      "host": {
+        "type": "string",
+        "title": "Host",
+        "description": "Database server hostname or IP address",
+        "x-order": 1
+      },
+      "port": {
+        "type": "integer",
+        "title": "Port",
+        "default": 5432,
+        "minimum": 1,
+        "maximum": 65535,
+        "x-order": 2
+      },
+      "database": {
+        "type": "string",
+        "title": "Database",
+        "description": "Database name to connect to",
+        "x-order": 3
+      },
+      "schema": {
+        "type": "string",
+        "title": "Schema",
+        "description": "Target schema",
+        "default": "public",
+        "x-order": 4
+      },
+      "username": {
+        "type": "string",
+        "title": "Username",
+        "x-order": 5
+      },
+      "password": {
+        "type": "string",
+        "title": "Password",
+        "x-secret": true,
+        "x-order": 6
+      },
+      "ssl_mode": {
+        "type": "string",
+        "title": "SSL Mode",
+        "enum": ["disable", "require", "verify-ca", "verify-full"],
+        "default": "disable",
+        "x-order": 7
+      }
+    }
+  }
+}
