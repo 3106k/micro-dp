@@ -267,3 +267,41 @@ When API contract is changed:
 1. Update `spec/openapi/v1.yaml`
 2. Run `make openapi-generate` (or `make openapi-check`)
 3. Commit spec and generated artifacts together
+
+## Feature Flags
+
+OpenFeature ベースの feature flag 基盤。初期は環境変数プロバイダ (`FF_*`)、将来 flagd / Unleash 等に差し替え可能。
+
+### パッケージ構成
+
+| ファイル | 役割 |
+|---------|------|
+| `internal/featureflag/featureflag.go` | LoadConfig / Init / IsEnabled / LogStartup |
+| `internal/featureflag/env_provider.go` | OpenFeature EnvProvider 実装 |
+
+### フラグ一覧
+
+| Flag 定数 | 環境変数 | デフォルト | 対象機能 |
+|-----------|---------|-----------|---------|
+| `events_ingest` | `FF_EVENTS_INGEST` | `true` | Events 取り込み |
+| `datasets_api` | `FF_DATASETS_API` | `true` | Datasets API |
+| `admin_tenants` | `FF_ADMIN_TENANTS` | `true` | Admin テナント管理 |
+| `uploads_api` | `FF_UPLOADS_API` | `true` | Uploads API |
+
+### 初期化パターン
+
+`cmd/api/main.go` と `cmd/worker/main.go` で observability 初期化の直後に呼び出し:
+
+```go
+ffCfg := featureflag.LoadConfig()
+featureflag.Init(ffCfg)
+featureflag.LogStartup(ffCfg)
+```
+
+### フラグ判定
+
+```go
+if featureflag.IsEnabled(featureflag.FlagEventsIngest) {
+    // feature enabled
+}
+```
