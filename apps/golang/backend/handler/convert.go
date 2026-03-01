@@ -1,9 +1,12 @@
 package handler
 
 import (
+	"encoding/json"
+
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/connector"
 	"github.com/user/micro-dp/internal/openapi"
 )
 
@@ -240,6 +243,41 @@ func toOpenAPIUsageSummary(s *domain.UsageSummary) openapi.UsageSummaryResponse 
 		resp.Plan = &p
 	}
 	return resp
+}
+
+func toOpenAPIConnectorDefinition(d *connector.Definition) openapi.ConnectorDefinition {
+	out := openapi.ConnectorDefinition{
+		Id:   d.ID,
+		Name: d.Name,
+		Kind: openapi.ConnectorKind(d.Kind),
+	}
+	if d.Icon != "" {
+		out.Icon = &d.Icon
+	}
+	if d.Description != "" {
+		out.Description = &d.Description
+	}
+	return out
+}
+
+func toOpenAPIConnectorDefinitionDetail(d *connector.Definition) openapi.ConnectorDefinitionDetail {
+	out := openapi.ConnectorDefinitionDetail{
+		Id:   d.ID,
+		Name: d.Name,
+		Kind: openapi.ConnectorKind(d.Kind),
+	}
+	if d.Icon != "" {
+		out.Icon = &d.Icon
+	}
+	if d.Description != "" {
+		out.Description = &d.Description
+	}
+	// Parse spec JSON into map for the response
+	var specMap map[string]interface{}
+	if err := json.Unmarshal(d.Spec, &specMap); err == nil {
+		out.Spec = specMap
+	}
+	return out
 }
 
 func toOpenAPIConnection(c *domain.Connection) openapi.Connection {

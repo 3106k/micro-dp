@@ -1,0 +1,60 @@
+{
+  "id": "source-postgres",
+  "name": "PostgreSQL Source",
+  "kind": "source",
+  "icon": "postgres",
+  "description": "Read data from PostgreSQL databases",
+  "spec": {
+    "type": "object",
+    "required": ["host", "port", "database", "username", "password"],
+    "properties": {
+      "host": {
+        "type": "string",
+        "title": "Host",
+        "description": "Database server hostname or IP address",
+        "x-order": 1
+      },
+      "port": {
+        "type": "integer",
+        "title": "Port",
+        "default": 5432,
+        "minimum": 1,
+        "maximum": 65535,
+        "x-order": 2
+      },
+      "database": {
+        "type": "string",
+        "title": "Database",
+        "description": "Database name to connect to",
+        "x-order": 3
+      },
+      "username": {
+        "type": "string",
+        "title": "Username",
+        "x-order": 4
+      },
+      "password": {
+        "type": "string",
+        "title": "Password",
+        "x-secret": true,
+        "x-order": 5
+      },
+      "ssl_mode": {
+        "type": "string",
+        "title": "SSL Mode",
+        "enum": ["disable", "require", "verify-ca", "verify-full"],
+        "default": "disable",
+        "x-order": 6
+      },
+      "schemas": {
+        "type": "array",
+        "title": "Schemas",
+        "description": "List of schemas to include (empty = all)",
+        "items": {
+          "type": "string"
+        },
+        "x-order": 7
+      }
+    }
+  }
+}

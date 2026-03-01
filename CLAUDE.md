@@ -197,11 +197,14 @@ Internal container ports are fixed; only host-side ports change per environment.
 | GET | `/api/v1/module_types/{id}` | Get module type |
 | POST | `/api/v1/module_types/{id}/schemas` | Create module type schema |
 | GET | `/api/v1/module_types/{id}/schemas` | List module type schemas |
+| GET | `/api/v1/connectors` | List connector definitions |
+| GET | `/api/v1/connectors/{id}` | Get connector definition (with spec) |
 | POST | `/api/v1/connections` | Create connection |
 | GET | `/api/v1/connections` | List connections |
 | GET | `/api/v1/connections/{id}` | Get connection |
 | PUT | `/api/v1/connections/{id}` | Update connection |
 | DELETE | `/api/v1/connections/{id}` | Delete connection |
+| POST | `/api/v1/connections/test` | Test connection (spec validation) |
 | GET | `/api/v1/datasets` | List datasets |
 | GET | `/api/v1/datasets/{id}` | Get dataset |
 | POST | `/api/v1/uploads/presign` | Request presigned upload URLs |
@@ -518,3 +521,47 @@ notifCfg := notification.LoadConfig()
 emailSender := notification.NewEmailSender(notifCfg)
 notification.LogStartup(notifCfg)
 ```
+
+## Connector Framework
+
+コネクタ定義をコード埋め込み (static) で管理。source / destination を分離し、JSON Schema + x-* 拡張で spec を SSOT 化。
+
+### パッケージ構成
+
+| ファイル | 役割 |
+|---------|------|
+| `internal/connector/registry.go` | Registry (Global シングルトン、定義ロード、JSON Schema コンパイル・バリデーション) |
+| `internal/connector/definitions/sources/*.json` | Source コネクタ定義 (postgres, mysql, s3) |
+| `internal/connector/definitions/destinations/*.json` | Destination コネクタ定義 (s3, postgres) |
+
+### 定義 JSON 構造
+
+```json
+{
+  "id": "source-postgres",
+  "name": "PostgreSQL Source",
+  "kind": "source",
+  "icon": "postgres",
+  "description": "Read data from PostgreSQL databases",
+  "spec": { /* JSON Schema */ }
+}
+```
+
+### x-* 拡張一覧
+
+| キー | 型 | 用途 |
+|------|-----|------|
+| `x-order` | number | 表示順 |
+| `x-secret` | boolean | パスワード表示 + 秘匿ヒント |
+| `x-multiline` | boolean | textarea |
+| `x-file-upload` | boolean | ファイル選択 |
+| `x-group` | string | フィールドグループ |
+| `x-visible-when` | object | 条件付き表示 |
+
+### 新コネクタ追加手順
+
+1. `internal/connector/definitions/sources/` または `destinations/` に JSON ファイルを追加
+2. `id` は `{kind}-{name}` 形式 (例: `source-bigquery`)
+3. `spec` に JSON Schema を定義 (x-* 拡張でフォームヒント)
+4. `go build ./...` で起動時自動ロード確認
+5. `connections.type` に定義 ID を指定して使用
