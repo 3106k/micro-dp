@@ -1,0 +1,70 @@
+{
+  "id": "source-s3",
+  "name": "Amazon S3 Source",
+  "kind": "source",
+  "icon": "s3",
+  "description": "Read data from Amazon S3 buckets",
+  "spec": {
+    "type": "object",
+    "required": ["bucket", "region", "auth_method"],
+    "properties": {
+      "bucket": {
+        "type": "string",
+        "title": "Bucket",
+        "description": "S3 bucket name",
+        "x-order": 1
+      },
+      "region": {
+        "type": "string",
+        "title": "Region",
+        "description": "AWS region (e.g. us-east-1)",
+        "x-order": 2
+      },
+      "prefix": {
+        "type": "string",
+        "title": "Prefix",
+        "description": "Object key prefix to filter",
+        "x-order": 3
+      },
+      "file_format": {
+        "type": "string",
+        "title": "File Format",
+        "enum": ["csv", "json", "parquet"],
+        "default": "csv",
+        "x-order": 4
+      },
+      "csv_delimiter": {
+        "type": "string",
+        "title": "CSV Delimiter",
+        "default": ",",
+        "x-visible-when": {"file_format": "csv"},
+        "x-order": 5
+      },
+      "auth_method": {
+        "type": "string",
+        "title": "Authentication Method",
+        "enum": ["iam_role", "access_key"],
+        "x-order": 6
+      },
+      "role_arn": {
+        "type": "string",
+        "title": "IAM Role ARN",
+        "x-visible-when": {"auth_method": "iam_role"},
+        "x-order": 7
+      },
+      "access_key_id": {
+        "type": "string",
+        "title": "Access Key ID",
+        "x-visible-when": {"auth_method": "access_key"},
+        "x-order": 8
+      },
+      "secret_access_key": {
+        "type": "string",
+        "title": "Secret Access Key",
+        "x-secret": true,
+        "x-visible-when": {"auth_method": "access_key"},
+        "x-order": 9
+      }
+    }
+  }
+}

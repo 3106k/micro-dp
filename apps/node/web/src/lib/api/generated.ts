@@ -505,6 +505,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List connector definitions */
+        get: operations["listConnectors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connectors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get connector definition detail */
+        get: operations["getConnector"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/connections": {
         parameters: {
             query?: never;
@@ -537,6 +571,23 @@ export interface paths {
         post?: never;
         /** Delete connection */
         delete: operations["deleteConnection"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Test connection */
+        post: operations["testConnection"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -941,6 +992,32 @@ export interface components {
             type: string;
             config_json?: string;
             secret_ref?: string;
+        };
+        TestConnectionRequest: {
+            type: string;
+            config_json: string;
+        };
+        TestConnectionResponse: {
+            /** @enum {string} */
+            status: "ok" | "failed";
+            message?: string;
+        };
+        /** @enum {string} */
+        ConnectorKind: "source" | "destination";
+        ConnectorDefinition: {
+            id: string;
+            name: string;
+            kind: components["schemas"]["ConnectorKind"];
+            icon?: string;
+            description?: string;
+        };
+        ConnectorDefinitionDetail: {
+            id: string;
+            name: string;
+            kind: components["schemas"]["ConnectorKind"];
+            icon?: string;
+            description?: string;
+            spec: Record<string, never>;
         };
         Dataset: {
             id: string;
@@ -2095,6 +2172,59 @@ export interface operations {
             404: components["responses"]["ErrorResponse"];
         };
     };
+    listConnectors: {
+        parameters: {
+            query?: {
+                kind?: components["schemas"]["ConnectorKind"];
+            };
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of connector definitions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ConnectorDefinition"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    getConnector: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connector definition with spec */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectorDefinitionDetail"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
     listConnections: {
         parameters: {
             query?: never;
@@ -2147,6 +2277,7 @@ export interface operations {
             400: components["responses"]["ErrorResponse"];
             401: components["responses"]["ErrorResponse"];
             409: components["responses"]["ErrorResponse"];
+            422: components["responses"]["ErrorResponse"];
         };
     };
     getConnection: {
@@ -2205,6 +2336,7 @@ export interface operations {
             401: components["responses"]["ErrorResponse"];
             404: components["responses"]["ErrorResponse"];
             409: components["responses"]["ErrorResponse"];
+            422: components["responses"]["ErrorResponse"];
         };
     };
     deleteConnection: {
@@ -2229,6 +2361,35 @@ export interface operations {
             };
             401: components["responses"]["ErrorResponse"];
             404: components["responses"]["ErrorResponse"];
+        };
+    };
+    testConnection: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestConnectionRequest"];
+            };
+        };
+        responses: {
+            /** @description Test result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TestConnectionResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            422: components["responses"]["ErrorResponse"];
         };
     };
     listDatasets: {

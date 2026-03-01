@@ -9,6 +9,8 @@ import (
 var (
 	ErrConnectionNotFound      = errors.New("connection not found")
 	ErrConnectionNameDuplicate = errors.New("connection name already exists")
+	ErrConnectorTypeUnknown    = errors.New("unknown connector type")
+	ErrConnectionConfigInvalid = errors.New("connection config validation failed")
 )
 
 type Connection struct {

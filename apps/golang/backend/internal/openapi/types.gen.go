@@ -13,6 +13,12 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for ConnectorKind.
+const (
+	ConnectorKindDestination ConnectorKind = "destination"
+	ConnectorKindSource      ConnectorKind = "source"
+)
+
 // Defines values for CreateModuleTypeRequestCategory.
 const (
 	CreateModuleTypeRequestCategoryDestination CreateModuleTypeRequestCategory = "destination"
@@ -29,8 +35,8 @@ const (
 
 // Defines values for HealthResponseStatus.
 const (
-	Degraded HealthResponseStatus = "degraded"
-	Ok       HealthResponseStatus = "ok"
+	HealthResponseStatusDegraded HealthResponseStatus = "degraded"
+	HealthResponseStatusOk       HealthResponseStatus = "ok"
 )
 
 // Defines values for IngestEventResponseStatus.
@@ -70,9 +76,9 @@ const (
 
 // Defines values for ModuleTypeCategory.
 const (
-	ModuleTypeCategoryDestination ModuleTypeCategory = "destination"
-	ModuleTypeCategorySource      ModuleTypeCategory = "source"
-	ModuleTypeCategoryTransform   ModuleTypeCategory = "transform"
+	Destination ModuleTypeCategory = "destination"
+	Source      ModuleTypeCategory = "source"
+	Transform   ModuleTypeCategory = "transform"
 )
 
 // Defines values for TenantInvitationStatus.
@@ -87,6 +93,12 @@ const (
 	Admin  TenantRole = "admin"
 	Member TenantRole = "member"
 	Owner  TenantRole = "owner"
+)
+
+// Defines values for TestConnectionResponseStatus.
+const (
+	TestConnectionResponseStatusFailed TestConnectionResponseStatus = "failed"
+	TestConnectionResponseStatusOk     TestConnectionResponseStatus = "ok"
 )
 
 // Defines values for UploadStatus.
@@ -122,6 +134,28 @@ type Connection struct {
 	Type       string     `json:"type"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
 }
+
+// ConnectorDefinition defines model for ConnectorDefinition.
+type ConnectorDefinition struct {
+	Description *string       `json:"description,omitempty"`
+	Icon        *string       `json:"icon,omitempty"`
+	Id          string        `json:"id"`
+	Kind        ConnectorKind `json:"kind"`
+	Name        string        `json:"name"`
+}
+
+// ConnectorDefinitionDetail defines model for ConnectorDefinitionDetail.
+type ConnectorDefinitionDetail struct {
+	Description *string                `json:"description,omitempty"`
+	Icon        *string                `json:"icon,omitempty"`
+	Id          string                 `json:"id"`
+	Kind        ConnectorKind          `json:"kind"`
+	Name        string                 `json:"name"`
+	Spec        map[string]interface{} `json:"spec"`
+}
+
+// ConnectorKind defines model for ConnectorKind.
+type ConnectorKind string
 
 // CreateConnectionRequest defines model for CreateConnectionRequest.
 type CreateConnectionRequest struct {
@@ -495,6 +529,21 @@ type TenantPlanResponse struct {
 // TenantRole defines model for TenantRole.
 type TenantRole string
 
+// TestConnectionRequest defines model for TestConnectionRequest.
+type TestConnectionRequest struct {
+	ConfigJson string `json:"config_json"`
+	Type       string `json:"type"`
+}
+
+// TestConnectionResponse defines model for TestConnectionResponse.
+type TestConnectionResponse struct {
+	Message *string                      `json:"message,omitempty"`
+	Status  TestConnectionResponseStatus `json:"status"`
+}
+
+// TestConnectionResponseStatus defines model for TestConnectionResponse.Status.
+type TestConnectionResponseStatus string
+
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
 type UpdateConnectionRequest struct {
 	ConfigJson *string `json:"config_json,omitempty"`
@@ -594,6 +643,11 @@ type CreateConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// TestConnectionParams defines parameters for TestConnection.
+type TestConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // DeleteConnectionParams defines parameters for DeleteConnection.
 type DeleteConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -606,6 +660,17 @@ type GetConnectionParams struct {
 
 // UpdateConnectionParams defines parameters for UpdateConnection.
 type UpdateConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListConnectorsParams defines parameters for ListConnectors.
+type ListConnectorsParams struct {
+	Kind      *ConnectorKind `form:"kind,omitempty" json:"kind,omitempty"`
+	XTenantID XTenantID      `json:"X-Tenant-ID"`
+}
+
+// GetConnectorParams defines parameters for GetConnector.
+type GetConnectorParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -797,6 +862,9 @@ type RegisterJSONRequestBody = RegisterRequest
 
 // CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
 type CreateConnectionJSONRequestBody = CreateConnectionRequest
+
+// TestConnectionJSONRequestBody defines body for TestConnection for application/json ContentType.
+type TestConnectionJSONRequestBody = TestConnectionRequest
 
 // UpdateConnectionJSONRequestBody defines body for UpdateConnection for application/json ContentType.
 type UpdateConnectionJSONRequestBody = UpdateConnectionRequest

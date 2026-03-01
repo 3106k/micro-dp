@@ -6,20 +6,26 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/connector"
 )
 
 type ConnectionService struct {
 	connections domain.ConnectionRepository
+	registry    *connector.Registry
 }
 
-func NewConnectionService(connections domain.ConnectionRepository) *ConnectionService {
-	return &ConnectionService{connections: connections}
+func NewConnectionService(connections domain.ConnectionRepository, registry *connector.Registry) *ConnectionService {
+	return &ConnectionService{connections: connections, registry: registry}
 }
 
 func (s *ConnectionService) Create(ctx context.Context, name, connType, configJSON string, secretRef *string) (*domain.Connection, error) {
 	tenantID, ok := domain.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("tenant id not found in context")
+	}
+
+	if err := s.validateConnector(connType, configJSON); err != nil {
+		return nil, err
 	}
 
 	c := &domain.Connection{
@@ -65,6 +71,10 @@ func (s *ConnectionService) Update(ctx context.Context, id, name, connType, conf
 		return nil, err
 	}
 
+	if err := s.validateConnector(connType, configJSON); err != nil {
+		return nil, err
+	}
+
 	c.Name = name
 	c.Type = connType
 	c.ConfigJSON = configJSON
@@ -89,4 +99,14 @@ func (s *ConnectionService) Delete(ctx context.Context, id string) error {
 	}
 
 	return s.connections.Delete(ctx, tenantID, id)
+}
+
+func (s *ConnectionService) validateConnector(connType, configJSON string) error {
+	if !s.registry.Exists(connType) {
+		return domain.ErrConnectorTypeUnknown
+	}
+	if err := s.registry.ValidateConfig(connType, configJSON); err != nil {
+		return fmt.Errorf("%w: %v", domain.ErrConnectionConfigInvalid, err)
+	}
+	return nil
 }
