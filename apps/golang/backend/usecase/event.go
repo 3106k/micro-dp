@@ -53,5 +53,20 @@ func (s *EventService) Ingest(ctx context.Context, eventID, eventName string, pr
 		ReceivedAt: time.Now().UTC(),
 	}
 
-	return s.queue.Enqueue(ctx, msg)
+	if err := s.queue.Enqueue(ctx, msg); err != nil {
+		return err
+	}
+
+	// Best-effort counter increment (don't fail the ingest on counter error)
+	_ = s.queue.IncrementCount(ctx, tenantID, eventName)
+
+	return nil
+}
+
+func (s *EventService) Summary(ctx context.Context) (map[string]int64, error) {
+	tenantID, ok := domain.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("tenant id not found in context")
+	}
+	return s.queue.GetCounts(ctx, tenantID)
 }

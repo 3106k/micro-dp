@@ -25,5 +25,6 @@ services:
       dockerfile: apps/docker/web/Dockerfile.dev
     volumes:
       - ../../apps/node/web:/app
+      - ../../apps/node/sdk-tracker:/sdk-tracker
       - /app/node_modules
       - /app/.next

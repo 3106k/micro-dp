@@ -74,6 +74,10 @@ services:
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_API:-micro-dp-api}
       BOOTSTRAP_SUPERADMINS: ${BOOTSTRAP_SUPERADMINS:-false}
       SUPERADMIN_EMAILS: ${SUPERADMIN_EMAILS:-}
+      FF_EVENTS_INGEST: ${FF_EVENTS_INGEST:-true}
+      FF_DATASETS_API: ${FF_DATASETS_API:-true}
+      FF_ADMIN_TENANTS: ${FF_ADMIN_TENANTS:-true}
+      FF_UPLOADS_API: ${FF_UPLOADS_API:-true}
     volumes:
       - ./.data/sqlite:/data/sqlite
     depends_on:
@@ -107,6 +111,10 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_WORKER:-micro-dp-worker}
+      FF_EVENTS_INGEST: ${FF_EVENTS_INGEST:-true}
+      FF_DATASETS_API: ${FF_DATASETS_API:-true}
+      FF_ADMIN_TENANTS: ${FF_ADMIN_TENANTS:-true}
+      FF_UPLOADS_API: ${FF_UPLOADS_API:-true}
     volumes:
       - ./.data/sqlite:/data/sqlite
     depends_on:
@@ -131,6 +139,8 @@ services:
       - "${WEB_HOST_PORT:-3000}:3000"
     environment:
       API_BACKEND_URL: http://api:8080
+      NEXT_PUBLIC_TRACKER_ENABLED: ${TRACKER_ENABLED:-true}
+      NEXT_PUBLIC_TRACKER_DEBUG: ${TRACKER_DEBUG:-false}
     depends_on:
       api:
         condition: service_healthy

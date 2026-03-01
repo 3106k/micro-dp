@@ -89,6 +89,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/events/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Event counts summary */
+        get: operations["getEventsSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/tenants": {
         parameters: {
             query?: never;
@@ -470,6 +487,16 @@ export interface components {
             /** @enum {string} */
             status: "accepted";
         };
+        EventsSummaryResponse: {
+            counts: components["schemas"]["EventCount"][];
+            /** Format: int64 */
+            total: number;
+        };
+        EventCount: {
+            event_name: string;
+            /** Format: int64 */
+            count: number;
+        };
         Job: {
             id: string;
             tenant_id: string;
@@ -820,6 +847,29 @@ export interface operations {
             400: components["responses"]["ErrorResponse"];
             401: components["responses"]["ErrorResponse"];
             409: components["responses"]["ErrorResponse"];
+        };
+    };
+    getEventsSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Event counts summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventsSummaryResponse"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
         };
     };
     adminListTenants: {

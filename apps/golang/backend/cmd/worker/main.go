@@ -10,6 +10,7 @@ import (
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
+	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
 	"github.com/user/micro-dp/storage"
@@ -37,6 +38,10 @@ func main() {
 	}
 	defer observability.ShutdownWithTimeout(obsShutdown, 5*time.Second)
 	observability.LogStartup(obsCfg)
+
+	ffCfg := featureflag.LoadConfig()
+	featureflag.Init(ffCfg)
+	featureflag.LogStartup(ffCfg)
 
 	// Valkey
 	valkeyClient, err := queue.NewValkeyClient()

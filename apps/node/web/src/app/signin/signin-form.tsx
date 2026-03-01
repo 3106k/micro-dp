@@ -44,7 +44,8 @@ export function SigninForm() {
         return;
       }
 
-      router.push(callbackUrl);
+      const separator = callbackUrl.includes("?") ? "&" : "?";
+      router.push(`${callbackUrl}${separator}event=login_success`);
       router.refresh();
     } catch {
       setError("Network error");

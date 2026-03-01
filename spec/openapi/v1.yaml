@@ -121,6 +121,25 @@ paths:
         "409":
           $ref: "#/components/responses/ErrorResponse"
 
+  /api/v1/events/summary:
+    get:
+      tags: [events]
+      summary: Event counts summary
+      operationId: getEventsSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: Event counts summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsSummaryResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Admin Tenants ----
   /api/v1/admin/tenants:
     post:
@@ -1062,6 +1081,28 @@ components:
         status:
           type: string
           enum: [accepted]
+
+    # ---- Event summary schemas ----
+    EventsSummaryResponse:
+      type: object
+      required: [counts, total]
+      properties:
+        counts:
+          type: array
+          items:
+            $ref: "#/components/schemas/EventCount"
+        total:
+          type: integer
+          format: int64
+    EventCount:
+      type: object
+      required: [event_name, count]
+      properties:
+        event_name:
+          type: string
+        count:
+          type: integer
+          format: int64
 
     # ---- Job schemas ----
     Job:

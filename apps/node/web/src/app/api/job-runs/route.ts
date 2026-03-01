@@ -29,3 +29,29 @@ export async function GET() {
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
 }
+
+export async function POST(request: Request) {
+  const jar = await cookies();
+  const token = jar.get(TOKEN_COOKIE)?.value;
+  const tenantId = jar.get(TENANT_COOKIE)?.value;
+
+  if (!token || !tenantId) {
+    return NextResponse.json(
+      { error: "not authenticated" } satisfies ErrorResponse,
+      { status: 401 }
+    );
+  }
+
+  const body = await request.json();
+  const res = await backendFetch("/api/v1/job_runs", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Tenant-ID": tenantId,
+    },
+    body: JSON.stringify(body),
+  });
+
+  const data = await res.json();
+  return NextResponse.json(data, { status: res.status });
+}

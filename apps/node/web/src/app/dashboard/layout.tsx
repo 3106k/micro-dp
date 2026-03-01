@@ -5,6 +5,7 @@ import { backendFetch } from "@/lib/api/server";
 import { TOKEN_COOKIE } from "@/lib/auth/constants";
 import type { components } from "@/lib/api/generated";
 import { DashboardHeader } from "./dashboard-header";
+import { TrackerProvider } from "@/components/tracker-provider";
 
 type MeResponse = components["schemas"]["MeResponse"];
 
@@ -29,14 +30,18 @@ export default async function DashboardLayout({
   }
 
   const me: MeResponse = await res.json();
+  const tenantId = me.tenants.length > 0 ? me.tenants[0].id : "";
 
   return (
     <div className="min-h-screen">
       <DashboardHeader
         displayName={me.display_name}
         email={me.email}
+        platformRole={me.platform_role}
       />
-      <main className="container py-8">{children}</main>
+      <TrackerProvider tenantId={tenantId} userId={me.user_id}>
+        <main className="container py-8">{children}</main>
+      </TrackerProvider>
     </div>
   );
 }
