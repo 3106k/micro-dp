@@ -20,6 +20,7 @@ export function DashboardHeader({
 
   const navItems: Array<{ href: string; label: string }> = [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/datasets", label: "Datasets" },
     { href: "/connections", label: "Connections" },
   ];
   if (platformRole === "superadmin") {
