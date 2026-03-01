@@ -14,6 +14,7 @@ import (
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
 	"github.com/user/micro-dp/storage"
+	"github.com/user/micro-dp/usecase"
 	"github.com/user/micro-dp/worker"
 )
 
@@ -57,10 +58,14 @@ func main() {
 		log.Fatalf("minio connect: %v", err)
 	}
 
+	// Metering
+	usageRepo := db.NewUsageRepo(sqlDB)
+	meteringService := usecase.NewMeteringService(usageRepo)
+
 	// Event consumer
 	eventMetrics := observability.NewEventMetrics()
 	parquetWriter := worker.NewParquetWriter(minioClient)
-	consumer := worker.NewEventConsumer(eventQueue, parquetWriter, eventMetrics)
+	consumer := worker.NewEventConsumer(eventQueue, parquetWriter, eventMetrics, meteringService)
 
 	go consumer.Run(ctx)
 
@@ -69,7 +74,7 @@ func main() {
 	uploadQueue := queue.NewUploadQueue(valkeyClient)
 	uploadMetrics := observability.NewUploadMetrics()
 	csvImportWriter := worker.NewCSVImportWriter(minioClient, datasetRepo)
-	uploadConsumer := worker.NewUploadConsumer(uploadQueue, csvImportWriter, uploadMetrics)
+	uploadConsumer := worker.NewUploadConsumer(uploadQueue, csvImportWriter, uploadMetrics, meteringService)
 
 	go uploadConsumer.Run(ctx)
 

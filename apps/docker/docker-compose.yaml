@@ -74,10 +74,7 @@ services:
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_API:-micro-dp-api}
       BOOTSTRAP_SUPERADMINS: ${BOOTSTRAP_SUPERADMINS:-false}
       SUPERADMIN_EMAILS: ${SUPERADMIN_EMAILS:-}
-      FF_EVENTS_INGEST: ${FF_EVENTS_INGEST:-true}
-      FF_DATASETS_API: ${FF_DATASETS_API:-true}
-      FF_ADMIN_TENANTS: ${FF_ADMIN_TENANTS:-true}
-      FF_UPLOADS_API: ${FF_UPLOADS_API:-true}
+      EDITION: ${EDITION:-oss}
     volumes:
       - ./.data/sqlite:/data/sqlite
     depends_on:
@@ -111,10 +108,7 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_WORKER:-micro-dp-worker}
-      FF_EVENTS_INGEST: ${FF_EVENTS_INGEST:-true}
-      FF_DATASETS_API: ${FF_DATASETS_API:-true}
-      FF_ADMIN_TENANTS: ${FF_ADMIN_TENANTS:-true}
-      FF_UPLOADS_API: ${FF_UPLOADS_API:-true}
+      EDITION: ${EDITION:-oss}
     volumes:
       - ./.data/sqlite:/data/sqlite
     depends_on:

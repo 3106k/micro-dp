@@ -201,6 +201,45 @@ func toOpenAPIJobRunArtifact(a *domain.JobRunArtifact) openapi.JobRunArtifact {
 	return out
 }
 
+func toOpenAPIPlan(p *domain.Plan) openapi.Plan {
+	return openapi.Plan{
+		Id:               p.ID,
+		Name:             p.Name,
+		DisplayName:      p.DisplayName,
+		MaxEventsPerDay:  p.MaxEventsPerDay,
+		MaxStorageBytes:  p.MaxStorageBytes,
+		MaxRowsPerDay:    p.MaxRowsPerDay,
+		MaxUploadsPerDay: p.MaxUploadsPerDay,
+		IsDefault:        p.IsDefault,
+	}
+}
+
+func toOpenAPITenantPlanResponse(p *domain.Plan, tp *domain.TenantPlan) openapi.TenantPlanResponse {
+	resp := openapi.TenantPlanResponse{
+		Plan:      toOpenAPIPlan(p),
+		StartedAt: tp.StartedAt,
+	}
+	if tp.ExpiresAt != nil {
+		resp.ExpiresAt = tp.ExpiresAt
+	}
+	return resp
+}
+
+func toOpenAPIUsageSummary(s *domain.UsageSummary) openapi.UsageSummaryResponse {
+	resp := openapi.UsageSummaryResponse{
+		Date:         s.Date,
+		EventsCount:  s.EventsCount,
+		StorageBytes: s.StorageBytes,
+		RowsCount:    s.RowsCount,
+		UploadsCount: s.UploadsCount,
+	}
+	if s.Plan != nil {
+		p := toOpenAPIPlan(s.Plan)
+		resp.Plan = &p
+	}
+	return resp
+}
+
 func toOpenAPIConnection(c *domain.Connection) openapi.Connection {
 	out := openapi.Connection{
 		Id:       c.ID,

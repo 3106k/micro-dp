@@ -10,19 +10,22 @@ import (
 
 	"github.com/user/micro-dp/domain"
 	"github.com/user/micro-dp/internal/observability"
+	"github.com/user/micro-dp/usecase"
 )
 
 type UploadConsumer struct {
-	queue   domain.UploadJobQueue
-	writer  *CSVImportWriter
-	metrics *observability.UploadMetrics
+	queue    domain.UploadJobQueue
+	writer   *CSVImportWriter
+	metrics  *observability.UploadMetrics
+	metering *usecase.MeteringService
 }
 
-func NewUploadConsumer(queue domain.UploadJobQueue, writer *CSVImportWriter, metrics *observability.UploadMetrics) *UploadConsumer {
+func NewUploadConsumer(queue domain.UploadJobQueue, writer *CSVImportWriter, metrics *observability.UploadMetrics, metering *usecase.MeteringService) *UploadConsumer {
 	return &UploadConsumer{
-		queue:   queue,
-		writer:  writer,
-		metrics: metrics,
+		queue:    queue,
+		writer:   writer,
+		metrics:  metrics,
+		metering: metering,
 	}
 }
 
@@ -96,6 +99,16 @@ func (c *UploadConsumer) processMessage(ctx context.Context, msg *domain.UploadJ
 		c.enqueueDLQ(ctx, msg, lastErr.Error())
 	} else {
 		c.metrics.ProcessedTotal.Add(ctx, 1)
+		if c.metering != nil {
+			var totalStorageBytes int64
+			for _, f := range msg.Files {
+				totalStorageBytes += f.SizeBytes
+			}
+			c.metering.RecordUploadBestEffort(ctx, msg.TenantID, int(totalRows), totalStorageBytes)
+			if err := c.metering.RecordUploadCount(ctx, msg.TenantID); err != nil {
+				log.Printf("metering record upload count error: %v", err)
+			}
+		}
 	}
 
 	c.metrics.FilesConverted.Add(ctx, filesConverted)
