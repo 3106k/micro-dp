@@ -1,10 +1,11 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useMemo, useRef, useState } from "react";
+import { Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import type { components } from "@/lib/api/generated";
 
 type CreateUploadPresignResponse =
@@ -147,6 +148,8 @@ export function UploadsManager() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [lastCompletedUpload, setLastCompletedUpload] = useState<Upload | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const hasSelectedFiles = useMemo(() => items.length > 0, [items.length]);
 
@@ -367,18 +370,49 @@ export function UploadsManager() {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="upload_files">Files</Label>
-          <Input
-            id="upload_files"
+          <Label>Files</Label>
+          <div
+            role="button"
+            tabIndex={0}
+            className={cn(
+              "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors",
+              isDragging
+                ? "border-primary bg-primary/5"
+                : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
+              loading && "pointer-events-none opacity-50"
+            )}
+            onClick={() => fileInputRef.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                fileInputRef.current?.click();
+              }
+            }}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              if (!loading) handleFileSelect(e.dataTransfer.files);
+            }}
+          >
+            <Upload className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm font-medium">
+              ドラッグ&ドロップ または クリックしてファイルを選択
+            </p>
+            <p className="text-xs text-muted-foreground">
+              最大10ファイル / 各100MB。対応拡張子: {ACCEPTED_EXTENSIONS.join(", ")}
+            </p>
+          </div>
+          <input
+            ref={fileInputRef}
             type="file"
+            className="sr-only"
             multiple={allowMultiple}
             accept={accept}
-            onChange={(event) => handleFileSelect(event.target.files)}
+            onChange={(e) => { handleFileSelect(e.target.files); e.target.value = ""; }}
             disabled={loading}
           />
-          <p className="text-xs text-muted-foreground">
-            最大10ファイル / 各100MB。対応拡張子: {ACCEPTED_EXTENSIONS.join(", ")}
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
