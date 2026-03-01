@@ -45,6 +45,8 @@ export default async function JobRunsPage() {
         displayName={me.display_name}
         email={me.email}
         platformRole={me.platform_role}
+        tenants={me.tenants}
+        currentTenantId={tenantId}
       />
       <main className="container space-y-6 py-8">
         <h1 className="text-2xl font-semibold tracking-tight">Job Runs</h1>

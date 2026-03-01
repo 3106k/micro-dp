@@ -48,12 +48,13 @@ type UploadPresignResult struct {
 }
 
 type UploadService struct {
-	uploads  domain.UploadRepository
+	uploads   domain.UploadRepository
 	presigner domain.PresignedURLGenerator
+	queue     domain.UploadJobQueue
 }
 
-func NewUploadService(uploads domain.UploadRepository, presigner domain.PresignedURLGenerator) *UploadService {
-	return &UploadService{uploads: uploads, presigner: presigner}
+func NewUploadService(uploads domain.UploadRepository, presigner domain.PresignedURLGenerator, queue domain.UploadJobQueue) *UploadService {
+	return &UploadService{uploads: uploads, presigner: presigner, queue: queue}
 }
 
 func (s *UploadService) CreatePresign(ctx context.Context, files []UploadFileInput) (*UploadPresignResult, error) {
@@ -159,5 +160,29 @@ func (s *UploadService) Complete(ctx context.Context, uploadID string) (*domain.
 		return nil, nil, fmt.Errorf("find files: %w", err)
 	}
 
+	// Enqueue upload job for CSV→Parquet conversion
+	jobMsg := &domain.UploadJobMessage{
+		UploadID: uploadID,
+		TenantID: tenantID,
+		Files:    toJobFiles(files),
+	}
+	if err := s.queue.Enqueue(ctx, jobMsg); err != nil {
+		return nil, nil, fmt.Errorf("enqueue upload job: %w", err)
+	}
+
 	return upload, files, nil
+}
+
+func toJobFiles(files []domain.UploadFile) []domain.UploadJobFile {
+	result := make([]domain.UploadJobFile, len(files))
+	for i, f := range files {
+		result[i] = domain.UploadJobFile{
+			FileID:      f.ID,
+			FileName:    f.FileName,
+			ObjectKey:   f.ObjectKey,
+			ContentType: f.ContentType,
+			SizeBytes:   f.SizeBytes,
+		}
+	}
+	return result
 }

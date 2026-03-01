@@ -10,6 +10,7 @@ import (
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
+	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
 	"github.com/user/micro-dp/storage"
@@ -43,6 +44,10 @@ func main() {
 	defer observability.ShutdownWithTimeout(obsShutdown, 5*time.Second)
 	observability.LogStartup(obsCfg)
 
+	ffCfg := featureflag.LoadConfig()
+	featureflag.Init(ffCfg)
+	featureflag.LogStartup(ffCfg)
+
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is required")
@@ -72,6 +77,9 @@ func main() {
 	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
+	jobRunModuleRepo := db.NewJobRunModuleRepo(sqlDB)
+	jobRunArtifactRepo := db.NewJobRunArtifactRepo(sqlDB)
+
 	// Bootstrap superadmins
 	bootstrapCfg := usecase.ParseBootstrapConfig(os.Getenv("BOOTSTRAP_SUPERADMINS"), os.Getenv("SUPERADMIN_EMAILS"))
 	if err := usecase.BootstrapSuperadmins(context.Background(), userRepo, bootstrapCfg); err != nil {
@@ -81,7 +89,7 @@ func main() {
 	// Services
 	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret)
 	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
-	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, txManager)
+	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo)
 	datasetService := usecase.NewDatasetService(datasetRepo)
@@ -92,7 +100,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("minio presign client: %v", err)
 	}
-	uploadService := usecase.NewUploadService(uploadRepo, minioPresignClient)
+	uploadQueue := queue.NewUploadQueue(valkeyClient)
+	uploadService := usecase.NewUploadService(uploadRepo, minioPresignClient, uploadQueue)
+	jobRunModuleService := usecase.NewJobRunModuleService(jobRunModuleRepo)
+	jobRunArtifactService := usecase.NewJobRunArtifactService(jobRunArtifactRepo)
 	adminTenantService := usecase.NewAdminTenantService(tenantRepo, adminAuditLogRepo)
 
 	// Handlers
@@ -105,6 +116,8 @@ func main() {
 	datasetH := handler.NewDatasetHandler(datasetService)
 	eventH := handler.NewEventHandler(eventService, eventMetrics)
 	uploadH := handler.NewUploadHandler(uploadService)
+	jobRunModuleH := handler.NewJobRunModuleHandler(jobRunModuleService)
+	jobRunArtifactH := handler.NewJobRunArtifactHandler(jobRunArtifactService)
 	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
 
 	// Middleware
@@ -140,6 +153,14 @@ func main() {
 	mux.Handle("POST /api/v1/job_runs", protected(jobRunH.Create))
 	mux.Handle("GET /api/v1/job_runs", protected(jobRunH.List))
 	mux.Handle("GET /api/v1/job_runs/{id}", protected(jobRunH.Get))
+
+	// Job run modules
+	mux.Handle("GET /api/v1/job_runs/{job_run_id}/modules", protected(jobRunModuleH.List))
+	mux.Handle("GET /api/v1/job_runs/{job_run_id}/modules/{id}", protected(jobRunModuleH.Get))
+
+	// Job run artifacts
+	mux.Handle("GET /api/v1/job_runs/{job_run_id}/artifacts", protected(jobRunArtifactH.List))
+	mux.Handle("GET /api/v1/job_runs/{job_run_id}/artifacts/{id}", protected(jobRunArtifactH.Get))
 
 	// Jobs
 	mux.Handle("POST /api/v1/jobs", protected(jobH.Create))

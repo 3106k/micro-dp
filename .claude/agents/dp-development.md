@@ -22,10 +22,10 @@ micro-dp の機能開発・バグ修正を行うエージェント。
 
 ### 3. Self-Improvement Loop
 
-- ユーザーから修正を受けたら `tasks/lessons.md` にパターンを記録する
+- ユーザーから修正を受けたら auto memory にパターンを記録する
 - 同じミスを防ぐルールを自分で書く
 - ミス率が下がるまでレッスンを反復改善する
-- セッション開始時に関連プロジェクトのレッスンを確認する
+- セッション開始時に memory/MEMORY.md を確認する
 
 ### 4. Verification Before Done
 
@@ -52,12 +52,10 @@ micro-dp の機能開発・バグ修正を行うエージェント。
 
 ## Task Management
 
-1. **Plan First**: `tasks/todo.md` にチェック可能な項目で計画を書く
-2. **Verify Plan**: 実装開始前にユーザーに計画を確認してもらう
-3. **Track Progress**: 進捗に応じてアイテムを完了にする
-4. **Explain Changes**: 各ステップでハイレベルなサマリを提示する
-5. **Document Results**: `tasks/todo.md` にレビューセクションを追加する
-6. **Capture Lessons**: 修正を受けたら `tasks/lessons.md` を更新する
+1. **Plan First**: EnterPlanMode で計画を作成し、ユーザーに確認してもらう
+2. **Track Progress**: TaskCreate / TaskUpdate で進捗を管理する
+3. **Explain Changes**: 各ステップでハイレベルなサマリを提示する
+4. **Capture Lessons**: 修正を受けたら auto memory (`~/.claude/projects/.../memory/`) に記録する
 
 ---
 
@@ -74,13 +72,16 @@ micro-dp の機能開発・バグ修正を行うエージェント。
 ### Go レイヤードアーキテクチャ
 
 ```
-main.go      — entry point, DI, mode switch
-domain/      — entities, repository interfaces
-usecase/     — application services / business logic
-handler/     — HTTP handlers (adapter)
-db/          — repository implementations, migrations
-queue/       — Valkey queue implementation
-worker/      — job processing
+cmd/api/       — API entry point (auth, tenant management)
+cmd/worker/    — Worker entry point (queue consumer, DuckDB, MinIO)
+domain/        — entities, repository interfaces
+usecase/       — application services / business logic
+handler/       — HTTP handlers (adapter)
+db/            — repository implementations, migrations
+queue/         — Valkey queue implementation (go-redis/v9)
+worker/        — job processing (EventConsumer, ParquetWriter)
+storage/       — MinIO client wrapper (minio-go/v7)
+internal/      — observability, openapi codegen, featureflag
 ```
 
 依存方向: `handler/` → `usecase/` → `domain/` ← `db/`, `queue/`
@@ -117,22 +118,48 @@ worker/      — job processing
 - `storage/` パッケージ: minio-go/v7 ベースの MinIO ラッパー
 - `worker/` パッケージ: EventConsumer (BRPOP ループ) + ParquetWriter (DuckDB 変換)
 
+### CSV Import Pipeline
+
+- upload complete 時に Valkey queue (LPUSH) → Worker (BRPOP) で非同期処理
+- 重複排除: Valkey SET NX TTL 24h (`upload_id`)
+- CSV のみ変換対象（非 CSV はスキップ）
+- 処理: MinIO download → DuckDB `read_csv_auto` → `DESCRIBE` でスキーマ抽出 → `COPY TO Parquet` → MinIO upload
+- Dataset upsert: `INSERT ... ON CONFLICT(tenant_id, name) DO UPDATE`
+- MinIO オブジェクトキー: `imports/{tenant_id}/dt={YYYY-MM-DD}/{file_id}.parquet`
+- Worker は EventConsumer と UploadConsumer の 2 つのコンシューマを並行実行する
+
+### Queue Pipeline 共通パターン
+
+events と uploads で確立された再利用可能なパターン。3 つ目以降も同じ構造に従う:
+
+```
+1. domain/     — メッセージ struct + Queue interface (Enqueue/Dequeue/MarkProcessed/EnqueueDLQ)
+2. queue/      — Valkey 実装 (LPUSH/BRPOP 5s/SET NX TTL 24h/DLQ)
+3. worker/     — Consumer (Run ループ) + Writer (変換・永続化)
+4. usecase/    — ビジネスロジック内で Enqueue を呼ぶ
+5. observability/ — メトリクス (processed/failed/duplicate + 処理時間 histogram)
+6. cmd/worker/ — consumer を goroutine で起動
+7. cmd/api/    — queue を usecase に注入
+```
+
+- Valkey キー命名規則: `micro-dp:{resource}:ingest`, `micro-dp:{resource}:dlq`, `micro-dp:{resource}:seen:{id}`
+- Events: 小メッセージ大量 → バッチ処理 (1000 件 or 30 秒)
+- Uploads: 1 ジョブ = 1 アップロード → BRPOP→即処理
+
 ### 検証コマンド
 
 ```bash
 # ビルド確認（CGO 必須）
 cd apps/golang/backend && CGO_ENABLED=1 go build ./...
 
-# ローカルテスト
-SQLITE_PATH=./test.db go run . --mode=migrate
-SQLITE_PATH=./test.db go run . --mode=api
-curl http://localhost:8080/healthz
+# Docker 起動 + ヘルスチェック
+make down && make up && make health
 
-# Docker 確認
-make up && make health
+# E2E テスト
+make e2e-cli
 
-# クリーンアップ
-rm -f ./test.db ./test.db-wal ./test.db-shm
+# ログで feature flags / observability 確認
+cd apps/docker && docker logs $(docker ps -qf name=api) 2>&1 | grep -E "feature|observability"
 ```
 
 ### セキュリティ

@@ -10,6 +10,7 @@ import (
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
+	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
 	"github.com/user/micro-dp/storage"
@@ -38,6 +39,10 @@ func main() {
 	defer observability.ShutdownWithTimeout(obsShutdown, 5*time.Second)
 	observability.LogStartup(obsCfg)
 
+	ffCfg := featureflag.LoadConfig()
+	featureflag.Init(ffCfg)
+	featureflag.LogStartup(ffCfg)
+
 	// Valkey
 	valkeyClient, err := queue.NewValkeyClient()
 	if err != nil {
@@ -58,6 +63,15 @@ func main() {
 	consumer := worker.NewEventConsumer(eventQueue, parquetWriter, eventMetrics)
 
 	go consumer.Run(ctx)
+
+	// Upload consumer (CSV→Parquet)
+	datasetRepo := db.NewDatasetRepo(sqlDB)
+	uploadQueue := queue.NewUploadQueue(valkeyClient)
+	uploadMetrics := observability.NewUploadMetrics()
+	csvImportWriter := worker.NewCSVImportWriter(minioClient, datasetRepo)
+	uploadConsumer := worker.NewUploadConsumer(uploadQueue, csvImportWriter, uploadMetrics)
+
+	go uploadConsumer.Run(ctx)
 
 	// Health check server
 	healthH := handler.NewHealthHandler(sqlDB)

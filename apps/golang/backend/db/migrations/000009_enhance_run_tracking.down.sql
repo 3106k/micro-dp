@@ -1,0 +1,2 @@
+-- SQLite ALTER TABLE DROP COLUMN は v3.35.0+ でサポート。
+-- modernc.org/sqlite のバージョン次第のため、安全策として空にする。

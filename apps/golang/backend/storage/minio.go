@@ -66,23 +66,21 @@ func NewMinIOClient() (*MinIOClient, error) {
 }
 
 // MinIOPresignClient generates presigned URLs for browser-direct uploads.
-// The signing endpoint can be overridden via MINIO_PRESIGN_ENDPOINT so that
-// generated URLs are directly reachable by browsers.
+// Uses MINIO_PRESIGN_ENDPOINT for signature host matching when set.
 type MinIOPresignClient struct {
 	client *minio.Client
 	bucket string
 }
 
 func NewMinIOPresignClient() (*MinIOPresignClient, error) {
-	internalEndpoint := os.Getenv("MINIO_ENDPOINT")
-	if internalEndpoint == "" {
-		internalEndpoint = "localhost:9000"
+	endpoint := os.Getenv("MINIO_PRESIGN_ENDPOINT")
+	if endpoint == "" {
+		endpoint = os.Getenv("MINIO_ENDPOINT")
 	}
-	presignEndpoint := os.Getenv("MINIO_PRESIGN_ENDPOINT")
-	if presignEndpoint == "" {
-		presignEndpoint = internalEndpoint
+	if endpoint == "" {
+		endpoint = "localhost:9000"
 	}
-	signingEndpoint, secure, err := parseEndpoint(presignEndpoint)
+	signingEndpoint, secure, err := parseEndpoint(endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("minio presign endpoint: %w", err)
 	}
@@ -126,6 +124,13 @@ func (m *MinIOPresignClient) GeneratePresignedPutURL(ctx context.Context, object
 
 	expiresAt := time.Now().Add(expiry)
 	return presignedURL.String(), expiresAt, nil
+}
+
+func (m *MinIOClient) DownloadToFile(ctx context.Context, objectKey, destPath string) error {
+	if err := m.client.FGetObject(ctx, m.bucket, objectKey, destPath, minio.GetObjectOptions{}); err != nil {
+		return fmt.Errorf("download to file: %w", err)
+	}
+	return nil
 }
 
 func (m *MinIOClient) PutParquet(ctx context.Context, objectKey string, data []byte) error {

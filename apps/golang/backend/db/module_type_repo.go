@@ -80,6 +80,21 @@ func NewModuleTypeSchemaRepo(db DBTX) *ModuleTypeSchemaRepo {
 	return &ModuleTypeSchemaRepo{db: db}
 }
 
+func (r *ModuleTypeSchemaRepo) FindByID(ctx context.Context, tenantID, id string) (*domain.ModuleTypeSchema, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT id, tenant_id, module_type_id, version, json_schema, created_at
+		 FROM module_type_schemas WHERE tenant_id = ? AND id = ?`, tenantID, id,
+	)
+	var s domain.ModuleTypeSchema
+	if err := row.Scan(&s.ID, &s.TenantID, &s.ModuleTypeID, &s.Version, &s.JSONSchema, &s.CreatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrModuleTypeNotFound
+		}
+		return nil, err
+	}
+	return &s, nil
+}
+
 func (r *ModuleTypeSchemaRepo) Create(ctx context.Context, s *domain.ModuleTypeSchema) error {
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO module_type_schemas (id, tenant_id, module_type_id, version, json_schema, created_at)

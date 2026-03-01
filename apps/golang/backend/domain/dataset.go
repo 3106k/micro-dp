@@ -39,4 +39,5 @@ type DatasetRepository interface {
 	ListByTenant(ctx context.Context, tenantID string, filter DatasetListFilter) ([]Dataset, error)
 	Create(ctx context.Context, d *Dataset) error
 	Update(ctx context.Context, d *Dataset) error
+	Upsert(ctx context.Context, d *Dataset) error
 }

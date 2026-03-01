@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
+import { readApiErrorMessage } from "@/lib/api/error";
 import { backendFetch } from "@/lib/api/server";
 import {
   TOKEN_COOKIE,
@@ -11,7 +12,6 @@ import type { components } from "@/lib/api/generated";
 
 type LoginResponse = components["schemas"]["LoginResponse"];
 type MeResponse = components["schemas"]["MeResponse"];
-type ErrorResponse = components["schemas"]["ErrorResponse"];
 
 export async function POST(request: NextRequest) {
   const body = await request.json();
@@ -22,8 +22,10 @@ export async function POST(request: NextRequest) {
   });
 
   if (!loginRes.ok) {
-    const err: ErrorResponse = await loginRes.json();
-    return NextResponse.json(err, { status: loginRes.status });
+    return NextResponse.json(
+      { error: await readApiErrorMessage(loginRes, "login failed") },
+      { status: loginRes.status }
+    );
   }
 
   const loginData: LoginResponse = await loginRes.json();

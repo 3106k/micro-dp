@@ -158,6 +158,49 @@ func toOpenAPIUploadFile(f *domain.UploadFile) openapi.UploadFile {
 	}
 }
 
+func toOpenAPIJobRunModule(m *domain.JobRunModule) openapi.JobRunModule {
+	out := openapi.JobRunModule{
+		Id:          m.ID,
+		TenantId:    m.TenantID,
+		JobRunId:    m.JobRunID,
+		JobModuleId: m.JobModuleID,
+		Status:      openapi.JobRunModuleStatus(m.Status),
+		Attempt:     m.Attempt,
+		InputJson:   m.InputJSON,
+		OutputJson:  m.OutputJSON,
+		MetricsJson: m.MetricsJSON,
+		ErrorCode:   m.ErrorCode,
+		ErrorMessage: m.ErrorMessage,
+		StartedAt:   m.StartedAt,
+		FinishedAt:  m.FinishedAt,
+		CreatedAt:   &m.CreatedAt,
+		UpdatedAt:   &m.UpdatedAt,
+	}
+	return out
+}
+
+func toOpenAPIJobRunArtifact(a *domain.JobRunArtifact) openapi.JobRunArtifact {
+	out := openapi.JobRunArtifact{
+		Id:             a.ID,
+		TenantId:       a.TenantID,
+		JobRunId:       a.JobRunID,
+		JobRunModuleId: a.JobRunModuleID,
+		Name:           a.Name,
+		ArtifactType:   a.ArtifactType,
+		StorageType:    a.StorageType,
+		StoragePath:    a.StoragePath,
+		SizeBytes:      a.SizeBytes,
+		ContentType:    a.ContentType,
+		Checksum:       a.Checksum,
+		MetadataJson:   a.MetadataJSON,
+		CreatedAt:      &a.CreatedAt,
+	}
+	if a.URI != "" {
+		out.Uri = &a.URI
+	}
+	return out
+}
+
 func toOpenAPIConnection(c *domain.Connection) openapi.Connection {
 	out := openapi.Connection{
 		Id:       c.ID,

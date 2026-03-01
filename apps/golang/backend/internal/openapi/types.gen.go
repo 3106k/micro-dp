@@ -38,13 +38,22 @@ const (
 	Accepted IngestEventResponseStatus = "accepted"
 )
 
+// Defines values for JobRunModuleStatus.
+const (
+	JobRunModuleStatusCanceled JobRunModuleStatus = "canceled"
+	JobRunModuleStatusFailed   JobRunModuleStatus = "failed"
+	JobRunModuleStatusQueued   JobRunModuleStatus = "queued"
+	JobRunModuleStatusRunning  JobRunModuleStatus = "running"
+	JobRunModuleStatusSuccess  JobRunModuleStatus = "success"
+)
+
 // Defines values for JobRunStatus.
 const (
-	Canceled JobRunStatus = "canceled"
-	Failed   JobRunStatus = "failed"
-	Queued   JobRunStatus = "queued"
-	Running  JobRunStatus = "running"
-	Success  JobRunStatus = "success"
+	JobRunStatusCanceled JobRunStatus = "canceled"
+	JobRunStatusFailed   JobRunStatus = "failed"
+	JobRunStatusQueued   JobRunStatus = "queued"
+	JobRunStatusRunning  JobRunStatus = "running"
+	JobRunStatusSuccess  JobRunStatus = "success"
 )
 
 // Defines values for JobVersionStatus.
@@ -270,6 +279,46 @@ type JobRun struct {
 	TenantId     string       `json:"tenant_id"`
 }
 
+// JobRunArtifact defines model for JobRunArtifact.
+type JobRunArtifact struct {
+	ArtifactType   string     `json:"artifact_type"`
+	Checksum       *string    `json:"checksum,omitempty"`
+	ContentType    string     `json:"content_type"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	Id             string     `json:"id"`
+	JobRunId       string     `json:"job_run_id"`
+	JobRunModuleId *string    `json:"job_run_module_id,omitempty"`
+	MetadataJson   *string    `json:"metadata_json,omitempty"`
+	Name           string     `json:"name"`
+	SizeBytes      int64      `json:"size_bytes"`
+	StoragePath    string     `json:"storage_path"`
+	StorageType    string     `json:"storage_type"`
+	TenantId       string     `json:"tenant_id"`
+	Uri            *string    `json:"uri,omitempty"`
+}
+
+// JobRunModule defines model for JobRunModule.
+type JobRunModule struct {
+	Attempt      int                `json:"attempt"`
+	CreatedAt    *time.Time         `json:"created_at,omitempty"`
+	ErrorCode    *string            `json:"error_code,omitempty"`
+	ErrorMessage *string            `json:"error_message,omitempty"`
+	FinishedAt   *time.Time         `json:"finished_at,omitempty"`
+	Id           string             `json:"id"`
+	InputJson    *string            `json:"input_json,omitempty"`
+	JobModuleId  string             `json:"job_module_id"`
+	JobRunId     string             `json:"job_run_id"`
+	MetricsJson  *string            `json:"metrics_json,omitempty"`
+	OutputJson   *string            `json:"output_json,omitempty"`
+	StartedAt    *time.Time         `json:"started_at,omitempty"`
+	Status       JobRunModuleStatus `json:"status"`
+	TenantId     string             `json:"tenant_id"`
+	UpdatedAt    *time.Time         `json:"updated_at,omitempty"`
+}
+
+// JobRunModuleStatus defines model for JobRunModuleStatus.
+type JobRunModuleStatus string
+
 // JobRunStatus defines model for JobRunStatus.
 type JobRunStatus string
 
@@ -482,6 +531,26 @@ type CreateJobRunParams struct {
 
 // GetJobRunParams defines parameters for GetJobRun.
 type GetJobRunParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListJobRunArtifactsParams defines parameters for ListJobRunArtifacts.
+type ListJobRunArtifactsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetJobRunArtifactParams defines parameters for GetJobRunArtifact.
+type GetJobRunArtifactParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListJobRunModulesParams defines parameters for ListJobRunModules.
+type ListJobRunModulesParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetJobRunModuleParams defines parameters for GetJobRunModule.
+type GetJobRunModuleParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 

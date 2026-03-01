@@ -1,22 +1,36 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { track, flush } from "@/components/tracker-provider";
+import { useToast } from "@/components/ui/toast-provider";
+import { toErrorMessage, readApiErrorMessage } from "@/lib/api/error";
+import type { components } from "@/lib/api/generated";
+import { track, flush } from "@micro-dp/sdk-tracker";
+
+type Tenant = components["schemas"]["Tenant"];
 
 export function DashboardHeader({
   displayName,
   email,
   platformRole,
+  tenants,
+  currentTenantId,
 }: {
   displayName: string;
   email: string;
   platformRole: "user" | "superadmin";
+  tenants: Tenant[];
+  currentTenantId: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { pushToast } = useToast();
+  const [tenantId, setTenantId] = useState(currentTenantId);
+  const [switchingTenant, setSwitchingTenant] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const navItems: Array<{ href: string; label: string }> = [
     { href: "/dashboard", label: "Dashboard" },
@@ -31,11 +45,51 @@ export function DashboardHeader({
   }
 
   async function handleSignOut() {
-    track("sign_out");
-    flush({ useBeacon: true });
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/signin");
-    router.refresh();
+    setSigningOut(true);
+    try {
+      track("sign_out");
+      flush({ useBeacon: true });
+      await fetch("/api/auth/logout", { method: "POST" });
+      router.push("/signin");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  async function handleTenantSwitch(nextTenantId: string) {
+    if (!nextTenantId || nextTenantId === tenantId) {
+      return;
+    }
+
+    setSwitchingTenant(true);
+    try {
+      const res = await fetch("/api/auth/tenant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenant_id: nextTenantId }),
+      });
+
+      if (!res.ok) {
+        const message = await readApiErrorMessage(
+          res,
+          "Failed to switch tenant"
+        );
+        throw new Error(message);
+      }
+
+      setTenantId(nextTenantId);
+      track("tenant_switched", { tenant_id: nextTenantId });
+      pushToast({ variant: "success", message: "Tenant switched" });
+      router.refresh();
+    } catch (error) {
+      pushToast({
+        variant: "error",
+        message: toErrorMessage(error, "Failed to switch tenant"),
+      });
+    } finally {
+      setSwitchingTenant(false);
+    }
   }
 
   return (
@@ -63,10 +117,32 @@ export function DashboardHeader({
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          {tenants.length > 1 && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Tenant</span>
+              <select
+                className="h-9 rounded-md border bg-background px-2 text-foreground"
+                value={tenantId}
+                onChange={(event) => handleTenantSwitch(event.target.value)}
+                disabled={switchingTenant}
+              >
+                {tenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <span className="text-sm text-muted-foreground">
             {displayName || email}
           </span>
-          <Button variant="outline" size="sm" onClick={handleSignOut}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSignOut}
+            disabled={signingOut}
+          >
             Sign out
           </Button>
         </div>

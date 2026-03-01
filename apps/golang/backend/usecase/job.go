@@ -22,11 +22,12 @@ type JobModuleEdgeRepoFactory interface {
 }
 
 type JobService struct {
-	jobs        domain.JobRepository
-	versions    domain.JobVersionRepository
-	modules     domain.JobModuleRepository
-	edges       domain.JobModuleEdgeRepository
-	txRunner    TxRunner
+	jobs              domain.JobRepository
+	versions          domain.JobVersionRepository
+	modules           domain.JobModuleRepository
+	edges             domain.JobModuleEdgeRepository
+	moduleTypeSchemas domain.ModuleTypeSchemaRepository
+	txRunner          TxRunner
 }
 
 func NewJobService(
@@ -34,14 +35,16 @@ func NewJobService(
 	versions domain.JobVersionRepository,
 	modules domain.JobModuleRepository,
 	edges domain.JobModuleEdgeRepository,
+	moduleTypeSchemas domain.ModuleTypeSchemaRepository,
 	txRunner TxRunner,
 ) *JobService {
 	return &JobService{
-		jobs:     jobs,
-		versions: versions,
-		modules:  modules,
-		edges:    edges,
-		txRunner: txRunner,
+		jobs:              jobs,
+		versions:          versions,
+		modules:           modules,
+		edges:             edges,
+		moduleTypeSchemas: moduleTypeSchemas,
+		txRunner:          txRunner,
 	}
 }
 
@@ -130,6 +133,20 @@ func (s *JobService) CreateVersion(ctx context.Context, jobID string, modules []
 	// Verify job exists
 	if _, err := s.jobs.FindByID(ctx, tenantID, jobID); err != nil {
 		return nil, err
+	}
+
+	// Validate module_type_schema_id belongs to the specified module_type_id
+	for _, m := range modules {
+		if m.ModuleTypeSchemaID == nil {
+			continue
+		}
+		schema, err := s.moduleTypeSchemas.FindByID(ctx, tenantID, *m.ModuleTypeSchemaID)
+		if err != nil {
+			return nil, fmt.Errorf("module_type_schema %s not found: %w", *m.ModuleTypeSchemaID, err)
+		}
+		if schema.ModuleTypeID != m.ModuleTypeID {
+			return nil, fmt.Errorf("schema %s does not belong to module_type %s", *m.ModuleTypeSchemaID, m.ModuleTypeID)
+		}
 	}
 
 	nextVer, err := s.versions.NextVersion(ctx, jobID)
