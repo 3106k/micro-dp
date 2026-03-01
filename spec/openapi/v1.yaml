@@ -16,6 +16,7 @@ tags:
   - name: module_types
   - name: connections
   - name: datasets
+  - name: uploads
 paths:
   /healthz:
     get:
@@ -869,6 +870,61 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Uploads ----
+  /api/v1/uploads/presign:
+    post:
+      tags: [uploads]
+      summary: Request presigned upload URLs
+      operationId: createUploadPresign
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateUploadPresignRequest"
+      responses:
+        "201":
+          description: Presigned URLs created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateUploadPresignResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/uploads/{id}/complete:
+    post:
+      tags: [uploads]
+      summary: Mark upload complete
+      operationId: completeUpload
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Upload completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Upload"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+
 components:
   parameters:
     XTenantID:
@@ -1337,3 +1393,94 @@ components:
     DatasetSourceType:
       type: string
       enum: [tracker, parquet, import]
+
+    # ---- Upload schemas ----
+    UploadStatus:
+      type: string
+      enum: [presigned, uploaded]
+    UploadFileInput:
+      type: object
+      required: [filename, content_type, size_bytes]
+      properties:
+        filename:
+          type: string
+        content_type:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+    CreateUploadPresignRequest:
+      type: object
+      required: [files]
+      properties:
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadFileInput"
+          minItems: 1
+          maxItems: 10
+    UploadFilePresigned:
+      type: object
+      required: [file_id, filename, presigned_url, object_key]
+      properties:
+        file_id:
+          type: string
+        filename:
+          type: string
+        presigned_url:
+          type: string
+        object_key:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+    CreateUploadPresignResponse:
+      type: object
+      required: [upload_id, files]
+      properties:
+        upload_id:
+          type: string
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadFilePresigned"
+    UploadFile:
+      type: object
+      required: [id, upload_id, file_name, object_key, content_type, size_bytes]
+      properties:
+        id:
+          type: string
+        upload_id:
+          type: string
+        file_name:
+          type: string
+        object_key:
+          type: string
+        content_type:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        created_at:
+          type: string
+          format: date-time
+    Upload:
+      type: object
+      required: [id, tenant_id, status, files]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/UploadStatus"
+        files:
+          type: array
+          items:
+            $ref: "#/components/schemas/UploadFile"
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time

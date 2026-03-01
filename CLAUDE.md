@@ -117,6 +117,8 @@ Internal container ports are fixed; only host-side ports change per environment.
 | POST | `/api/v1/job_runs` | Bearer + X-Tenant-ID | Create job run |
 | GET | `/api/v1/job_runs` | Bearer + X-Tenant-ID | List job runs (tenant-scoped) |
 | GET | `/api/v1/job_runs/{id}` | Bearer + X-Tenant-ID | Get job run (tenant-scoped) |
+| POST | `/api/v1/uploads/presign` | Bearer + X-Tenant-ID | Request presigned upload URLs |
+| POST | `/api/v1/uploads/{id}/complete` | Bearer + X-Tenant-ID | Mark upload complete |
 
 ## Events Ingest Pipeline
 
