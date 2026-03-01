@@ -66,6 +66,12 @@ const (
 	ModuleTypeCategoryTransform   ModuleTypeCategory = "transform"
 )
 
+// Defines values for UploadStatus.
+const (
+	Presigned UploadStatus = "presigned"
+	Uploaded  UploadStatus = "uploaded"
+)
+
 // AdminCreateTenantRequest defines model for AdminCreateTenantRequest.
 type AdminCreateTenantRequest struct {
 	Name string `json:"name"`
@@ -145,6 +151,17 @@ type CreateModuleTypeRequestCategory string
 // CreateModuleTypeSchemaRequest defines model for CreateModuleTypeSchemaRequest.
 type CreateModuleTypeSchemaRequest struct {
 	JsonSchema string `json:"json_schema"`
+}
+
+// CreateUploadPresignRequest defines model for CreateUploadPresignRequest.
+type CreateUploadPresignRequest struct {
+	Files []UploadFileInput `json:"files"`
+}
+
+// CreateUploadPresignResponse defines model for CreateUploadPresignResponse.
+type CreateUploadPresignResponse struct {
+	Files    []UploadFilePresigned `json:"files"`
+	UploadId string                `json:"upload_id"`
 }
 
 // Dataset defines model for Dataset.
@@ -360,6 +377,46 @@ type UpdateJobRequest struct {
 	Slug        string  `json:"slug"`
 }
 
+// Upload defines model for Upload.
+type Upload struct {
+	CreatedAt *time.Time   `json:"created_at,omitempty"`
+	Files     []UploadFile `json:"files"`
+	Id        string       `json:"id"`
+	Status    UploadStatus `json:"status"`
+	TenantId  string       `json:"tenant_id"`
+	UpdatedAt *time.Time   `json:"updated_at,omitempty"`
+}
+
+// UploadFile defines model for UploadFile.
+type UploadFile struct {
+	ContentType string     `json:"content_type"`
+	CreatedAt   *time.Time `json:"created_at,omitempty"`
+	FileName    string     `json:"file_name"`
+	Id          string     `json:"id"`
+	ObjectKey   string     `json:"object_key"`
+	SizeBytes   int64      `json:"size_bytes"`
+	UploadId    string     `json:"upload_id"`
+}
+
+// UploadFileInput defines model for UploadFileInput.
+type UploadFileInput struct {
+	ContentType string `json:"content_type"`
+	Filename    string `json:"filename"`
+	SizeBytes   int64  `json:"size_bytes"`
+}
+
+// UploadFilePresigned defines model for UploadFilePresigned.
+type UploadFilePresigned struct {
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+	FileId       string     `json:"file_id"`
+	Filename     string     `json:"filename"`
+	ObjectKey    string     `json:"object_key"`
+	PresignedUrl string     `json:"presigned_url"`
+}
+
+// UploadStatus defines model for UploadStatus.
+type UploadStatus string
+
 // XTenantID defines model for XTenantID.
 type XTenantID = string
 
@@ -493,6 +550,16 @@ type CreateModuleTypeSchemaParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// CreateUploadPresignParams defines parameters for CreateUploadPresign.
+type CreateUploadPresignParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CompleteUploadParams defines parameters for CompleteUpload.
+type CompleteUploadParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // AdminCreateTenantJSONRequestBody defines body for AdminCreateTenant for application/json ContentType.
 type AdminCreateTenantJSONRequestBody = AdminCreateTenantRequest
 
@@ -531,3 +598,6 @@ type CreateModuleTypeJSONRequestBody = CreateModuleTypeRequest
 
 // CreateModuleTypeSchemaJSONRequestBody defines body for CreateModuleTypeSchema for application/json ContentType.
 type CreateModuleTypeSchemaJSONRequestBody = CreateModuleTypeSchemaRequest
+
+// CreateUploadPresignJSONRequestBody defines body for CreateUploadPresign for application/json ContentType.
+type CreateUploadPresignJSONRequestBody = CreateUploadPresignRequest

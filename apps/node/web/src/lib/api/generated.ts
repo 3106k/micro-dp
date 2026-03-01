@@ -388,6 +388,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/uploads/presign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request presigned upload URLs */
+        post: operations["createUploadPresign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/uploads/{id}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark upload complete */
+        post: operations["completeUpload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -628,6 +662,50 @@ export interface components {
         };
         /** @enum {string} */
         DatasetSourceType: "tracker" | "parquet" | "import";
+        /** @enum {string} */
+        UploadStatus: "presigned" | "uploaded";
+        UploadFileInput: {
+            filename: string;
+            content_type: string;
+            /** Format: int64 */
+            size_bytes: number;
+        };
+        CreateUploadPresignRequest: {
+            files: components["schemas"]["UploadFileInput"][];
+        };
+        UploadFilePresigned: {
+            file_id: string;
+            filename: string;
+            presigned_url: string;
+            object_key: string;
+            /** Format: date-time */
+            expires_at?: string;
+        };
+        CreateUploadPresignResponse: {
+            upload_id: string;
+            files: components["schemas"]["UploadFilePresigned"][];
+        };
+        UploadFile: {
+            id: string;
+            upload_id: string;
+            file_name: string;
+            object_key: string;
+            content_type: string;
+            /** Format: int64 */
+            size_bytes: number;
+            /** Format: date-time */
+            created_at?: string;
+        };
+        Upload: {
+            id: string;
+            tenant_id: string;
+            status: components["schemas"]["UploadStatus"];
+            files: components["schemas"]["UploadFile"][];
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
     };
     responses: {
         /** @description Error response */
@@ -1508,6 +1586,61 @@ export interface operations {
             };
             401: components["responses"]["ErrorResponse"];
             404: components["responses"]["ErrorResponse"];
+        };
+    };
+    createUploadPresign: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateUploadPresignRequest"];
+            };
+        };
+        responses: {
+            /** @description Presigned URLs created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateUploadPresignResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    completeUpload: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Upload completed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Upload"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+            409: components["responses"]["ErrorResponse"];
         };
     };
 }

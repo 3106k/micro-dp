@@ -110,6 +110,12 @@ type ServerInterface interface {
 	// Create module type schema version
 	// (POST /api/v1/module_types/{id}/schemas)
 	CreateModuleTypeSchema(w http.ResponseWriter, r *http.Request, id string, params CreateModuleTypeSchemaParams)
+	// Request presigned upload URLs
+	// (POST /api/v1/uploads/presign)
+	CreateUploadPresign(w http.ResponseWriter, r *http.Request, params CreateUploadPresignParams)
+	// Mark upload complete
+	// (POST /api/v1/uploads/{id}/complete)
+	CompleteUpload(w http.ResponseWriter, r *http.Request, id string, params CompleteUploadParams)
 	// Health check
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
@@ -1677,6 +1683,115 @@ func (siw *ServerInterfaceWrapper) CreateModuleTypeSchema(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// CreateUploadPresign operation middleware
+func (siw *ServerInterfaceWrapper) CreateUploadPresign(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateUploadPresignParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateUploadPresign(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteUpload operation middleware
+func (siw *ServerInterfaceWrapper) CompleteUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CompleteUploadParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteUpload(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealthz operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Request) {
 
@@ -1842,6 +1957,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/module_types/{id}", wrapper.GetModuleType)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/module_types/{id}/schemas", wrapper.ListModuleTypeSchemas)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/module_types/{id}/schemas", wrapper.CreateModuleTypeSchema)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/presign", wrapper.CreateUploadPresign)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/{id}/complete", wrapper.CompleteUpload)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.GetHealthz)
 
 	return m
@@ -3009,6 +3126,87 @@ func (response CreateModuleTypeSchema404JSONResponse) VisitCreateModuleTypeSchem
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateUploadPresignRequestObject struct {
+	Params CreateUploadPresignParams
+	Body   *CreateUploadPresignJSONRequestBody
+}
+
+type CreateUploadPresignResponseObject interface {
+	VisitCreateUploadPresignResponse(w http.ResponseWriter) error
+}
+
+type CreateUploadPresign201JSONResponse CreateUploadPresignResponse
+
+func (response CreateUploadPresign201JSONResponse) VisitCreateUploadPresignResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateUploadPresign400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateUploadPresign400JSONResponse) VisitCreateUploadPresignResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateUploadPresign401JSONResponse ErrorResponse
+
+func (response CreateUploadPresign401JSONResponse) VisitCreateUploadPresignResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CompleteUploadRequestObject struct {
+	Id     string `json:"id"`
+	Params CompleteUploadParams
+}
+
+type CompleteUploadResponseObject interface {
+	VisitCompleteUploadResponse(w http.ResponseWriter) error
+}
+
+type CompleteUpload200JSONResponse Upload
+
+func (response CompleteUpload200JSONResponse) VisitCompleteUploadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CompleteUpload401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CompleteUpload401JSONResponse) VisitCompleteUploadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CompleteUpload404JSONResponse ErrorResponse
+
+func (response CompleteUpload404JSONResponse) VisitCompleteUploadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CompleteUpload409JSONResponse ErrorResponse
+
+func (response CompleteUpload409JSONResponse) VisitCompleteUploadResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetHealthzRequestObject struct {
 }
 
@@ -3120,6 +3318,12 @@ type StrictServerInterface interface {
 	// Create module type schema version
 	// (POST /api/v1/module_types/{id}/schemas)
 	CreateModuleTypeSchema(ctx context.Context, request CreateModuleTypeSchemaRequestObject) (CreateModuleTypeSchemaResponseObject, error)
+	// Request presigned upload URLs
+	// (POST /api/v1/uploads/presign)
+	CreateUploadPresign(ctx context.Context, request CreateUploadPresignRequestObject) (CreateUploadPresignResponseObject, error)
+	// Mark upload complete
+	// (POST /api/v1/uploads/{id}/complete)
+	CompleteUpload(ctx context.Context, request CompleteUploadRequestObject) (CompleteUploadResponseObject, error)
 	// Health check
 	// (GET /healthz)
 	GetHealthz(ctx context.Context, request GetHealthzRequestObject) (GetHealthzResponseObject, error)
@@ -4050,6 +4254,66 @@ func (sh *strictHandler) CreateModuleTypeSchema(w http.ResponseWriter, r *http.R
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CreateModuleTypeSchemaResponseObject); ok {
 		if err := validResponse.VisitCreateModuleTypeSchemaResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateUploadPresign operation middleware
+func (sh *strictHandler) CreateUploadPresign(w http.ResponseWriter, r *http.Request, params CreateUploadPresignParams) {
+	var request CreateUploadPresignRequestObject
+
+	request.Params = params
+
+	var body CreateUploadPresignJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateUploadPresign(ctx, request.(CreateUploadPresignRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateUploadPresign")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateUploadPresignResponseObject); ok {
+		if err := validResponse.VisitCreateUploadPresignResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CompleteUpload operation middleware
+func (sh *strictHandler) CompleteUpload(w http.ResponseWriter, r *http.Request, id string, params CompleteUploadParams) {
+	var request CompleteUploadRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CompleteUpload(ctx, request.(CompleteUploadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CompleteUpload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CompleteUploadResponseObject); ok {
+		if err := validResponse.VisitCompleteUploadResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

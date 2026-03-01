@@ -37,6 +37,7 @@ export default async function DashboardLayout({
       <DashboardHeader
         displayName={me.display_name}
         email={me.email}
+        platformRole={me.platform_role}
       />
       <TrackerProvider tenantId={tenantId} userId={me.user_id}>
         <main className="container py-8">{children}</main>

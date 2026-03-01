@@ -22,6 +22,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MINIO_API_CORS_ALLOW_ORIGIN: "*"
     volumes:
       - minio-data:/data
     networks:
@@ -64,6 +65,7 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
       MINIO_BUCKET: ${MINIO_BUCKET:-micro-dp}
+      MINIO_PRESIGN_ENDPOINT: ${MINIO_PRESIGN_ENDPOINT:-localhost:9000}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       OTEL_TRACES_ENABLED: ${OTEL_TRACES_ENABLED:-true}
       OTEL_METRICS_ENABLED: ${OTEL_METRICS_ENABLED:-true}

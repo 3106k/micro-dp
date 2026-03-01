@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS upload_files;
+DROP TABLE IF EXISTS uploads;

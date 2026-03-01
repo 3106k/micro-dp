@@ -13,6 +13,7 @@ import (
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
+	"github.com/user/micro-dp/storage"
 	"github.com/user/micro-dp/usecase"
 )
 
@@ -72,6 +73,7 @@ func main() {
 	moduleTypeSchemaRepo := db.NewModuleTypeSchemaRepo(sqlDB)
 	connectionRepo := db.NewConnectionRepo(sqlDB)
 	datasetRepo := db.NewDatasetRepo(sqlDB)
+	uploadRepo := db.NewUploadRepo(sqlDB)
 	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
@@ -90,6 +92,12 @@ func main() {
 	datasetService := usecase.NewDatasetService(datasetRepo)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
+
+	minioPresignClient, err := storage.NewMinIOPresignClient()
+	if err != nil {
+		log.Fatalf("minio presign client: %v", err)
+	}
+	uploadService := usecase.NewUploadService(uploadRepo, minioPresignClient)
 	adminTenantService := usecase.NewAdminTenantService(tenantRepo, adminAuditLogRepo)
 
 	// Handlers
@@ -101,6 +109,7 @@ func main() {
 	connectionH := handler.NewConnectionHandler(connectionService)
 	datasetH := handler.NewDatasetHandler(datasetService)
 	eventH := handler.NewEventHandler(eventService, eventMetrics)
+	uploadH := handler.NewUploadHandler(uploadService)
 	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
 
 	// Middleware
@@ -166,6 +175,10 @@ func main() {
 	// Datasets
 	mux.Handle("GET /api/v1/datasets", protected(datasetH.List))
 	mux.Handle("GET /api/v1/datasets/{id}", protected(datasetH.Get))
+
+	// Uploads
+	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))
+	mux.Handle("POST /api/v1/uploads/{id}/complete", protected(uploadH.Complete))
 
 	// Admin tenants
 	mux.Handle("POST /api/v1/admin/tenants", adminProtected(adminTenantH.Create))

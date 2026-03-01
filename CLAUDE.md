@@ -192,6 +192,8 @@ Internal container ports are fixed; only host-side ports change per environment.
 | DELETE | `/api/v1/connections/{id}` | Delete connection |
 | GET | `/api/v1/datasets` | List datasets |
 | GET | `/api/v1/datasets/{id}` | Get dataset |
+| POST | `/api/v1/uploads/presign` | Request presigned upload URLs |
+| POST | `/api/v1/uploads/{id}/complete` | Mark upload complete |
 
 ### Admin (Bearer + Superadmin)
 

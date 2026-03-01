@@ -13,6 +13,7 @@ import (
 	jobrunscase "github.com/user/micro-dp/e2e-cli/internal/suite/job_runs/happy_path"
 	adminmultitenant "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/admin_multi_tenant"
 	tenantisolation "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/isolation"
+	uploadscase "github.com/user/micro-dp/e2e-cli/internal/suite/uploads/happy_path"
 )
 
 func Build(cfg *config.Config) ([]runner.Scenario, error) {
@@ -32,6 +33,8 @@ func Build(cfg *config.Config) ([]runner.Scenario, error) {
 			scenarios = append(scenarios, datasetscase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
 		case "events":
 			scenarios = append(scenarios, eventscase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
+		case "uploads":
+			scenarios = append(scenarios, uploadscase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
 		case "tenant":
 			scenarios = append(scenarios,
 				tenantisolation.NewScenario(cfg.AuthPassword, cfg.DisplayName),
