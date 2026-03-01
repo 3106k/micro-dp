@@ -20,6 +20,13 @@ const (
 	CreateModuleTypeRequestCategoryTransform   CreateModuleTypeRequestCategory = "transform"
 )
 
+// Defines values for DatasetSourceType.
+const (
+	Import  DatasetSourceType = "import"
+	Parquet DatasetSourceType = "parquet"
+	Tracker DatasetSourceType = "tracker"
+)
+
 // Defines values for HealthResponseStatus.
 const (
 	Degraded HealthResponseStatus = "degraded"
@@ -139,6 +146,23 @@ type CreateModuleTypeRequestCategory string
 type CreateModuleTypeSchemaRequest struct {
 	JsonSchema string `json:"json_schema"`
 }
+
+// Dataset defines model for Dataset.
+type Dataset struct {
+	CreatedAt     *time.Time        `json:"created_at,omitempty"`
+	Id            string            `json:"id"`
+	LastUpdatedAt *time.Time        `json:"last_updated_at,omitempty"`
+	Name          string            `json:"name"`
+	RowCount      *int64            `json:"row_count,omitempty"`
+	SchemaJson    *string           `json:"schema_json,omitempty"`
+	SourceType    DatasetSourceType `json:"source_type"`
+	StoragePath   string            `json:"storage_path"`
+	TenantId      string            `json:"tenant_id"`
+	UpdatedAt     *time.Time        `json:"updated_at,omitempty"`
+}
+
+// DatasetSourceType defines model for DatasetSourceType.
+type DatasetSourceType string
 
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
@@ -349,6 +373,20 @@ type GetConnectionParams struct {
 
 // UpdateConnectionParams defines parameters for UpdateConnection.
 type UpdateConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListDatasetsParams defines parameters for ListDatasets.
+type ListDatasetsParams struct {
+	Q          *string            `form:"q,omitempty" json:"q,omitempty"`
+	SourceType *DatasetSourceType `form:"source_type,omitempty" json:"source_type,omitempty"`
+	Limit      *int               `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset     *int               `form:"offset,omitempty" json:"offset,omitempty"`
+	XTenantID  XTenantID          `json:"X-Tenant-ID"`
+}
+
+// GetDatasetParams defines parameters for GetDataset.
+type GetDatasetParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 

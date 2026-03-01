@@ -15,6 +15,7 @@ tags:
   - name: job_runs
   - name: module_types
   - name: connections
+  - name: datasets
 paths:
   /healthz:
     get:
@@ -794,6 +795,80 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Datasets ----
+  /api/v1/datasets:
+    get:
+      tags: [datasets]
+      summary: List datasets
+      operationId: listDatasets
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: q
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: source_type
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/DatasetSourceType"
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: List of datasets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Dataset"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/datasets/{id}:
+    get:
+      tags: [datasets]
+      summary: Get dataset
+      operationId: getDataset
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dataset detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
 components:
   parameters:
     XTenantID:
@@ -1229,3 +1304,36 @@ components:
           type: string
         secret_ref:
           type: string
+
+    # ---- Dataset schemas ----
+    Dataset:
+      type: object
+      required: [id, tenant_id, name, source_type, storage_path]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        name:
+          type: string
+        source_type:
+          $ref: "#/components/schemas/DatasetSourceType"
+        schema_json:
+          type: string
+        row_count:
+          type: integer
+          format: int64
+        storage_path:
+          type: string
+        last_updated_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DatasetSourceType:
+      type: string
+      enum: [tracker, parquet, import]

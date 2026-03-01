@@ -66,6 +66,7 @@ func main() {
 	moduleTypeRepo := db.NewModuleTypeRepo(sqlDB)
 	moduleTypeSchemaRepo := db.NewModuleTypeSchemaRepo(sqlDB)
 	connectionRepo := db.NewConnectionRepo(sqlDB)
+	datasetRepo := db.NewDatasetRepo(sqlDB)
 	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
@@ -81,6 +82,7 @@ func main() {
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo)
+	datasetService := usecase.NewDatasetService(datasetRepo)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
 	adminTenantService := usecase.NewAdminTenantService(tenantRepo, adminAuditLogRepo)
@@ -92,6 +94,7 @@ func main() {
 	jobH := handler.NewJobHandler(jobService)
 	moduleTypeH := handler.NewModuleTypeHandler(moduleTypeService)
 	connectionH := handler.NewConnectionHandler(connectionService)
+	datasetH := handler.NewDatasetHandler(datasetService)
 	eventH := handler.NewEventHandler(eventService, eventMetrics)
 	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
 
@@ -153,6 +156,10 @@ func main() {
 	mux.Handle("GET /api/v1/connections/{id}", protected(connectionH.Get))
 	mux.Handle("PUT /api/v1/connections/{id}", protected(connectionH.Update))
 	mux.Handle("DELETE /api/v1/connections/{id}", protected(connectionH.Delete))
+
+	// Datasets
+	mux.Handle("GET /api/v1/datasets", protected(datasetH.List))
+	mux.Handle("GET /api/v1/datasets/{id}", protected(datasetH.Get))
 
 	// Admin tenants
 	mux.Handle("POST /api/v1/admin/tenants", adminProtected(adminTenantH.Create))
