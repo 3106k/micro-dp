@@ -11,13 +11,21 @@ import (
 
 type UploadHandler struct {
 	uploads *usecase.UploadService
+	plans   *usecase.PlanService
 }
 
-func NewUploadHandler(uploads *usecase.UploadService) *UploadHandler {
-	return &UploadHandler{uploads: uploads}
+func NewUploadHandler(uploads *usecase.UploadService, plans *usecase.PlanService) *UploadHandler {
+	return &UploadHandler{uploads: uploads, plans: plans}
 }
 
 func (h *UploadHandler) Presign(w http.ResponseWriter, r *http.Request) {
+	if err := h.plans.CheckUploadQuota(r.Context()); err != nil {
+		if errors.Is(err, domain.ErrQuotaExceeded) {
+			writeError(w, http.StatusPaymentRequired, "upload quota exceeded")
+			return
+		}
+	}
+
 	var req openapi.CreateUploadPresignRequest
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")
