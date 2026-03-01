@@ -36,11 +36,14 @@ func (r *BillingSubscriptionRepo) FindByStripeCustomerID(ctx context.Context, cu
 
 func (r *BillingSubscriptionRepo) findOne(ctx context.Context, q string, arg any) (*domain.BillingSubscription, error) {
 	var sub domain.BillingSubscription
+	var stripeCustomerID sql.NullString
+	var stripeSubscriptionID sql.NullString
+	var stripePriceID sql.NullString
 	err := r.db.QueryRowContext(ctx, q, arg).Scan(
 		&sub.TenantID,
-		&sub.StripeCustomerID,
-		&sub.StripeSubscriptionID,
-		&sub.StripePriceID,
+		&stripeCustomerID,
+		&stripeSubscriptionID,
+		&stripePriceID,
 		&sub.SubscriptionStatus,
 		&sub.CurrentPeriodEnd,
 		&sub.UpdatedAt,
@@ -51,6 +54,15 @@ func (r *BillingSubscriptionRepo) findOne(ctx context.Context, q string, arg any
 		}
 		return nil, err
 	}
+	if stripeCustomerID.Valid {
+		sub.StripeCustomerID = stripeCustomerID.String
+	}
+	if stripeSubscriptionID.Valid {
+		sub.StripeSubscriptionID = stripeSubscriptionID.String
+	}
+	if stripePriceID.Valid {
+		sub.StripePriceID = stripePriceID.String
+	}
 	return &sub, nil
 }
 
@@ -58,7 +70,7 @@ func (r *BillingSubscriptionRepo) UpsertByTenantID(ctx context.Context, sub *dom
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO tenant_billing_subscriptions
 		 (id, stripe_customer_id, stripe_subscription_id, stripe_price_id, subscription_status, current_period_end, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+		 VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, datetime('now'), datetime('now'))
 		 ON CONFLICT(id) DO UPDATE SET
 		   stripe_customer_id = excluded.stripe_customer_id,
 		   stripe_subscription_id = excluded.stripe_subscription_id,
