@@ -70,6 +70,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
       OTEL_EXPORTER_OTLP_INSECURE: ${OTEL_EXPORTER_OTLP_INSECURE:-true}
       OTEL_SERVICE_NAME: ${OTEL_SERVICE_NAME_API:-micro-dp-api}
+      BOOTSTRAP_SUPERADMINS: ${BOOTSTRAP_SUPERADMINS:-false}
+      SUPERADMIN_EMAILS: ${SUPERADMIN_EMAILS:-}
     volumes:
       - ./.data/sqlite:/data/sqlite
     depends_on:

@@ -98,9 +98,10 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, openapi.MeResponse{
-		UserId:      user.ID,
-		Email:       openapi_types.Email(user.Email),
-		DisplayName: user.DisplayName,
-		Tenants:     oaTenants,
+		UserId:       user.ID,
+		Email:        openapi_types.Email(user.Email),
+		DisplayName:  user.DisplayName,
+		PlatformRole: openapi.MeResponsePlatformRole(user.PlatformRole),
+		Tenants:      oaTenants,
 	})
 }

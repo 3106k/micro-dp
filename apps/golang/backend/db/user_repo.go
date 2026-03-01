@@ -33,7 +33,7 @@ func (r *UserRepo) Create(ctx context.Context, user *domain.User) error {
 
 func (r *UserRepo) FindByID(ctx context.Context, id string) (*domain.User, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, email, password_hash, display_name, created_at, updated_at
+		`SELECT id, email, password_hash, display_name, platform_role, created_at, updated_at
 		 FROM users WHERE id = ?`, id,
 	)
 	return scanUser(row)
@@ -41,15 +41,23 @@ func (r *UserRepo) FindByID(ctx context.Context, id string) (*domain.User, error
 
 func (r *UserRepo) FindByEmail(ctx context.Context, email string) (*domain.User, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, email, password_hash, display_name, created_at, updated_at
+		`SELECT id, email, password_hash, display_name, platform_role, created_at, updated_at
 		 FROM users WHERE email = ?`, email,
 	)
 	return scanUser(row)
 }
 
+func (r *UserRepo) UpdatePlatformRole(ctx context.Context, userID, role string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE users SET platform_role = ?, updated_at = datetime('now') WHERE id = ?`,
+		role, userID,
+	)
+	return err
+}
+
 func scanUser(row *sql.Row) (*domain.User, error) {
 	var u domain.User
-	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.CreatedAt, &u.UpdatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.Email, &u.PasswordHash, &u.DisplayName, &u.PlatformRole, &u.CreatedAt, &u.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrUserNotFound
 		}

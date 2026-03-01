@@ -320,6 +320,8 @@ export interface components {
             /** Format: email */
             email: string;
             display_name: string;
+            /** @enum {string} */
+            platform_role: "user" | "superadmin";
             tenants: components["schemas"]["Tenant"][];
         };
         Tenant: {

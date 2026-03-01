@@ -749,7 +749,7 @@ components:
           type: string
     MeResponse:
       type: object
-      required: [user_id, email, display_name, tenants]
+      required: [user_id, email, display_name, platform_role, tenants]
       properties:
         user_id:
           type: string
@@ -758,6 +758,9 @@ components:
           format: email
         display_name:
           type: string
+        platform_role:
+          type: string
+          enum: [user, superadmin]
         tenants:
           type: array
           items:

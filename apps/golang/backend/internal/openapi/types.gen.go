@@ -41,6 +41,12 @@ const (
 	Published JobVersionStatus = "published"
 )
 
+// Defines values for MeResponsePlatformRole.
+const (
+	Superadmin MeResponsePlatformRole = "superadmin"
+	User       MeResponsePlatformRole = "user"
+)
+
 // Defines values for ModuleTypeCategory.
 const (
 	ModuleTypeCategoryDestination ModuleTypeCategory = "destination"
@@ -216,11 +222,15 @@ type LoginResponse struct {
 
 // MeResponse defines model for MeResponse.
 type MeResponse struct {
-	DisplayName string              `json:"display_name"`
-	Email       openapi_types.Email `json:"email"`
-	Tenants     []Tenant            `json:"tenants"`
-	UserId      string              `json:"user_id"`
+	DisplayName  string                 `json:"display_name"`
+	Email        openapi_types.Email    `json:"email"`
+	PlatformRole MeResponsePlatformRole `json:"platform_role"`
+	Tenants      []Tenant               `json:"tenants"`
+	UserId       string                 `json:"user_id"`
 }
+
+// MeResponsePlatformRole defines model for MeResponse.PlatformRole.
+type MeResponsePlatformRole string
 
 // ModuleType defines model for ModuleType.
 type ModuleType struct {
