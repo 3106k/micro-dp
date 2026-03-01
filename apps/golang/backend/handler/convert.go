@@ -131,6 +131,33 @@ func toOpenAPIDataset(d *domain.Dataset) openapi.Dataset {
 	return out
 }
 
+func toOpenAPIUpload(u *domain.Upload, files []domain.UploadFile) openapi.Upload {
+	apiFiles := make([]openapi.UploadFile, len(files))
+	for i, f := range files {
+		apiFiles[i] = toOpenAPIUploadFile(&f)
+	}
+	return openapi.Upload{
+		Id:        u.ID,
+		TenantId:  u.TenantID,
+		Status:    openapi.UploadStatus(u.Status),
+		Files:     apiFiles,
+		CreatedAt: &u.CreatedAt,
+		UpdatedAt: &u.UpdatedAt,
+	}
+}
+
+func toOpenAPIUploadFile(f *domain.UploadFile) openapi.UploadFile {
+	return openapi.UploadFile{
+		Id:          f.ID,
+		UploadId:    f.UploadID,
+		FileName:    f.FileName,
+		ObjectKey:   f.ObjectKey,
+		ContentType: f.ContentType,
+		SizeBytes:   f.SizeBytes,
+		CreatedAt:   &f.CreatedAt,
+	}
+}
+
 func toOpenAPIConnection(c *domain.Connection) openapi.Connection {
 	out := openapi.Connection{
 		Id:       c.ID,
