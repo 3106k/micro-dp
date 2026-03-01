@@ -172,6 +172,10 @@ Internal container ports are fixed; only host-side ports change per environment.
 | POST | `/api/v1/job_runs` | Create job run |
 | GET | `/api/v1/job_runs` | List job runs |
 | GET | `/api/v1/job_runs/{id}` | Get job run |
+| GET | `/api/v1/job_runs/{job_run_id}/modules` | List job run modules |
+| GET | `/api/v1/job_runs/{job_run_id}/modules/{id}` | Get job run module |
+| GET | `/api/v1/job_runs/{job_run_id}/artifacts` | List job run artifacts |
+| GET | `/api/v1/job_runs/{job_run_id}/artifacts/{id}` | Get job run artifact |
 | POST | `/api/v1/jobs` | Create job |
 | GET | `/api/v1/jobs` | List jobs |
 | GET | `/api/v1/jobs/{id}` | Get job |

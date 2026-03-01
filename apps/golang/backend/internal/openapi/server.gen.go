@@ -71,6 +71,18 @@ type ServerInterface interface {
 	// Get job run by ID
 	// (GET /api/v1/job_runs/{id})
 	GetJobRun(w http.ResponseWriter, r *http.Request, id string, params GetJobRunParams)
+	// List artifacts for a job run
+	// (GET /api/v1/job_runs/{job_run_id}/artifacts)
+	ListJobRunArtifacts(w http.ResponseWriter, r *http.Request, jobRunId string, params ListJobRunArtifactsParams)
+	// Get job run artifact detail
+	// (GET /api/v1/job_runs/{job_run_id}/artifacts/{id})
+	GetJobRunArtifact(w http.ResponseWriter, r *http.Request, jobRunId string, id string, params GetJobRunArtifactParams)
+	// List modules for a job run
+	// (GET /api/v1/job_runs/{job_run_id}/modules)
+	ListJobRunModules(w http.ResponseWriter, r *http.Request, jobRunId string, params ListJobRunModulesParams)
+	// Get job run module detail
+	// (GET /api/v1/job_runs/{job_run_id}/modules/{id})
+	GetJobRunModule(w http.ResponseWriter, r *http.Request, jobRunId string, id string, params GetJobRunModuleParams)
 	// List jobs
 	// (GET /api/v1/jobs)
 	ListJobs(w http.ResponseWriter, r *http.Request, params ListJobsParams)
@@ -925,6 +937,260 @@ func (siw *ServerInterfaceWrapper) GetJobRun(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetJobRun(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListJobRunArtifacts operation middleware
+func (siw *ServerInterfaceWrapper) ListJobRunArtifacts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "job_run_id" -------------
+	var jobRunId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_run_id", r.PathValue("job_run_id"), &jobRunId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListJobRunArtifactsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJobRunArtifacts(w, r, jobRunId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetJobRunArtifact operation middleware
+func (siw *ServerInterfaceWrapper) GetJobRunArtifact(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "job_run_id" -------------
+	var jobRunId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_run_id", r.PathValue("job_run_id"), &jobRunId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_run_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetJobRunArtifactParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetJobRunArtifact(w, r, jobRunId, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListJobRunModules operation middleware
+func (siw *ServerInterfaceWrapper) ListJobRunModules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "job_run_id" -------------
+	var jobRunId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_run_id", r.PathValue("job_run_id"), &jobRunId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_run_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListJobRunModulesParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJobRunModules(w, r, jobRunId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetJobRunModule operation middleware
+func (siw *ServerInterfaceWrapper) GetJobRunModule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "job_run_id" -------------
+	var jobRunId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "job_run_id", r.PathValue("job_run_id"), &jobRunId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "job_run_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetJobRunModuleParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetJobRunModule(w, r, jobRunId, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1944,6 +2210,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs", wrapper.ListJobRuns)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/job_runs", wrapper.CreateJobRun)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{id}", wrapper.GetJobRun)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{job_run_id}/artifacts", wrapper.ListJobRunArtifacts)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{job_run_id}/artifacts/{id}", wrapper.GetJobRunArtifact)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{job_run_id}/modules", wrapper.ListJobRunModules)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{job_run_id}/modules/{id}", wrapper.GetJobRunModule)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/jobs", wrapper.ListJobs)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/jobs", wrapper.CreateJob)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/jobs/{id}", wrapper.GetJob)
@@ -2620,6 +2890,138 @@ func (response GetJobRun404JSONResponse) VisitGetJobRunResponse(w http.ResponseW
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListJobRunArtifactsRequestObject struct {
+	JobRunId string `json:"job_run_id"`
+	Params   ListJobRunArtifactsParams
+}
+
+type ListJobRunArtifactsResponseObject interface {
+	VisitListJobRunArtifactsResponse(w http.ResponseWriter) error
+}
+
+type ListJobRunArtifacts200JSONResponse struct {
+	Items []JobRunArtifact `json:"items"`
+}
+
+func (response ListJobRunArtifacts200JSONResponse) VisitListJobRunArtifactsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListJobRunArtifacts401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListJobRunArtifacts401JSONResponse) VisitListJobRunArtifactsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetJobRunArtifactRequestObject struct {
+	JobRunId string `json:"job_run_id"`
+	Id       string `json:"id"`
+	Params   GetJobRunArtifactParams
+}
+
+type GetJobRunArtifactResponseObject interface {
+	VisitGetJobRunArtifactResponse(w http.ResponseWriter) error
+}
+
+type GetJobRunArtifact200JSONResponse JobRunArtifact
+
+func (response GetJobRunArtifact200JSONResponse) VisitGetJobRunArtifactResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetJobRunArtifact401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetJobRunArtifact401JSONResponse) VisitGetJobRunArtifactResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetJobRunArtifact404JSONResponse ErrorResponse
+
+func (response GetJobRunArtifact404JSONResponse) VisitGetJobRunArtifactResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListJobRunModulesRequestObject struct {
+	JobRunId string `json:"job_run_id"`
+	Params   ListJobRunModulesParams
+}
+
+type ListJobRunModulesResponseObject interface {
+	VisitListJobRunModulesResponse(w http.ResponseWriter) error
+}
+
+type ListJobRunModules200JSONResponse struct {
+	Items []JobRunModule `json:"items"`
+}
+
+func (response ListJobRunModules200JSONResponse) VisitListJobRunModulesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListJobRunModules401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListJobRunModules401JSONResponse) VisitListJobRunModulesResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetJobRunModuleRequestObject struct {
+	JobRunId string `json:"job_run_id"`
+	Id       string `json:"id"`
+	Params   GetJobRunModuleParams
+}
+
+type GetJobRunModuleResponseObject interface {
+	VisitGetJobRunModuleResponse(w http.ResponseWriter) error
+}
+
+type GetJobRunModule200JSONResponse JobRunModule
+
+func (response GetJobRunModule200JSONResponse) VisitGetJobRunModuleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetJobRunModule401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetJobRunModule401JSONResponse) VisitGetJobRunModuleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetJobRunModule404JSONResponse ErrorResponse
+
+func (response GetJobRunModule404JSONResponse) VisitGetJobRunModuleResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListJobsRequestObject struct {
 	Params ListJobsParams
 }
@@ -3279,6 +3681,18 @@ type StrictServerInterface interface {
 	// Get job run by ID
 	// (GET /api/v1/job_runs/{id})
 	GetJobRun(ctx context.Context, request GetJobRunRequestObject) (GetJobRunResponseObject, error)
+	// List artifacts for a job run
+	// (GET /api/v1/job_runs/{job_run_id}/artifacts)
+	ListJobRunArtifacts(ctx context.Context, request ListJobRunArtifactsRequestObject) (ListJobRunArtifactsResponseObject, error)
+	// Get job run artifact detail
+	// (GET /api/v1/job_runs/{job_run_id}/artifacts/{id})
+	GetJobRunArtifact(ctx context.Context, request GetJobRunArtifactRequestObject) (GetJobRunArtifactResponseObject, error)
+	// List modules for a job run
+	// (GET /api/v1/job_runs/{job_run_id}/modules)
+	ListJobRunModules(ctx context.Context, request ListJobRunModulesRequestObject) (ListJobRunModulesResponseObject, error)
+	// Get job run module detail
+	// (GET /api/v1/job_runs/{job_run_id}/modules/{id})
+	GetJobRunModule(ctx context.Context, request GetJobRunModuleRequestObject) (GetJobRunModuleResponseObject, error)
 	// List jobs
 	// (GET /api/v1/jobs)
 	ListJobs(ctx context.Context, request ListJobsRequestObject) (ListJobsResponseObject, error)
@@ -3870,6 +4284,116 @@ func (sh *strictHandler) GetJobRun(w http.ResponseWriter, r *http.Request, id st
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetJobRunResponseObject); ok {
 		if err := validResponse.VisitGetJobRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListJobRunArtifacts operation middleware
+func (sh *strictHandler) ListJobRunArtifacts(w http.ResponseWriter, r *http.Request, jobRunId string, params ListJobRunArtifactsParams) {
+	var request ListJobRunArtifactsRequestObject
+
+	request.JobRunId = jobRunId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListJobRunArtifacts(ctx, request.(ListJobRunArtifactsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListJobRunArtifacts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListJobRunArtifactsResponseObject); ok {
+		if err := validResponse.VisitListJobRunArtifactsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetJobRunArtifact operation middleware
+func (sh *strictHandler) GetJobRunArtifact(w http.ResponseWriter, r *http.Request, jobRunId string, id string, params GetJobRunArtifactParams) {
+	var request GetJobRunArtifactRequestObject
+
+	request.JobRunId = jobRunId
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetJobRunArtifact(ctx, request.(GetJobRunArtifactRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetJobRunArtifact")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetJobRunArtifactResponseObject); ok {
+		if err := validResponse.VisitGetJobRunArtifactResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListJobRunModules operation middleware
+func (sh *strictHandler) ListJobRunModules(w http.ResponseWriter, r *http.Request, jobRunId string, params ListJobRunModulesParams) {
+	var request ListJobRunModulesRequestObject
+
+	request.JobRunId = jobRunId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListJobRunModules(ctx, request.(ListJobRunModulesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListJobRunModules")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListJobRunModulesResponseObject); ok {
+		if err := validResponse.VisitListJobRunModulesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetJobRunModule operation middleware
+func (sh *strictHandler) GetJobRunModule(w http.ResponseWriter, r *http.Request, jobRunId string, id string, params GetJobRunModuleParams) {
+	var request GetJobRunModuleRequestObject
+
+	request.JobRunId = jobRunId
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetJobRunModule(ctx, request.(GetJobRunModuleRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetJobRunModule")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetJobRunModuleResponseObject); ok {
+		if err := validResponse.VisitGetJobRunModuleResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

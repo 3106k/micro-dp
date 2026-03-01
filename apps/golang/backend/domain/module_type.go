@@ -43,6 +43,7 @@ type ModuleTypeRepository interface {
 
 type ModuleTypeSchemaRepository interface {
 	Create(ctx context.Context, s *ModuleTypeSchema) error
+	FindByID(ctx context.Context, tenantID, id string) (*ModuleTypeSchema, error)
 	ListByModuleTypeID(ctx context.Context, tenantID, moduleTypeID string) ([]ModuleTypeSchema, error)
 	NextVersion(ctx context.Context, moduleTypeID string) (int, error)
 }
