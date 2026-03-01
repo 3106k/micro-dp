@@ -64,6 +64,15 @@ func main() {
 
 	go consumer.Run(ctx)
 
+	// Upload consumer (CSV→Parquet)
+	datasetRepo := db.NewDatasetRepo(sqlDB)
+	uploadQueue := queue.NewUploadQueue(valkeyClient)
+	uploadMetrics := observability.NewUploadMetrics()
+	csvImportWriter := worker.NewCSVImportWriter(minioClient, datasetRepo)
+	uploadConsumer := worker.NewUploadConsumer(uploadQueue, csvImportWriter, uploadMetrics)
+
+	go uploadConsumer.Run(ctx)
+
 	// Health check server
 	healthH := handler.NewHealthHandler(sqlDB)
 	mux := http.NewServeMux()

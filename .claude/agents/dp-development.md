@@ -118,6 +118,34 @@ internal/      — observability, openapi codegen, featureflag
 - `storage/` パッケージ: minio-go/v7 ベースの MinIO ラッパー
 - `worker/` パッケージ: EventConsumer (BRPOP ループ) + ParquetWriter (DuckDB 変換)
 
+### CSV Import Pipeline
+
+- upload complete 時に Valkey queue (LPUSH) → Worker (BRPOP) で非同期処理
+- 重複排除: Valkey SET NX TTL 24h (`upload_id`)
+- CSV のみ変換対象（非 CSV はスキップ）
+- 処理: MinIO download → DuckDB `read_csv_auto` → `DESCRIBE` でスキーマ抽出 → `COPY TO Parquet` → MinIO upload
+- Dataset upsert: `INSERT ... ON CONFLICT(tenant_id, name) DO UPDATE`
+- MinIO オブジェクトキー: `imports/{tenant_id}/dt={YYYY-MM-DD}/{file_id}.parquet`
+- Worker は EventConsumer と UploadConsumer の 2 つのコンシューマを並行実行する
+
+### Queue Pipeline 共通パターン
+
+events と uploads で確立された再利用可能なパターン。3 つ目以降も同じ構造に従う:
+
+```
+1. domain/     — メッセージ struct + Queue interface (Enqueue/Dequeue/MarkProcessed/EnqueueDLQ)
+2. queue/      — Valkey 実装 (LPUSH/BRPOP 5s/SET NX TTL 24h/DLQ)
+3. worker/     — Consumer (Run ループ) + Writer (変換・永続化)
+4. usecase/    — ビジネスロジック内で Enqueue を呼ぶ
+5. observability/ — メトリクス (processed/failed/duplicate + 処理時間 histogram)
+6. cmd/worker/ — consumer を goroutine で起動
+7. cmd/api/    — queue を usecase に注入
+```
+
+- Valkey キー命名規則: `micro-dp:{resource}:ingest`, `micro-dp:{resource}:dlq`, `micro-dp:{resource}:seen:{id}`
+- Events: 小メッセージ大量 → バッチ処理 (1000 件 or 30 秒)
+- Uploads: 1 ジョブ = 1 アップロード → BRPOP→即処理
+
 ### 検証コマンド
 
 ```bash

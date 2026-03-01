@@ -106,3 +106,19 @@ func (r *DatasetRepo) Update(ctx context.Context, d *domain.Dataset) error {
 	)
 	return err
 }
+
+func (r *DatasetRepo) Upsert(ctx context.Context, d *domain.Dataset) error {
+	_, err := r.db.ExecContext(ctx,
+		`INSERT INTO datasets (id, tenant_id, name, source_type, schema_json, row_count, storage_path, last_updated_at, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+		 ON CONFLICT(tenant_id, name) DO UPDATE SET
+		   source_type = excluded.source_type,
+		   schema_json = excluded.schema_json,
+		   row_count = excluded.row_count,
+		   storage_path = excluded.storage_path,
+		   last_updated_at = excluded.last_updated_at,
+		   updated_at = datetime('now')`,
+		d.ID, d.TenantID, d.Name, d.SourceType, d.SchemaJSON, d.RowCount, d.StoragePath, d.LastUpdatedAt,
+	)
+	return err
+}
