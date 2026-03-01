@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -10,19 +11,22 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/notification"
 )
 
 type AuthService struct {
-	users     domain.UserRepository
-	tenants   domain.TenantRepository
-	jwtSecret []byte
+	users       domain.UserRepository
+	tenants     domain.TenantRepository
+	jwtSecret   []byte
+	emailSender notification.EmailSender
 }
 
-func NewAuthService(users domain.UserRepository, tenants domain.TenantRepository, jwtSecret string) *AuthService {
+func NewAuthService(users domain.UserRepository, tenants domain.TenantRepository, jwtSecret string, emailSender notification.EmailSender) *AuthService {
 	return &AuthService{
-		users:     users,
-		tenants:   tenants,
-		jwtSecret: []byte(jwtSecret),
+		users:       users,
+		tenants:     tenants,
+		jwtSecret:   []byte(jwtSecret),
+		emailSender: emailSender,
 	}
 }
 
@@ -61,6 +65,17 @@ func (s *AuthService) Register(ctx context.Context, email, password, displayName
 	}
 	if err := s.tenants.AddUserToTenant(ctx, ut); err != nil {
 		return "", "", err
+	}
+
+	if s.emailSender != nil {
+		subject, html, text, err := notification.RenderWelcome(displayName)
+		if err == nil {
+			if sendErr := s.emailSender.Send(ctx, &notification.EmailMessage{
+				To: email, Subject: subject, HTML: html, Text: text,
+			}); sendErr != nil {
+				log.Printf("welcome email failed to=%s: %v", email, sendErr)
+			}
+		}
 	}
 
 	return userID, tenantID, nil

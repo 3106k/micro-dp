@@ -11,6 +11,7 @@ import (
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/featureflag"
+	"github.com/user/micro-dp/internal/notification"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
 	"github.com/user/micro-dp/storage"
@@ -48,6 +49,10 @@ func main() {
 	featureflag.Init(ffCfg)
 	featureflag.LogStartup(ffCfg)
 
+	notifCfg := notification.LoadConfig()
+	emailSender := notification.NewEmailSender(notifCfg)
+	notification.LogStartup(notifCfg)
+
 	jwtSecret := os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
 		log.Fatal("JWT_SECRET environment variable is required")
@@ -84,7 +89,7 @@ func main() {
 	}
 
 	// Services
-	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret)
+	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret, emailSender)
 	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
