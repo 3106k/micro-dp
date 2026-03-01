@@ -81,6 +81,7 @@ func main() {
 	datasetRepo := db.NewDatasetRepo(sqlDB)
 	uploadRepo := db.NewUploadRepo(sqlDB)
 	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
+	invitationRepo := db.NewInvitationRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
 	jobRunModuleRepo := db.NewJobRunModuleRepo(sqlDB)
@@ -130,6 +131,12 @@ func main() {
 	jobRunArtifactService := usecase.NewJobRunArtifactService(jobRunArtifactRepo)
 	adminTenantService := usecase.NewAdminTenantService(tenantRepo, adminAuditLogRepo)
 
+	appBaseURL := os.Getenv("APP_BASE_URL")
+	if appBaseURL == "" {
+		appBaseURL = "http://localhost:8080"
+	}
+	memberService := usecase.NewMemberService(tenantRepo, userRepo, invitationRepo, emailSender, appBaseURL)
+
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
 	authH := handler.NewAuthHandler(authService)
@@ -143,6 +150,7 @@ func main() {
 	jobRunModuleH := handler.NewJobRunModuleHandler(jobRunModuleService)
 	jobRunArtifactH := handler.NewJobRunArtifactHandler(jobRunArtifactService)
 	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
+	memberH := handler.NewMemberHandler(memberService)
 	planH := handler.NewPlanHandler(planService)
 	adminPlanH := handler.NewAdminPlanHandler(planService)
 
@@ -223,6 +231,16 @@ func main() {
 	// Uploads
 	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))
 	mux.Handle("POST /api/v1/uploads/{id}/complete", protected(uploadH.Complete))
+
+	// Members (tenant-scoped)
+	mux.Handle("GET /api/v1/tenants/current/members", protected(memberH.List))
+	mux.Handle("POST /api/v1/tenants/current/invitations", protected(memberH.CreateInvitation))
+	mux.Handle("PATCH /api/v1/tenants/current/members/{user_id}", protected(memberH.UpdateRole))
+	mux.Handle("DELETE /api/v1/tenants/current/members/{user_id}", protected(memberH.Remove))
+
+	// Accept invitation (auth only — no tenant middleware)
+	mux.Handle("POST /api/v1/tenants/current/invitations/{token}/accept",
+		authMW(http.HandlerFunc(memberH.AcceptInvitation)))
 
 	// Plan & Usage
 	mux.Handle("GET /api/v1/plan", protected(planH.GetPlan))

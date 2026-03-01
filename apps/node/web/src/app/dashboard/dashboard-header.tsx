@@ -39,6 +39,7 @@ export function DashboardHeader({
     { href: "/datasets", label: "Datasets" },
     { href: "/uploads", label: "Uploads" },
     { href: "/connections", label: "Connections" },
+    { href: "/members", label: "Members" },
   ];
   if (platformRole === "superadmin") {
     navItems.push({ href: "/admin/tenants", label: "Admin Tenants" });

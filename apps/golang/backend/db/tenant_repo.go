@@ -113,3 +113,70 @@ func (r *TenantRepo) IsUserInTenant(ctx context.Context, userID, tenantID string
 	}
 	return count > 0, nil
 }
+
+func (r *TenantRepo) ListMembersByTenantID(ctx context.Context, tenantID string) ([]domain.TenantMember, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT u.id, u.email, u.display_name, ut.role, ut.created_at
+		 FROM user_tenants ut
+		 INNER JOIN users u ON u.id = ut.user_id
+		 WHERE ut.tenant_id = ?
+		 ORDER BY ut.created_at ASC`, tenantID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var members []domain.TenantMember
+	for rows.Next() {
+		var m domain.TenantMember
+		if err := rows.Scan(&m.UserID, &m.Email, &m.DisplayName, &m.Role, &m.JoinedAt); err != nil {
+			return nil, err
+		}
+		members = append(members, m)
+	}
+	return members, rows.Err()
+}
+
+func (r *TenantRepo) GetUserRole(ctx context.Context, userID, tenantID string) (string, error) {
+	var role string
+	err := r.db.QueryRowContext(ctx,
+		`SELECT role FROM user_tenants WHERE user_id = ? AND tenant_id = ?`,
+		userID, tenantID,
+	).Scan(&role)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", domain.ErrTenantNotFound
+		}
+		return "", err
+	}
+	return role, nil
+}
+
+func (r *TenantRepo) UpdateUserRole(ctx context.Context, userID, tenantID, role string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE user_tenants SET role = ? WHERE user_id = ? AND tenant_id = ?`,
+		role, userID, tenantID,
+	)
+	return err
+}
+
+func (r *TenantRepo) RemoveUserFromTenant(ctx context.Context, userID, tenantID string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM user_tenants WHERE user_id = ? AND tenant_id = ?`,
+		userID, tenantID,
+	)
+	return err
+}
+
+func (r *TenantRepo) CountOwners(ctx context.Context, tenantID string) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM user_tenants WHERE tenant_id = ? AND role = 'owner'`,
+		tenantID,
+	).Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}

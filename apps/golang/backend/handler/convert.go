@@ -1,6 +1,8 @@
 package handler
 
 import (
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/user/micro-dp/domain"
 	"github.com/user/micro-dp/internal/openapi"
 )
@@ -253,5 +255,39 @@ func toOpenAPIConnection(c *domain.Connection) openapi.Connection {
 	out.SecretRef = c.SecretRef
 	out.CreatedAt = &c.CreatedAt
 	out.UpdatedAt = &c.UpdatedAt
+	return out
+}
+
+func toOpenAPITenantMember(m *domain.TenantMember) openapi.TenantMember {
+	return openapi.TenantMember{
+		UserId:      m.UserID,
+		Email:       openapi_types.Email(m.Email),
+		DisplayName: m.DisplayName,
+		Role:        openapi.TenantRole(m.Role),
+		JoinedAt:    m.JoinedAt,
+	}
+}
+
+func toOpenAPITenantInvitation(inv *domain.TenantInvitation, includeToken bool) openapi.TenantInvitation {
+	out := openapi.TenantInvitation{
+		Id:        inv.ID,
+		TenantId:  inv.TenantID,
+		Email:     openapi_types.Email(inv.Email),
+		Role:      openapi.TenantRole(inv.Role),
+		Status:    openapi.TenantInvitationStatus(inv.Status),
+		CreatedAt: inv.CreatedAt,
+	}
+	if includeToken && inv.Token != "" {
+		out.Token = &inv.Token
+	}
+	if inv.InvitedBy != "" {
+		out.InvitedBy = &inv.InvitedBy
+	}
+	if !inv.ExpiresAt.IsZero() {
+		out.ExpiresAt = &inv.ExpiresAt
+	}
+	if inv.AcceptedAt != nil {
+		out.AcceptedAt = inv.AcceptedAt
+	}
 	return out
 }
