@@ -114,6 +114,7 @@ Internal container ports are fixed; only host-side ports change per environment.
 | POST | `/api/v1/auth/login` | — | Login (returns JWT) |
 | GET | `/api/v1/auth/me` | Bearer | Current user + tenants |
 | POST | `/api/v1/events` | Bearer + X-Tenant-ID | Ingest event (202 Accepted) |
+| GET | `/api/v1/events/summary` | Bearer + X-Tenant-ID | Event counts summary |
 | POST | `/api/v1/job_runs` | Bearer + X-Tenant-ID | Create job run |
 | GET | `/api/v1/job_runs` | Bearer + X-Tenant-ID | List job runs (tenant-scoped) |
 | GET | `/api/v1/job_runs/{id}` | Bearer + X-Tenant-ID | Get job run (tenant-scoped) |
@@ -198,6 +199,49 @@ curl -s http://localhost:8080/metrics | grep events_
 | `events_failed_total` | counter | Worker | DLQ 退避数 |
 | `events_batch_size` | histogram | Worker | バッチあたりイベント数 |
 | `events_batch_duration_seconds` | histogram | Worker | バッチ処理時間 |
+
+## Tracker SDK Integration
+
+フロントエンドからのイベント計測。`@micro-dp/sdk-tracker` を Next.js アプリに統合。
+
+### アーキテクチャ
+
+```
+Browser (SDK) → POST /api/events → Next.js API route (proxy) → POST /api/v1/events (Go API)
+                                     ↑ cookie → Bearer token + X-Tenant-ID 付与
+                                     ↑ バッチ分解 (SDK batch → 個別 event)
+```
+
+### 主要ファイル
+
+| ファイル | 役割 |
+|---------|------|
+| `apps/node/sdk-tracker/` | Tracker SDK パッケージ |
+| `apps/node/web/src/app/api/events/route.ts` | イベントプロキシ API route (バッチ分解) |
+| `apps/node/web/src/app/api/events/summary/route.ts` | サマリ API proxy |
+| `apps/node/web/src/components/tracker-provider.tsx` | TrackerProvider (client component) |
+| `apps/node/web/src/app/dashboard/event-summary.tsx` | イベントサマリ表示 (server component) |
+
+### 計測イベント
+
+| イベント名 | トリガー |
+|-----------|---------|
+| `page_view` | pathname 変化時 (TrackerProvider) |
+| `login_success` | ログイン成功後 `?event=login_success` で遷移 |
+| `sign_out` | サインアウトボタン押下時 (beacon) |
+
+### Valkey カウンター
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `micro-dp:events:count:{tenant_id}` | HASH | イベント名ごとの件数 (`HINCRBY`) |
+
+### 環境変数
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `TRACKER_ENABLED` | `true` | トラッカー有効/無効 |
+| `TRACKER_DEBUG` | `false` | コンソールログ出力 |
 
 ## Contract-First OpenAPI (SSOT)
 

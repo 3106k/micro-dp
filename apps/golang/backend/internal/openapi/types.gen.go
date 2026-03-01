@@ -169,6 +169,18 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+// EventCount defines model for EventCount.
+type EventCount struct {
+	Count     int64  `json:"count"`
+	EventName string `json:"event_name"`
+}
+
+// EventsSummaryResponse defines model for EventsSummaryResponse.
+type EventsSummaryResponse struct {
+	Counts []EventCount `json:"counts"`
+	Total  int64        `json:"total"`
+}
+
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
 	Db     *string              `json:"db,omitempty"`
@@ -392,6 +404,11 @@ type GetDatasetParams struct {
 
 // IngestEventParams defines parameters for IngestEvent.
 type IngestEventParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetEventsSummaryParams defines parameters for GetEventsSummary.
+type GetEventsSummaryParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 

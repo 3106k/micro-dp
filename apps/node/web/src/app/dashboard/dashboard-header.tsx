@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { track, flush } from "@/components/tracker-provider";
 
 export function DashboardHeader({
   displayName,
@@ -14,6 +15,8 @@ export function DashboardHeader({
   const router = useRouter();
 
   async function handleSignOut() {
+    track("sign_out");
+    flush({ useBeacon: true });
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/signin");
     router.refresh();

@@ -15,6 +15,7 @@ const (
 	ingestKey    = keyPrefix + "ingest"
 	dlqKey       = keyPrefix + "dlq"
 	seenPrefix   = keyPrefix + "seen:"
+	countPrefix  = keyPrefix + "count:"
 	seenTTL      = 24 * time.Hour
 	dequeueWait  = 5 * time.Second
 )
@@ -73,6 +74,26 @@ func (q *EventQueueImpl) Dequeue(ctx context.Context) (*domain.EventQueueMessage
 		return nil, fmt.Errorf("unmarshal event: %w", err)
 	}
 	return &msg, nil
+}
+
+func (q *EventQueueImpl) IncrementCount(ctx context.Context, tenantID, eventName string) error {
+	key := countPrefix + tenantID
+	return q.rdb.HIncrBy(ctx, key, eventName, 1).Err()
+}
+
+func (q *EventQueueImpl) GetCounts(ctx context.Context, tenantID string) (map[string]int64, error) {
+	key := countPrefix + tenantID
+	result, err := q.rdb.HGetAll(ctx, key).Result()
+	if err != nil {
+		return nil, fmt.Errorf("get counts: %w", err)
+	}
+	counts := make(map[string]int64, len(result))
+	for k, v := range result {
+		var n int64
+		fmt.Sscanf(v, "%d", &n)
+		counts[k] = n
+	}
+	return counts, nil
 }
 
 func (q *EventQueueImpl) EnqueueDLQ(ctx context.Context, msg *domain.EventQueueMessage, reason string) error {

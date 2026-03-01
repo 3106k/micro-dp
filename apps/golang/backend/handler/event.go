@@ -19,6 +19,32 @@ func NewEventHandler(events *usecase.EventService, metrics *observability.EventM
 	return &EventHandler{events: events, metrics: metrics}
 }
 
+func (h *EventHandler) Summary(w http.ResponseWriter, r *http.Request) {
+	counts, err := h.events.Summary(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	var items []openapi.EventCount
+	var total int64
+	for name, count := range counts {
+		items = append(items, openapi.EventCount{
+			EventName: name,
+			Count:     count,
+		})
+		total += count
+	}
+	if items == nil {
+		items = []openapi.EventCount{}
+	}
+
+	writeJSON(w, http.StatusOK, openapi.EventsSummaryResponse{
+		Counts: items,
+		Total:  total,
+	})
+}
+
 func (h *EventHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 	var req openapi.IngestEventRequest
 	if err := decodeJSON(r, &req); err != nil {

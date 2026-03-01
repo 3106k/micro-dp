@@ -1,5 +1,7 @@
 FROM node:20-alpine
 
+COPY apps/node/sdk-tracker /sdk-tracker
+
 WORKDIR /app
 COPY apps/node/web/package.json apps/node/web/package-lock.json* ./
 RUN npm install

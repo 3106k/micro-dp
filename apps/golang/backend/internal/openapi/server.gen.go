@@ -59,6 +59,9 @@ type ServerInterface interface {
 	// Ingest event
 	// (POST /api/v1/events)
 	IngestEvent(w http.ResponseWriter, r *http.Request, params IngestEventParams)
+	// Event counts summary
+	// (GET /api/v1/events/summary)
+	GetEventsSummary(w http.ResponseWriter, r *http.Request, params GetEventsSummaryParams)
 	// List job runs
 	// (GET /api/v1/job_runs)
 	ListJobRuns(w http.ResponseWriter, r *http.Request, params ListJobRunsParams)
@@ -699,6 +702,56 @@ func (siw *ServerInterfaceWrapper) IngestEvent(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.IngestEvent(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEventsSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetEventsSummary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetEventsSummaryParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEventsSummary(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1772,6 +1825,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets", wrapper.ListDatasets)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}", wrapper.GetDataset)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/events", wrapper.IngestEvent)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/events/summary", wrapper.GetEventsSummary)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs", wrapper.ListJobRuns)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/job_runs", wrapper.CreateJobRun)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{id}", wrapper.GetJobRun)
@@ -2328,6 +2382,32 @@ type IngestEvent409JSONResponse ErrorResponse
 func (response IngestEvent409JSONResponse) VisitIngestEventResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEventsSummaryRequestObject struct {
+	Params GetEventsSummaryParams
+}
+
+type GetEventsSummaryResponseObject interface {
+	VisitGetEventsSummaryResponse(w http.ResponseWriter) error
+}
+
+type GetEventsSummary200JSONResponse EventsSummaryResponse
+
+func (response GetEventsSummary200JSONResponse) VisitGetEventsSummaryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetEventsSummary401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetEventsSummary401JSONResponse) VisitGetEventsSummaryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -2989,6 +3069,9 @@ type StrictServerInterface interface {
 	// Ingest event
 	// (POST /api/v1/events)
 	IngestEvent(ctx context.Context, request IngestEventRequestObject) (IngestEventResponseObject, error)
+	// Event counts summary
+	// (GET /api/v1/events/summary)
+	GetEventsSummary(ctx context.Context, request GetEventsSummaryRequestObject) (GetEventsSummaryResponseObject, error)
 	// List job runs
 	// (GET /api/v1/job_runs)
 	ListJobRuns(ctx context.Context, request ListJobRunsRequestObject) (ListJobRunsResponseObject, error)
@@ -3471,6 +3554,32 @@ func (sh *strictHandler) IngestEvent(w http.ResponseWriter, r *http.Request, par
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(IngestEventResponseObject); ok {
 		if err := validResponse.VisitIngestEventResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEventsSummary operation middleware
+func (sh *strictHandler) GetEventsSummary(w http.ResponseWriter, r *http.Request, params GetEventsSummaryParams) {
+	var request GetEventsSummaryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEventsSummary(ctx, request.(GetEventsSummaryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEventsSummary")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEventsSummaryResponseObject); ok {
+		if err := validResponse.VisitGetEventsSummaryResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
