@@ -26,6 +26,12 @@ type ServerInterface interface {
 	// Update tenant (superadmin only)
 	// (PATCH /api/v1/admin/tenants/{id})
 	AdminUpdateTenant(w http.ResponseWriter, r *http.Request, id string)
+	// Handle Google OAuth callback
+	// (GET /api/v1/auth/google/callback)
+	CallbackGoogleOAuth(w http.ResponseWriter, r *http.Request, params CallbackGoogleOAuthParams)
+	// Start Google OAuth login
+	// (GET /api/v1/auth/google/start)
+	StartGoogleOAuth(w http.ResponseWriter, r *http.Request)
 	// Login
 	// (POST /api/v1/auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -204,6 +210,69 @@ func (siw *ServerInterfaceWrapper) AdminUpdateTenant(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminUpdateTenant(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CallbackGoogleOAuth operation middleware
+func (siw *ServerInterfaceWrapper) CallbackGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CallbackGoogleOAuthParams
+
+	// ------------- Required query parameter "code" -------------
+
+	if paramValue := r.URL.Query().Get("code"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "code"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "code", r.URL.Query(), &params.Code)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	if paramValue := r.URL.Query().Get("state"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "state", r.URL.Query(), &params.State)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CallbackGoogleOAuth(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartGoogleOAuth operation middleware
+func (siw *ServerInterfaceWrapper) StartGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartGoogleOAuth(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2195,6 +2264,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/admin/tenants", wrapper.AdminListTenants)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/admin/tenants", wrapper.AdminCreateTenant)
 	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/admin/tenants/{id}", wrapper.AdminUpdateTenant)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/google/callback", wrapper.CallbackGoogleOAuth)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/google/start", wrapper.StartGoogleOAuth)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/login", wrapper.Login)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/me", wrapper.Me)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/register", wrapper.Register)
@@ -2366,6 +2437,85 @@ type AdminUpdateTenant404JSONResponse ErrorResponse
 func (response AdminUpdateTenant404JSONResponse) VisitAdminUpdateTenantResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CallbackGoogleOAuthRequestObject struct {
+	Params CallbackGoogleOAuthParams
+}
+
+type CallbackGoogleOAuthResponseObject interface {
+	VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error
+}
+
+type CallbackGoogleOAuth302ResponseHeaders struct {
+	Location string
+}
+
+type CallbackGoogleOAuth302Response struct {
+	Headers CallbackGoogleOAuth302ResponseHeaders
+}
+
+func (response CallbackGoogleOAuth302Response) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackGoogleOAuth400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CallbackGoogleOAuth400JSONResponse) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CallbackGoogleOAuth401JSONResponse ErrorResponse
+
+func (response CallbackGoogleOAuth401JSONResponse) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CallbackGoogleOAuth500JSONResponse ErrorResponse
+
+func (response CallbackGoogleOAuth500JSONResponse) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StartGoogleOAuthRequestObject struct {
+}
+
+type StartGoogleOAuthResponseObject interface {
+	VisitStartGoogleOAuthResponse(w http.ResponseWriter) error
+}
+
+type StartGoogleOAuth302ResponseHeaders struct {
+	Location string
+}
+
+type StartGoogleOAuth302Response struct {
+	Headers StartGoogleOAuth302ResponseHeaders
+}
+
+func (response StartGoogleOAuth302Response) VisitStartGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type StartGoogleOAuth500JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response StartGoogleOAuth500JSONResponse) VisitStartGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -3636,6 +3786,12 @@ type StrictServerInterface interface {
 	// Update tenant (superadmin only)
 	// (PATCH /api/v1/admin/tenants/{id})
 	AdminUpdateTenant(ctx context.Context, request AdminUpdateTenantRequestObject) (AdminUpdateTenantResponseObject, error)
+	// Handle Google OAuth callback
+	// (GET /api/v1/auth/google/callback)
+	CallbackGoogleOAuth(ctx context.Context, request CallbackGoogleOAuthRequestObject) (CallbackGoogleOAuthResponseObject, error)
+	// Start Google OAuth login
+	// (GET /api/v1/auth/google/start)
+	StartGoogleOAuth(ctx context.Context, request StartGoogleOAuthRequestObject) (StartGoogleOAuthResponseObject, error)
 	// Login
 	// (POST /api/v1/auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -3853,6 +4009,56 @@ func (sh *strictHandler) AdminUpdateTenant(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AdminUpdateTenantResponseObject); ok {
 		if err := validResponse.VisitAdminUpdateTenantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CallbackGoogleOAuth operation middleware
+func (sh *strictHandler) CallbackGoogleOAuth(w http.ResponseWriter, r *http.Request, params CallbackGoogleOAuthParams) {
+	var request CallbackGoogleOAuthRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CallbackGoogleOAuth(ctx, request.(CallbackGoogleOAuthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CallbackGoogleOAuth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CallbackGoogleOAuthResponseObject); ok {
+		if err := validResponse.VisitCallbackGoogleOAuthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartGoogleOAuth operation middleware
+func (sh *strictHandler) StartGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+	var request StartGoogleOAuthRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartGoogleOAuth(ctx, request.(StartGoogleOAuthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartGoogleOAuth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartGoogleOAuthResponseObject); ok {
+		if err := validResponse.VisitStartGoogleOAuthResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

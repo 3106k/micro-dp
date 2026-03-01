@@ -25,6 +25,9 @@ export default async function UploadsPage() {
   }
 
   const me: MeResponse = await meRes.json();
+  const tenantIds = new Set(me.tenants.map((tenant) => tenant.id));
+  const currentTenantId =
+    tenantId && tenantIds.has(tenantId) ? tenantId : me.tenants[0]?.id ?? "";
 
   return (
     <div className="min-h-screen">
@@ -32,6 +35,8 @@ export default async function UploadsPage() {
         displayName={me.display_name}
         email={me.email}
         platformRole={me.platform_role}
+        tenants={me.tenants}
+        currentTenantId={currentTenantId}
       />
       <main className="container space-y-6 py-8">
         <h1 className="text-2xl font-semibold tracking-tight">Uploads</h1>

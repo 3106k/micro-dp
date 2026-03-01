@@ -469,6 +469,12 @@ type UploadStatus string
 // XTenantID defines model for XTenantID.
 type XTenantID = string
 
+// CallbackGoogleOAuthParams defines parameters for CallbackGoogleOAuth.
+type CallbackGoogleOAuthParams struct {
+	Code  string `form:"code" json:"code"`
+	State string `form:"state" json:"state"`
+}
+
 // ListConnectionsParams defines parameters for ListConnections.
 type ListConnectionsParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
