@@ -544,6 +544,128 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Job Run Modules ----
+  /api/v1/job_runs/{job_run_id}/modules:
+    get:
+      tags: [job_runs]
+      summary: List modules for a job run
+      operationId: listJobRunModules
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_run_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of job run modules
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JobRunModule"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/job_runs/{job_run_id}/modules/{id}:
+    get:
+      tags: [job_runs]
+      summary: Get job run module detail
+      operationId: getJobRunModule
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_run_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job run module detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRunModule"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Job Run Artifacts ----
+  /api/v1/job_runs/{job_run_id}/artifacts:
+    get:
+      tags: [job_runs]
+      summary: List artifacts for a job run
+      operationId: listJobRunArtifacts
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_run_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of job run artifacts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/JobRunArtifact"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/job_runs/{job_run_id}/artifacts/{id}:
+    get:
+      tags: [job_runs]
+      summary: Get job run artifact detail
+      operationId: getJobRunArtifact
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: job_run_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Job run artifact detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobRunArtifact"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Module Types ----
   /api/v1/module_types:
     post:
@@ -1300,6 +1422,85 @@ components:
     JobRunStatus:
       type: string
       enum: [queued, running, success, failed, canceled]
+
+    # ---- Job Run Module schemas ----
+    JobRunModule:
+      type: object
+      required: [id, tenant_id, job_run_id, job_module_id, status, attempt]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        job_run_id:
+          type: string
+        job_module_id:
+          type: string
+        status:
+          $ref: "#/components/schemas/JobRunModuleStatus"
+        attempt:
+          type: integer
+        input_json:
+          type: string
+        output_json:
+          type: string
+        metrics_json:
+          type: string
+        error_code:
+          type: string
+        error_message:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        finished_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    JobRunModuleStatus:
+      type: string
+      enum: [queued, running, success, failed, canceled]
+
+    # ---- Job Run Artifact schemas ----
+    JobRunArtifact:
+      type: object
+      required: [id, tenant_id, job_run_id, name, artifact_type, storage_type, storage_path, size_bytes, content_type]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        job_run_id:
+          type: string
+        job_run_module_id:
+          type: string
+        name:
+          type: string
+        artifact_type:
+          type: string
+        storage_type:
+          type: string
+        storage_path:
+          type: string
+        uri:
+          type: string
+        size_bytes:
+          type: integer
+          format: int64
+        content_type:
+          type: string
+        checksum:
+          type: string
+        metadata_json:
+          type: string
+        created_at:
+          type: string
+          format: date-time
 
     # ---- Module Type schemas ----
     ModuleType:

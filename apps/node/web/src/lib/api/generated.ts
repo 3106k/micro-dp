@@ -264,6 +264,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/job_runs/{job_run_id}/modules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List modules for a job run */
+        get: operations["listJobRunModules"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/job_runs/{job_run_id}/modules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get job run module detail */
+        get: operations["getJobRunModule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/job_runs/{job_run_id}/artifacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List artifacts for a job run */
+        get: operations["listJobRunArtifacts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/job_runs/{job_run_id}/artifacts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get job run artifact detail */
+        get: operations["getJobRunArtifact"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/module_types": {
         parameters: {
             query?: never;
@@ -592,6 +660,47 @@ export interface components {
         };
         /** @enum {string} */
         JobRunStatus: "queued" | "running" | "success" | "failed" | "canceled";
+        JobRunModule: {
+            id: string;
+            tenant_id: string;
+            job_run_id: string;
+            job_module_id: string;
+            status: components["schemas"]["JobRunModuleStatus"];
+            attempt: number;
+            input_json?: string;
+            output_json?: string;
+            metrics_json?: string;
+            error_code?: string;
+            error_message?: string;
+            /** Format: date-time */
+            started_at?: string;
+            /** Format: date-time */
+            finished_at?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        /** @enum {string} */
+        JobRunModuleStatus: "queued" | "running" | "success" | "failed" | "canceled";
+        JobRunArtifact: {
+            id: string;
+            tenant_id: string;
+            job_run_id: string;
+            job_run_module_id?: string;
+            name: string;
+            artifact_type: string;
+            storage_type: string;
+            storage_path: string;
+            uri?: string;
+            /** Format: int64 */
+            size_bytes: number;
+            content_type: string;
+            checksum?: string;
+            metadata_json?: string;
+            /** Format: date-time */
+            created_at?: string;
+        };
         ModuleType: {
             id: string;
             tenant_id: string;
@@ -1252,6 +1361,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["JobRun"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    listJobRunModules: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                job_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of job run modules */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["JobRunModule"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    getJobRunModule: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                job_run_id: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job run module detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRunModule"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    listJobRunArtifacts: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                job_run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of job run artifacts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["JobRunArtifact"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    getJobRunArtifact: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                job_run_id: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Job run artifact detail */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobRunArtifact"];
                 };
             };
             401: components["responses"]["ErrorResponse"];
