@@ -92,7 +92,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("minio presign client: %v", err)
 	}
-	uploadService := usecase.NewUploadService(uploadRepo, minioPresignClient)
+	uploadQueue := queue.NewUploadQueue(valkeyClient)
+	uploadService := usecase.NewUploadService(uploadRepo, minioPresignClient, uploadQueue)
 	adminTenantService := usecase.NewAdminTenantService(tenantRepo, adminAuditLogRepo)
 
 	// Handlers

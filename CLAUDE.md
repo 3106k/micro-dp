@@ -201,6 +201,50 @@ curl -s http://localhost:8080/metrics | grep events_
 | `events_batch_size` | histogram | Worker | バッチあたりイベント数 |
 | `events_batch_duration_seconds` | histogram | Worker | バッチ処理時間 |
 
+## CSV Import Pipeline
+
+upload complete 時に Valkey queue へジョブを投入し、Worker が非同期で CSV→Parquet 変換 + dataset catalog 登録を行う。
+
+### アーキテクチャ
+
+```
+POST /api/v1/uploads/{id}/complete → Valkey LIST (LPUSH)
+                                         ↓
+Worker (BRPOP) → Valkey dedup (SET NX TTL 24h)
+                                         ↓
+for each .csv file:
+  MinIO download → DuckDB read_csv_auto → COPY TO Parquet → MinIO upload
+                                         ↓
+  Dataset upsert (SQLite ON CONFLICT)
+                                         ↓ (失敗時)
+                                       DLQ LIST
+```
+
+### Valkey キー設計 (uploads)
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `micro-dp:uploads:ingest` | LIST | メインキュー |
+| `micro-dp:uploads:dlq` | LIST | Dead Letter Queue |
+| `micro-dp:uploads:seen:{upload_id}` | STRING | 重複チェック (TTL 24h) |
+
+### MinIO オブジェクトキー (imports)
+
+```
+imports/{tenant_id}/dt={YYYY-MM-DD}/{file_id}.parquet
+```
+
+### メトリクス (uploads)
+
+| Metric | Type | Location | Description |
+|--------|------|----------|-------------|
+| `uploads_processed_total` | counter | Worker | 処理完了アップロード数 |
+| `uploads_failed_total` | counter | Worker | DLQ 退避数 |
+| `uploads_files_converted_total` | counter | Worker | Parquet 変換ファイル数 |
+| `uploads_rows_total` | counter | Worker | インポート行数 |
+| `uploads_duplicate_total` | counter | Worker | 重複スキップ数 |
+| `uploads_processing_duration_seconds` | histogram | Worker | アップロード処理時間 |
+
 ## Contract-First OpenAPI (SSOT)
 
 `spec/openapi/v1.yaml` is the single source of truth for API contracts.

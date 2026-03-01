@@ -119,6 +119,13 @@ func (m *MinIOPresignClient) GeneratePresignedPutURL(ctx context.Context, object
 	return result, expiresAt, nil
 }
 
+func (m *MinIOClient) DownloadToFile(ctx context.Context, objectKey, destPath string) error {
+	if err := m.client.FGetObject(ctx, m.bucket, objectKey, destPath, minio.GetObjectOptions{}); err != nil {
+		return fmt.Errorf("download to file: %w", err)
+	}
+	return nil
+}
+
 func (m *MinIOClient) PutParquet(ctx context.Context, objectKey string, data []byte) error {
 	reader := bytes.NewReader(data)
 	_, err := m.client.PutObject(ctx, m.bucket, objectKey, reader, int64(len(data)), minio.PutObjectOptions{
