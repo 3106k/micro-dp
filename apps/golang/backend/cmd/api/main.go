@@ -122,6 +122,7 @@ func main() {
 
 	// Events
 	mux.Handle("POST /api/v1/events", protected(eventH.Ingest))
+	mux.Handle("GET /api/v1/events/summary", protected(eventH.Summary))
 
 	// Job runs
 	mux.Handle("POST /api/v1/job_runs", protected(jobRunH.Create))

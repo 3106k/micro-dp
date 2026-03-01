@@ -23,4 +23,6 @@ type EventQueue interface {
 	Enqueue(ctx context.Context, msg *EventQueueMessage) error
 	Dequeue(ctx context.Context) (*EventQueueMessage, error)
 	EnqueueDLQ(ctx context.Context, msg *EventQueueMessage, reason string) error
+	IncrementCount(ctx context.Context, tenantID, eventName string) error
+	GetCounts(ctx context.Context, tenantID string) (map[string]int64, error)
 }
