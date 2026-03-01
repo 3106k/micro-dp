@@ -8,6 +8,7 @@ const (
 	contextKeyUserID contextKey = iota
 	contextKeyTenantID
 	contextKeyPlatformRole
+	contextKeyTenantRole
 )
 
 func ContextWithUserID(ctx context.Context, userID string) context.Context {
@@ -34,5 +35,14 @@ func ContextWithPlatformRole(ctx context.Context, role string) context.Context {
 
 func PlatformRoleFromContext(ctx context.Context) (string, bool) {
 	role, ok := ctx.Value(contextKeyPlatformRole).(string)
+	return role, ok
+}
+
+func ContextWithTenantRole(ctx context.Context, role string) context.Context {
+	return context.WithValue(ctx, contextKeyTenantRole, role)
+}
+
+func TenantRoleFromContext(ctx context.Context) (string, bool) {
+	role, ok := ctx.Value(contextKeyTenantRole).(string)
 	return role, ok
 }

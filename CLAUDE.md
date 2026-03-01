@@ -113,6 +113,7 @@ Internal container ports are fixed; only host-side ports change per environment.
 | `SQLITE_PATH` | `/data/sqlite/micro-dp.db` | SQLite ファイルパス |
 | `BOOTSTRAP_SUPERADMINS` | `false` | 起動時に superadmin を作成 |
 | `SUPERADMIN_EMAILS` | — | superadmin メールアドレス (カンマ区切り) |
+| `APP_BASE_URL` | `http://localhost:8080` | 招待メール等のリンク生成用ベース URL |
 
 ### Infrastructure
 
@@ -208,6 +209,16 @@ Internal container ports are fixed; only host-side ports change per environment.
 | GET | `/api/v1/datasets/{id}` | Get dataset |
 | POST | `/api/v1/uploads/presign` | Request presigned upload URLs |
 | POST | `/api/v1/uploads/{id}/complete` | Mark upload complete |
+| GET | `/api/v1/tenants/current/members` | List tenant members |
+| POST | `/api/v1/tenants/current/invitations` | Create invitation (owner/admin) |
+| PATCH | `/api/v1/tenants/current/members/{user_id}` | Update member role (owner/admin) |
+| DELETE | `/api/v1/tenants/current/members/{user_id}` | Remove member |
+
+### Authenticated (Bearer only — no X-Tenant-ID)
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| POST | `/api/v1/tenants/current/invitations/{token}/accept` | Accept invitation |
 
 ### Admin (Bearer + Superadmin)
 
@@ -216,6 +227,32 @@ Internal container ports are fixed; only host-side ports change per environment.
 | POST | `/api/v1/admin/tenants` | Create tenant |
 | GET | `/api/v1/admin/tenants` | List tenants |
 | PATCH | `/api/v1/admin/tenants/{id}` | Update tenant |
+
+## Tenant Members & Invitations
+
+テナントへのメンバー招待・追加・ロール管理機能。
+
+### ロール
+
+| Role | 権限 |
+|------|------|
+| `owner` | 全権限（メンバー管理、ロール変更、招待） |
+| `admin` | メンバー管理可（ただし owner への昇格/降格は不可） |
+| `member` | 閲覧・操作のみ（メンバー管理不可、自分の脱退は可能） |
+
+### 招待フロー
+
+1. owner/admin が `POST /api/v1/tenants/current/invitations` でメール招待
+2. 招待メールにトークン付きリンクが送信される
+3. 既存ユーザーが `POST /api/v1/tenants/current/invitations/{token}/accept` で承認
+4. 承認時に user_tenants にレコード追加
+
+### 認可ルール
+
+- 招待作成: owner/admin のみ。admin は owner ロールでの招待不可
+- ロール変更: owner は全操作可、admin は owner 関連の変更不可、自分のロール変更は不可
+- メンバー削除: owner/admin のみ（admin は owner を削除不可）。自分の脱退は可能（最後の owner は不可）
+- accept エンドポイント: authMW のみ（tenantMW 不要 — まだメンバーでないため）
 
 ## Events Ingest Pipeline
 

@@ -13,6 +13,8 @@ import (
 	jobrunscase "github.com/user/micro-dp/e2e-cli/internal/suite/job_runs/happy_path"
 	adminmultitenant "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/admin_multi_tenant"
 	tenantisolation "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/isolation"
+	membersauthorization "github.com/user/micro-dp/e2e-cli/internal/suite/members/authorization"
+	membershappypath "github.com/user/micro-dp/e2e-cli/internal/suite/members/happy_path"
 	uploadscase "github.com/user/micro-dp/e2e-cli/internal/suite/uploads/happy_path"
 )
 
@@ -39,6 +41,11 @@ func Build(cfg *config.Config) ([]runner.Scenario, error) {
 			scenarios = append(scenarios,
 				tenantisolation.NewScenario(cfg.AuthPassword, cfg.DisplayName),
 				adminmultitenant.NewScenario(cfg.AdminEmail, cfg.AdminPassword),
+			)
+		case "members":
+			scenarios = append(scenarios,
+				membershappypath.NewScenario(cfg.AuthPassword, cfg.DisplayName),
+				membersauthorization.NewScenario(cfg.AuthPassword, cfg.DisplayName),
 			)
 		default:
 			return nil, fmt.Errorf("unknown suite: %s", suiteName)
