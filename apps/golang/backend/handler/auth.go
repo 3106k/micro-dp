@@ -4,8 +4,6 @@ import (
 	"errors"
 	"net/http"
 
-	openapi_types "github.com/oapi-codegen/runtime/types"
-
 	"github.com/user/micro-dp/domain"
 	"github.com/user/micro-dp/internal/openapi"
 	"github.com/user/micro-dp/usecase"
@@ -92,16 +90,22 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oaTenants := make([]openapi.Tenant, len(tenants))
+	oaTenants := make([]tenantResponse, len(tenants))
 	for i, t := range tenants {
 		oaTenants[i] = toOpenAPITenant(t)
 	}
 
-	writeJSON(w, http.StatusOK, openapi.MeResponse{
-		UserId:       user.ID,
-		Email:        openapi_types.Email(user.Email),
+	writeJSON(w, http.StatusOK, struct {
+		UserID       string           `json:"user_id"`
+		Email        string           `json:"email"`
+		DisplayName  string           `json:"display_name"`
+		PlatformRole string           `json:"platform_role"`
+		Tenants      []tenantResponse `json:"tenants"`
+	}{
+		UserID:       user.ID,
+		Email:        user.Email,
 		DisplayName:  user.DisplayName,
-		PlatformRole: openapi.MeResponsePlatformRole(user.PlatformRole),
+		PlatformRole: user.PlatformRole,
 		Tenants:      oaTenants,
 	})
 }

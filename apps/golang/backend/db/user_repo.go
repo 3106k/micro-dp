@@ -18,9 +18,9 @@ func NewUserRepo(db DBTX) *UserRepo {
 
 func (r *UserRepo) Create(ctx context.Context, user *domain.User) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO users (id, email, password_hash, display_name, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))`,
-		user.ID, user.Email, user.PasswordHash, user.DisplayName,
+		`INSERT INTO users (id, email, password_hash, display_name, platform_role, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+		user.ID, user.Email, user.PasswordHash, user.DisplayName, user.PlatformRole,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {

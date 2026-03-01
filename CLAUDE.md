@@ -113,9 +113,91 @@ Internal container ports are fixed; only host-side ports change per environment.
 | POST | `/api/v1/auth/register` | — | Register user (creates tenant) |
 | POST | `/api/v1/auth/login` | — | Login (returns JWT) |
 | GET | `/api/v1/auth/me` | Bearer | Current user + tenants |
+| POST | `/api/v1/events` | Bearer + X-Tenant-ID | Ingest event (202 Accepted) |
 | POST | `/api/v1/job_runs` | Bearer + X-Tenant-ID | Create job run |
 | GET | `/api/v1/job_runs` | Bearer + X-Tenant-ID | List job runs (tenant-scoped) |
 | GET | `/api/v1/job_runs/{id}` | Bearer + X-Tenant-ID | Get job run (tenant-scoped) |
+
+## Events Ingest Pipeline
+
+非同期イベント処理パイプライン。tracker SDK からのイベントを受信し、Parquet 形式で MinIO に永続化する。
+
+### アーキテクチャ
+
+```
+POST /api/v1/events → Valkey dedup (SET NX TTL 24h) → Valkey LIST (LPUSH)
+                                                          ↓
+Worker (BRPOP) → batch buffer (1000件 or 30秒) → DuckDB Parquet → MinIO
+                                                          ↓ (失敗時)
+                                                        DLQ LIST
+```
+
+### Valkey キー設計
+
+| Key | Type | Purpose |
+|-----|------|---------|
+| `micro-dp:events:ingest` | LIST | メインキュー |
+| `micro-dp:events:dlq` | LIST | Dead Letter Queue |
+| `micro-dp:events:seen:{tenant_id}:{event_id}` | STRING | 重複チェック (TTL 24h) |
+
+### MinIO オブジェクトキー
+
+```
+events/{tenant_id}/dt={YYYY-MM-DD}/{timestamp}_{batch_id}.parquet
+```
+
+### ローカル検証手順
+
+```bash
+# 1. サービス起動
+make down && make up && make health
+
+# 2. ユーザー登録 + ログイン
+curl -s -X POST http://localhost:8080/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"Passw0rd!123","display_name":"Test"}' | jq .
+
+curl -s -X POST http://localhost:8080/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"Passw0rd!123"}' | jq .
+# → token と tenant_id を控える
+
+# 3. イベント送信 (202 Accepted)
+curl -s -X POST http://localhost:8080/api/v1/events \
+  -H "Authorization: Bearer {token}" \
+  -H "X-Tenant-ID: {tenant_id}" \
+  -H "Content-Type: application/json" \
+  -d '{"event_id":"test-1","event_name":"page_view","properties":{"page":"/home"},"event_time":"2026-02-28T10:00:00Z"}'
+# → {"event_id":"test-1","status":"accepted"}
+
+# 4. 重複チェック (409 Conflict)
+# 同じ event_id で再送すると 409 が返る
+
+# 5. E2E テスト
+make e2e-cli
+
+# 6. Worker flush 確認 (30秒待機後)
+cd apps/docker && docker compose logs worker | grep "flushed batch"
+
+# 7. MinIO 確認
+cd apps/docker && docker compose exec minio sh -c \
+  'mc alias set m http://localhost:9000 minioadmin minioadmin && mc ls m/micro-dp/events/ --recursive'
+
+# 8. Prometheus メトリクス確認
+curl -s http://localhost:8080/metrics | grep events_
+```
+
+### メトリクス
+
+| Metric | Type | Location | Description |
+|--------|------|----------|-------------|
+| `events_received_total` | counter | API | 受信イベント数 |
+| `events_enqueued_total` | counter | API | enqueue 成功数 |
+| `events_duplicate_total` | counter | API | 重複スキップ数 |
+| `events_processed_total` | counter | Worker | Parquet 書き込み成功数 |
+| `events_failed_total` | counter | Worker | DLQ 退避数 |
+| `events_batch_size` | histogram | Worker | バッチあたりイベント数 |
+| `events_batch_duration_seconds` | histogram | Worker | バッチ処理時間 |
 
 ## Contract-First OpenAPI (SSOT)
 

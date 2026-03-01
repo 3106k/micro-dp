@@ -26,6 +26,11 @@ const (
 	Ok       HealthResponseStatus = "ok"
 )
 
+// Defines values for IngestEventResponseStatus.
+const (
+	Accepted IngestEventResponseStatus = "accepted"
+)
+
 // Defines values for JobRunStatus.
 const (
 	Canceled JobRunStatus = "canceled"
@@ -53,6 +58,17 @@ const (
 	ModuleTypeCategorySource      ModuleTypeCategory = "source"
 	ModuleTypeCategoryTransform   ModuleTypeCategory = "transform"
 )
+
+// AdminCreateTenantRequest defines model for AdminCreateTenantRequest.
+type AdminCreateTenantRequest struct {
+	Name string `json:"name"`
+}
+
+// AdminUpdateTenantRequest defines model for AdminUpdateTenantRequest.
+type AdminUpdateTenantRequest struct {
+	IsActive *bool   `json:"is_active,omitempty"`
+	Name     *string `json:"name,omitempty"`
+}
 
 // Connection defines model for Connection.
 type Connection struct {
@@ -137,6 +153,23 @@ type HealthResponse struct {
 
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
+
+// IngestEventRequest defines model for IngestEventRequest.
+type IngestEventRequest struct {
+	EventId    string                  `json:"event_id"`
+	EventName  string                  `json:"event_name"`
+	EventTime  time.Time               `json:"event_time"`
+	Properties *map[string]interface{} `json:"properties,omitempty"`
+}
+
+// IngestEventResponse defines model for IngestEventResponse.
+type IngestEventResponse struct {
+	EventId string                    `json:"event_id"`
+	Status  IngestEventResponseStatus `json:"status"`
+}
+
+// IngestEventResponseStatus defines model for IngestEventResponse.Status.
+type IngestEventResponseStatus string
 
 // Job defines model for Job.
 type Job struct {
@@ -270,8 +303,9 @@ type RegisterResponse struct {
 
 // Tenant defines model for Tenant.
 type Tenant struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id       string `json:"id"`
+	IsActive bool   `json:"is_active"`
+	Name     string `json:"name"`
 }
 
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
@@ -315,6 +349,11 @@ type GetConnectionParams struct {
 
 // UpdateConnectionParams defines parameters for UpdateConnection.
 type UpdateConnectionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// IngestEventParams defines parameters for IngestEvent.
+type IngestEventParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -399,6 +438,12 @@ type CreateModuleTypeSchemaParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// AdminCreateTenantJSONRequestBody defines body for AdminCreateTenant for application/json ContentType.
+type AdminCreateTenantJSONRequestBody = AdminCreateTenantRequest
+
+// AdminUpdateTenantJSONRequestBody defines body for AdminUpdateTenant for application/json ContentType.
+type AdminUpdateTenantJSONRequestBody = AdminUpdateTenantRequest
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -410,6 +455,9 @@ type CreateConnectionJSONRequestBody = CreateConnectionRequest
 
 // UpdateConnectionJSONRequestBody defines body for UpdateConnection for application/json ContentType.
 type UpdateConnectionJSONRequestBody = UpdateConnectionRequest
+
+// IngestEventJSONRequestBody defines body for IngestEvent for application/json ContentType.
+type IngestEventJSONRequestBody = IngestEventRequest
 
 // CreateJobRunJSONRequestBody defines body for CreateJobRun for application/json ContentType.
 type CreateJobRunJSONRequestBody = CreateJobRunRequest

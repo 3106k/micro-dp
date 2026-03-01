@@ -1,1 +1,0 @@
-ALTER TABLE users ADD COLUMN platform_role TEXT NOT NULL DEFAULT 'user';

@@ -13,6 +13,7 @@ var (
 type Tenant struct {
 	ID        string    `json:"id"`
 	Name      string    `json:"name"`
+	IsActive  bool      `json:"is_active"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -27,6 +28,8 @@ type UserTenant struct {
 type TenantRepository interface {
 	Create(ctx context.Context, tenant *Tenant) error
 	FindByID(ctx context.Context, id string) (*Tenant, error)
+	ListAll(ctx context.Context) ([]Tenant, error)
+	Update(ctx context.Context, tenant *Tenant) error
 	AddUserToTenant(ctx context.Context, ut *UserTenant) error
 	ListByUserID(ctx context.Context, userID string) ([]Tenant, error)
 	IsUserInTenant(ctx context.Context, userID, tenantID string) (bool, error)

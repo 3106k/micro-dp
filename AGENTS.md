@@ -62,6 +62,14 @@
   - `make sdk-tracker-test`
 - Do not commit generated `dist/` or `node_modules/` for `sdk-tracker`.
 
+## Events Ingest Change Checklist
+
+- Worker 側の変更は `worker/` パッケージ内で行う
+- Valkey キー名を変更する場合は API / Worker 両方の整合性を確認する
+- DuckDB は CGO 必須 — Dockerfile が Debian ベースであることを維持する
+- `CGO_ENABLED=1 go build ./...` でビルド確認する
+- E2E テスト `events` スイートが通ることを確認する (`make e2e-cli`)
+
 ## Issue Closing Flow
 
 - Standard order:

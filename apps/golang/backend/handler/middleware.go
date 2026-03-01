@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -75,6 +76,34 @@ func TenantMiddleware(tenantRepo domain.TenantRepository) func(http.Handler) htt
 
 			ctx := domain.ContextWithTenantID(r.Context(), tenantID)
 			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func SuperadminMiddleware(userRepo domain.UserRepository) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userID, ok := domain.UserIDFromContext(r.Context())
+			if !ok {
+				writeError(w, http.StatusUnauthorized, "unauthorized")
+				return
+			}
+
+			user, err := userRepo.FindByID(r.Context(), userID)
+			if err != nil {
+				if errors.Is(err, domain.ErrUserNotFound) {
+					writeError(w, http.StatusUnauthorized, "unauthorized")
+					return
+				}
+				writeError(w, http.StatusInternalServerError, "internal server error")
+				return
+			}
+			if user.PlatformRole != domain.PlatformRoleSuperadmin {
+				writeError(w, http.StatusForbidden, "forbidden")
+				return
+			}
+
+			next.ServeHTTP(w, r)
 		})
 	}
 }
