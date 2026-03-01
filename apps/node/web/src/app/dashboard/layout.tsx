@@ -35,6 +35,7 @@ export default async function DashboardLayout({
       <DashboardHeader
         displayName={me.display_name}
         email={me.email}
+        platformRole={me.platform_role}
       />
       <main className="container py-8">{children}</main>
     </div>
