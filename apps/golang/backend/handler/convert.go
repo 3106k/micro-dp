@@ -115,6 +115,22 @@ func toOpenAPIModuleTypeSchema(s *domain.ModuleTypeSchema) openapi.ModuleTypeSch
 	}
 }
 
+func toOpenAPIDataset(d *domain.Dataset) openapi.Dataset {
+	out := openapi.Dataset{
+		Id:          d.ID,
+		TenantId:    d.TenantID,
+		Name:        d.Name,
+		SourceType:  openapi.DatasetSourceType(d.SourceType),
+		StoragePath: d.StoragePath,
+	}
+	out.SchemaJson = d.SchemaJSON
+	out.RowCount = d.RowCount
+	out.LastUpdatedAt = d.LastUpdatedAt
+	out.CreatedAt = &d.CreatedAt
+	out.UpdatedAt = &d.UpdatedAt
+	return out
+}
+
 func toOpenAPIConnection(c *domain.Connection) openapi.Connection {
 	out := openapi.Connection{
 		Id:       c.ID,
