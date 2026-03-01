@@ -72,6 +72,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start Google OAuth login */
+        get: operations["startGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Handle Google OAuth callback */
+        get: operations["callbackGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events": {
         parameters: {
             query?: never;
@@ -1066,6 +1100,51 @@ export interface operations {
                 };
             };
             401: components["responses"]["ErrorResponse"];
+        };
+    };
+    startGoogleOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to Google OAuth consent page */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["ErrorResponse"];
+        };
+    };
+    callbackGoogleOAuth: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to app after login attempt */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            500: components["responses"]["ErrorResponse"];
         };
     };
     ingestEvent: {

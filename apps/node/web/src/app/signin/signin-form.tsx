@@ -24,6 +24,10 @@ export function SigninForm() {
   const searchParams = useSearchParams();
   const { pushToast } = useToast();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
+  const oauthReason = searchParams.get("reason");
+  const googleAuthStartUrl = `${
+    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
+  }/api/v1/auth/google/start`;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -71,7 +75,7 @@ export function SigninForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          <FormError message={error} />
+          <FormError message={error || oauthReason || ""} />
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -95,6 +99,16 @@ export function SigninForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
+          <button
+            type="button"
+            className="inline-flex h-10 w-full items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors hover:bg-accent"
+            onClick={() => {
+              window.location.href = googleAuthStartUrl;
+            }}
+            disabled={loading}
+          >
+            Continue with Google
+          </button>
           <SubmitButton
             type="submit"
             className="w-full"

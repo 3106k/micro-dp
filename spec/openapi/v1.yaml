@@ -92,6 +92,51 @@ paths:
                 $ref: "#/components/schemas/MeResponse"
         "401":
           $ref: "#/components/responses/ErrorResponse"
+  /api/v1/auth/google/start:
+    get:
+      tags: [auth]
+      summary: Start Google OAuth login
+      operationId: startGoogleOAuth
+      responses:
+        "302":
+          description: Redirect to Google OAuth consent page
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "500":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/auth/google/callback:
+    get:
+      tags: [auth]
+      summary: Handle Google OAuth callback
+      operationId: callbackGoogleOAuth
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to app after login attempt
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/ErrorResponse"
 
   # ---- Events ----
   /api/v1/events:

@@ -68,6 +68,7 @@ func main() {
 
 	// Repositories
 	userRepo := db.NewUserRepo(sqlDB)
+	userIdentityRepo := db.NewUserIdentityRepo(sqlDB)
 	tenantRepo := db.NewTenantRepo(sqlDB)
 	jobRunRepo := db.NewJobRunRepo(sqlDB)
 	jobRepo := db.NewJobRepo(sqlDB)
@@ -96,7 +97,20 @@ func main() {
 	}
 
 	// Services
-	authService := usecase.NewAuthService(userRepo, tenantRepo, jwtSecret, emailSender)
+	authService := usecase.NewAuthService(
+		userRepo,
+		userIdentityRepo,
+		tenantRepo,
+		jwtSecret,
+		emailSender,
+		usecase.GoogleOAuthConfig{
+			ClientID:            os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+			ClientSecret:        os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+			RedirectURL:         os.Getenv("GOOGLE_OAUTH_REDIRECT_URI"),
+			PostLoginRedirect:   os.Getenv("GOOGLE_OAUTH_POST_LOGIN_REDIRECT_URI"),
+			PostFailureRedirect: os.Getenv("GOOGLE_OAUTH_POST_FAILURE_REDIRECT_URI"),
+		},
+	)
 	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
@@ -151,6 +165,8 @@ func main() {
 	mux.Handle("GET /metrics", observability.MetricsHandler())
 	mux.HandleFunc("POST /api/v1/auth/register", authH.Register)
 	mux.HandleFunc("POST /api/v1/auth/login", authH.Login)
+	mux.HandleFunc("GET /api/v1/auth/google/start", authH.GoogleStart)
+	mux.HandleFunc("GET /api/v1/auth/google/callback", authH.GoogleCallback)
 
 	// Authenticated routes
 	mux.Handle("GET /api/v1/auth/me", authMW(http.HandlerFunc(authH.Me)))
