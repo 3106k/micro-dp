@@ -6,6 +6,7 @@ import { DashboardHeader } from "@/app/dashboard/dashboard-header";
 import { backendFetch } from "@/lib/api/server";
 import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
 import type { components } from "@/lib/api/generated";
+import { DatasetRowsPreview } from "./dataset-rows-preview";
 
 type MeResponse = components["schemas"]["MeResponse"];
 type Dataset = components["schemas"]["Dataset"];
@@ -122,6 +123,8 @@ export default async function DatasetDetailPage({
                 {prettyJSON(dataset.schema_json)}
               </pre>
             </div>
+
+            <DatasetRowsPreview datasetId={dataset.id} />
           </div>
         ) : null}
       </main>

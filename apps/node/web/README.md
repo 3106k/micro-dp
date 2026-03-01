@@ -54,6 +54,41 @@ NEXT_PUBLIC_API_URL=http://localhost:8980
   - `GOOGLE_OAUTH_POST_LOGIN_REDIRECT_URI` (example: `http://localhost:3000/dashboard`)
   - `GOOGLE_OAUTH_POST_FAILURE_REDIRECT_URI` (example: `http://localhost:3000/signin`)
 
+## Stripe Billing (Checkout / Portal / Webhook)
+
+- Billing page is available at `/billing`.
+- Required backend env vars:
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+  - `STRIPE_CHECKOUT_SUCCESS_URL` (example: `http://localhost:3000/billing?checkout=success`)
+  - `STRIPE_CHECKOUT_CANCEL_URL` (example: `http://localhost:3000/billing?checkout=cancel`)
+  - `STRIPE_PORTAL_RETURN_URL` (example: `http://localhost:3000/billing`)
+  - `STRIPE_PRICE_TO_PLAN_MAP` (example: `price_basic:starter,price_pro:pro`)
+
+### Local webhook verification with Stripe CLI
+
+1. Start app stack (`make up`) and confirm API is reachable (`http://localhost:8080/healthz`).
+2. Start Stripe webhook forwarder:
+
+```bash
+stripe listen --forward-to localhost:8080/api/v1/billing/webhook
+```
+
+3. Set `STRIPE_WEBHOOK_SECRET` in `.env` to the printed signing secret (`whsec_...`) and restart API.
+4. Trigger test events:
+
+```bash
+stripe trigger checkout.session.completed
+stripe trigger customer.subscription.updated
+stripe trigger customer.subscription.deleted
+stripe trigger invoice.paid
+stripe trigger invoice.payment_failed
+```
+
+5. Confirm:
+  - `GET /api/v1/billing/subscription` reflects latest status.
+  - Tenant plan (`GET /api/v1/plan`) is updated according to `STRIPE_PRICE_TO_PLAN_MAP`.
+
 ## UI conventions
 
 - Global toast UI is provided by `ToastProvider` in app root layout.
