@@ -145,41 +145,45 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("complete: expected 1 file, got=%d", len(completeResp.Files))
 	}
 
-	// 4b. Wait for Worker to process CSV→Parquet
-	time.Sleep(5 * time.Second)
-
-	// 4c. GET /api/v1/datasets → verify import dataset exists
-	var datasetsResp struct {
-		Items []struct {
-			ID          string `json:"id"`
-			Name        string `json:"name"`
-			SourceType  string `json:"source_type"`
-			StoragePath string `json:"storage_path"`
-			RowCount    *int64 `json:"row_count"`
-		} `json:"items"`
-	}
-	code, body, err = client.GetJSON(ctx, "/api/v1/datasets?source_type=import", &datasetsResp)
-	if err != nil {
-		return err
-	}
-	if code != 200 {
-		return fmt.Errorf("datasets list: status=%d body=%s", code, string(body))
-	}
+	// 4b. Poll for Worker to process CSV→Parquet (up to 15s)
+	var lastBody []byte
 	found := false
-	for _, ds := range datasetsResp.Items {
-		if ds.Name == "test-data" && ds.SourceType == "import" {
-			found = true
-			if ds.StoragePath == "" {
-				return fmt.Errorf("dataset storage_path is empty")
+	for attempt := 0; attempt < 15; attempt++ {
+		time.Sleep(1 * time.Second)
+		var datasetsResp struct {
+			Items []struct {
+				ID          string `json:"id"`
+				Name        string `json:"name"`
+				SourceType  string `json:"source_type"`
+				StoragePath string `json:"storage_path"`
+				RowCount    *int64 `json:"row_count"`
+			} `json:"items"`
+		}
+		code, lastBody, err = client.GetJSON(ctx, "/api/v1/datasets?source_type=import", &datasetsResp)
+		if err != nil {
+			return err
+		}
+		if code != 200 {
+			return fmt.Errorf("datasets list: status=%d body=%s", code, string(lastBody))
+		}
+		for _, ds := range datasetsResp.Items {
+			if ds.Name == "test-data" && ds.SourceType == "import" {
+				found = true
+				if ds.StoragePath == "" {
+					return fmt.Errorf("dataset storage_path is empty")
+				}
+				if ds.RowCount == nil || *ds.RowCount != 3 {
+					return fmt.Errorf("dataset row_count: expected 3, got=%v", ds.RowCount)
+				}
+				break
 			}
-			if ds.RowCount == nil || *ds.RowCount != 3 {
-				return fmt.Errorf("dataset row_count: expected 3, got=%v", ds.RowCount)
-			}
+		}
+		if found {
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("dataset 'test-data' with source_type=import not found in %s", string(body))
+		return fmt.Errorf("dataset 'test-data' with source_type=import not found after 15s in %s", string(lastBody))
 	}
 
 	// 5. POST /api/v1/uploads/{id}/complete again → 409

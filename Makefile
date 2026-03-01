@@ -1,7 +1,7 @@
 .PHONY: up down build logs ps health clean setup-env dev-api dev-worker sdk-tracker-build sdk-tracker-test e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate openapi-check worktree worktree-rm worktree-ls
 
 COMPOSE_DIR := apps/docker
-COMPOSE     := cd $(COMPOSE_DIR) && docker compose
+COMPOSE     := cd $(COMPOSE_DIR) && docker compose --env-file ../../.env
 
 # .env があれば読み込む（ポート変数を Makefile 内で参照するため）
 -include .env
