@@ -20,6 +20,8 @@ export function DashboardHeader({
 
   const navItems: Array<{ href: string; label: string }> = [
     { href: "/dashboard", label: "Dashboard" },
+    { href: "/jobs", label: "Jobs" },
+    { href: "/job-runs", label: "Job Runs" },
     { href: "/datasets", label: "Datasets" },
     { href: "/connections", label: "Connections" },
   ];
