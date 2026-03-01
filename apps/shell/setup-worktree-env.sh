@@ -101,6 +101,7 @@ MINIO_ROOT_PASSWORD=minioadmin
 MINIO_BUCKET=micro-dp
 
 # === Frontend ===
+API_BACKEND_URL=http://localhost:${API_HOST_PORT}
 NEXT_PUBLIC_API_URL=http://localhost:${API_HOST_PORT}
 EOF
 
