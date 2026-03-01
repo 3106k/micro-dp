@@ -74,6 +74,9 @@ type ServerInterface interface {
 	// Get dataset
 	// (GET /api/v1/datasets/{id})
 	GetDataset(w http.ResponseWriter, r *http.Request, id string, params GetDatasetParams)
+	// Get dataset rows preview
+	// (GET /api/v1/datasets/{id}/rows)
+	GetDatasetRows(w http.ResponseWriter, r *http.Request, id string, params GetDatasetRowsParams)
 	// Ingest event
 	// (POST /api/v1/events)
 	IngestEvent(w http.ResponseWriter, r *http.Request, params IngestEventParams)
@@ -874,6 +877,81 @@ func (siw *ServerInterfaceWrapper) GetDataset(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetDataset(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDatasetRows operation middleware
+func (siw *ServerInterfaceWrapper) GetDatasetRows(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDatasetRowsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "limit", r.URL.Query(), &params.Limit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "offset", r.URL.Query(), &params.Offset)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "offset", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDatasetRows(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2764,6 +2842,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/connections/{id}", wrapper.UpdateConnection)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets", wrapper.ListDatasets)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}", wrapper.GetDataset)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}/rows", wrapper.GetDatasetRows)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/events", wrapper.IngestEvent)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/events/summary", wrapper.GetEventsSummary)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs", wrapper.ListJobRuns)
@@ -3555,6 +3634,42 @@ func (response GetDataset401JSONResponse) VisitGetDatasetResponse(w http.Respons
 type GetDataset404JSONResponse ErrorResponse
 
 func (response GetDataset404JSONResponse) VisitGetDatasetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDatasetRowsRequestObject struct {
+	Id     string `json:"id"`
+	Params GetDatasetRowsParams
+}
+
+type GetDatasetRowsResponseObject interface {
+	VisitGetDatasetRowsResponse(w http.ResponseWriter) error
+}
+
+type GetDatasetRows200JSONResponse DatasetRowsResponse
+
+func (response GetDatasetRows200JSONResponse) VisitGetDatasetRowsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDatasetRows401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetDatasetRows401JSONResponse) VisitGetDatasetRowsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDatasetRows404JSONResponse ErrorResponse
+
+func (response GetDatasetRows404JSONResponse) VisitGetDatasetRowsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
@@ -4821,6 +4936,9 @@ type StrictServerInterface interface {
 	// Get dataset
 	// (GET /api/v1/datasets/{id})
 	GetDataset(ctx context.Context, request GetDatasetRequestObject) (GetDatasetResponseObject, error)
+	// Get dataset rows preview
+	// (GET /api/v1/datasets/{id}/rows)
+	GetDatasetRows(ctx context.Context, request GetDatasetRowsRequestObject) (GetDatasetRowsResponseObject, error)
 	// Ingest event
 	// (POST /api/v1/events)
 	IngestEvent(ctx context.Context, request IngestEventRequestObject) (IngestEventResponseObject, error)
@@ -5486,6 +5604,33 @@ func (sh *strictHandler) GetDataset(w http.ResponseWriter, r *http.Request, id s
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetDatasetResponseObject); ok {
 		if err := validResponse.VisitGetDatasetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDatasetRows operation middleware
+func (sh *strictHandler) GetDatasetRows(w http.ResponseWriter, r *http.Request, id string, params GetDatasetRowsParams) {
+	var request GetDatasetRowsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDatasetRows(ctx, request.(GetDatasetRowsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDatasetRows")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetDatasetRowsResponseObject); ok {
+		if err := validResponse.VisitGetDatasetRowsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

@@ -1218,6 +1218,47 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
+  /api/v1/datasets/{id}/rows:
+    get:
+      tags: [datasets]
+      summary: Get dataset rows preview
+      operationId: getDatasetRows
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        "200":
+          description: Dataset rows preview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DatasetRowsResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Uploads ----
   /api/v1/uploads/presign:
     post:
@@ -1985,6 +2026,34 @@ components:
     DatasetSourceType:
       type: string
       enum: [tracker, parquet, import]
+    DatasetColumn:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+    DatasetRowsResponse:
+      type: object
+      required: [columns, rows, total_rows, limit, offset]
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasetColumn"
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        total_rows:
+          type: integer
+          format: int64
+        limit:
+          type: integer
+        offset:
+          type: integer
 
     # ---- Upload schemas ----
     UploadStatus:

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -79,4 +80,56 @@ func (h *DatasetHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, toOpenAPIDataset(d))
+}
+
+func (h *DatasetHandler) GetRows(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing id")
+		return
+	}
+
+	limit := 100
+	if v := r.URL.Query().Get("limit"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 || n > 500 {
+			writeError(w, http.StatusBadRequest, "invalid limit (1-500)")
+			return
+		}
+		limit = n
+	}
+
+	offset := 0
+	if v := r.URL.Query().Get("offset"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 0 {
+			writeError(w, http.StatusBadRequest, "invalid offset")
+			return
+		}
+		offset = n
+	}
+
+	result, err := h.datasets.GetRows(r.Context(), id, limit, offset)
+	if err != nil {
+		if errors.Is(err, domain.ErrDatasetNotFound) {
+			writeError(w, http.StatusNotFound, "dataset not found")
+			return
+		}
+		log.Printf("dataset get rows error: %v", err)
+		writeError(w, http.StatusInternalServerError, "failed to read dataset rows")
+		return
+	}
+
+	columns := make([]openapi.DatasetColumn, len(result.Columns))
+	for i, c := range result.Columns {
+		columns[i] = openapi.DatasetColumn{Name: c.Name, Type: c.Type}
+	}
+
+	writeJSON(w, http.StatusOK, openapi.DatasetRowsResponse{
+		Columns:   columns,
+		Rows:      result.Rows,
+		TotalRows: result.TotalRows,
+		Limit:     limit,
+		Offset:    offset,
+	})
 }

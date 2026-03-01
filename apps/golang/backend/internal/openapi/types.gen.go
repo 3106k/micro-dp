@@ -222,6 +222,21 @@ type Dataset struct {
 	UpdatedAt     *time.Time        `json:"updated_at,omitempty"`
 }
 
+// DatasetColumn defines model for DatasetColumn.
+type DatasetColumn struct {
+	Name string `json:"name"`
+	Type string `json:"type"`
+}
+
+// DatasetRowsResponse defines model for DatasetRowsResponse.
+type DatasetRowsResponse struct {
+	Columns   []DatasetColumn          `json:"columns"`
+	Limit     int                      `json:"limit"`
+	Offset    int                      `json:"offset"`
+	Rows      []map[string]interface{} `json:"rows"`
+	TotalRows int64                    `json:"total_rows"`
+}
+
 // DatasetSourceType defines model for DatasetSourceType.
 type DatasetSourceType string
 
@@ -620,6 +635,13 @@ type ListDatasetsParams struct {
 
 // GetDatasetParams defines parameters for GetDataset.
 type GetDatasetParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetDatasetRowsParams defines parameters for GetDatasetRows.
+type GetDatasetRowsParams struct {
+	Limit     *int      `form:"limit,omitempty" json:"limit,omitempty"`
+	Offset    *int      `form:"offset,omitempty" json:"offset,omitempty"`
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 

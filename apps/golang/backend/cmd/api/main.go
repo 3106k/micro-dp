@@ -97,6 +97,12 @@ func main() {
 		log.Fatalf("bootstrap superadmins: %v", err)
 	}
 
+	// MinIO read client (for dataset preview)
+	minioClient, err := storage.NewMinIOClient()
+	if err != nil {
+		log.Fatalf("minio client: %v", err)
+	}
+
 	// Services
 	authService := usecase.NewAuthService(
 		userRepo,
@@ -116,7 +122,7 @@ func main() {
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo)
-	datasetService := usecase.NewDatasetService(datasetRepo)
+	datasetService := usecase.NewDatasetService(datasetRepo, minioClient)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
 	planService := usecase.NewPlanService(planRepo, tenantPlanRepo, usageRepo)
@@ -227,6 +233,7 @@ func main() {
 	// Datasets
 	mux.Handle("GET /api/v1/datasets", protected(datasetH.List))
 	mux.Handle("GET /api/v1/datasets/{id}", protected(datasetH.Get))
+	mux.Handle("GET /api/v1/datasets/{id}/rows", protected(datasetH.GetRows))
 
 	// Uploads
 	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))
