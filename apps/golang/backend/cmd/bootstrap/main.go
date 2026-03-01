@@ -33,8 +33,16 @@ func main() {
 	}
 
 	userRepo := db.NewUserRepo(sqlDB)
+	userIdentityRepo := db.NewUserIdentityRepo(sqlDB)
 	tenantRepo := db.NewTenantRepo(sqlDB)
-	authService := usecase.NewAuthService(userRepo, tenantRepo, "dummy-secret-not-used", nil)
+	authService := usecase.NewAuthService(
+		userRepo,
+		userIdentityRepo,
+		tenantRepo,
+		"dummy-secret-not-used",
+		nil,
+		usecase.GoogleOAuthConfig{},
+	)
 
 	ctx := context.Background()
 	user, err := userRepo.FindByEmail(ctx, *email)

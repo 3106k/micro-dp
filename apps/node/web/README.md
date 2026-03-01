@@ -22,6 +22,7 @@ Open `http://localhost:3000` and confirm shadcn `Button` components are rendered
 - `NEXT_PUBLIC_TRACKER_ENDPOINT`: tracker ingest endpoint for browser SDK.
 - `NEXT_PUBLIC_TRACKER_ENABLED`: set `true` to enable tracker.
 - `NEXT_PUBLIC_TRACKER_DEBUG`: set `true` for tracker debug logs.
+- `NEXT_PUBLIC_API_URL`: backend base URL used by Google OAuth start link.
 
 Example:
 
@@ -30,6 +31,7 @@ API_BACKEND_URL=http://localhost:8980
 NEXT_PUBLIC_TRACKER_ENDPOINT=http://localhost:8980/api/v1/events
 NEXT_PUBLIC_TRACKER_ENABLED=true
 NEXT_PUBLIC_TRACKER_DEBUG=false
+NEXT_PUBLIC_API_URL=http://localhost:8980
 ```
 
 ## Auth and tenant foundation
@@ -40,6 +42,17 @@ NEXT_PUBLIC_TRACKER_DEBUG=false
 - Tenant switch: `POST /api/auth/tenant` updates selected tenant cookie after validating membership.
 - Protected pages (`/dashboard`, `/jobs`, `/job-runs`, `/datasets`, `/connections`, `/admin`) are guarded by middleware.
 - API routes under `src/app/api/**` attach `Authorization` and `X-Tenant-ID` from cookies when proxying to backend APIs.
+
+## Google OAuth (OIDC + PKCE)
+
+- Sign in page includes `Continue with Google` and redirects to backend `GET /api/v1/auth/google/start`.
+- Backend callback (`GET /api/v1/auth/google/callback`) verifies OIDC `id_token` and sets auth cookies.
+- Required backend env vars:
+  - `GOOGLE_OAUTH_CLIENT_ID`
+  - `GOOGLE_OAUTH_CLIENT_SECRET`
+  - `GOOGLE_OAUTH_REDIRECT_URI` (must strictly match registered callback URL)
+  - `GOOGLE_OAUTH_POST_LOGIN_REDIRECT_URI` (example: `http://localhost:3000/dashboard`)
+  - `GOOGLE_OAUTH_POST_FAILURE_REDIRECT_URI` (example: `http://localhost:3000/signin`)
 
 ## UI conventions
 

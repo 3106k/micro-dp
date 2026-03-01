@@ -106,6 +106,11 @@ type AdminUpdateTenantRequest struct {
 	Name     *string `json:"name,omitempty"`
 }
 
+// AssignPlanRequest defines model for AssignPlanRequest.
+type AssignPlanRequest struct {
+	PlanId string `json:"plan_id"`
+}
+
 // Connection defines model for Connection.
 type Connection struct {
 	ConfigJson *string    `json:"config_json,omitempty"`
@@ -180,6 +185,16 @@ type CreateModuleTypeRequestCategory string
 // CreateModuleTypeSchemaRequest defines model for CreateModuleTypeSchemaRequest.
 type CreateModuleTypeSchemaRequest struct {
 	JsonSchema string `json:"json_schema"`
+}
+
+// CreatePlanRequest defines model for CreatePlanRequest.
+type CreatePlanRequest struct {
+	DisplayName      string `json:"display_name"`
+	MaxEventsPerDay  *int   `json:"max_events_per_day,omitempty"`
+	MaxRowsPerDay    *int   `json:"max_rows_per_day,omitempty"`
+	MaxStorageBytes  *int64 `json:"max_storage_bytes,omitempty"`
+	MaxUploadsPerDay *int   `json:"max_uploads_per_day,omitempty"`
+	Name             string `json:"name"`
 }
 
 // CreateUploadPresignRequest defines model for CreateUploadPresignRequest.
@@ -410,6 +425,18 @@ type ModuleTypeSchema struct {
 	Version      int        `json:"version"`
 }
 
+// Plan defines model for Plan.
+type Plan struct {
+	DisplayName      string `json:"display_name"`
+	Id               string `json:"id"`
+	IsDefault        bool   `json:"is_default"`
+	MaxEventsPerDay  int    `json:"max_events_per_day"`
+	MaxRowsPerDay    int    `json:"max_rows_per_day"`
+	MaxStorageBytes  int64  `json:"max_storage_bytes"`
+	MaxUploadsPerDay int    `json:"max_uploads_per_day"`
+	Name             string `json:"name"`
+}
+
 // RegisterRequest defines model for RegisterRequest.
 type RegisterRequest struct {
 	DisplayName *string             `json:"display_name,omitempty"`
@@ -458,6 +485,13 @@ type TenantMember struct {
 	UserId      string              `json:"user_id"`
 }
 
+// TenantPlanResponse defines model for TenantPlanResponse.
+type TenantPlanResponse struct {
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	Plan      Plan       `json:"plan"`
+	StartedAt time.Time  `json:"started_at"`
+}
+
 // TenantRole defines model for TenantRole.
 type TenantRole string
 
@@ -480,6 +514,15 @@ type UpdateJobRequest struct {
 // UpdateMemberRoleRequest defines model for UpdateMemberRoleRequest.
 type UpdateMemberRoleRequest struct {
 	Role TenantRole `json:"role"`
+}
+
+// UpdatePlanRequest defines model for UpdatePlanRequest.
+type UpdatePlanRequest struct {
+	DisplayName      *string `json:"display_name,omitempty"`
+	MaxEventsPerDay  *int    `json:"max_events_per_day,omitempty"`
+	MaxRowsPerDay    *int    `json:"max_rows_per_day,omitempty"`
+	MaxStorageBytes  *int64  `json:"max_storage_bytes,omitempty"`
+	MaxUploadsPerDay *int    `json:"max_uploads_per_day,omitempty"`
 }
 
 // Upload defines model for Upload.
@@ -522,8 +565,24 @@ type UploadFilePresigned struct {
 // UploadStatus defines model for UploadStatus.
 type UploadStatus string
 
+// UsageSummaryResponse defines model for UsageSummaryResponse.
+type UsageSummaryResponse struct {
+	Date         string `json:"date"`
+	EventsCount  int    `json:"events_count"`
+	Plan         *Plan  `json:"plan,omitempty"`
+	RowsCount    int    `json:"rows_count"`
+	StorageBytes int64  `json:"storage_bytes"`
+	UploadsCount int    `json:"uploads_count"`
+}
+
 // XTenantID defines model for XTenantID.
 type XTenantID = string
+
+// CallbackGoogleOAuthParams defines parameters for CallbackGoogleOAuth.
+type CallbackGoogleOAuthParams struct {
+	Code  string `form:"code" json:"code"`
+	State string `form:"state" json:"state"`
+}
 
 // ListConnectionsParams defines parameters for ListConnections.
 type ListConnectionsParams struct {
@@ -675,6 +734,11 @@ type CreateModuleTypeSchemaParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// GetTenantPlanParams defines parameters for GetTenantPlan.
+type GetTenantPlanParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // CreateInvitationParams defines parameters for CreateInvitation.
 type CreateInvitationParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -705,11 +769,25 @@ type CompleteUploadParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// GetUsageSummaryParams defines parameters for GetUsageSummary.
+type GetUsageSummaryParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// AdminCreatePlanJSONRequestBody defines body for AdminCreatePlan for application/json ContentType.
+type AdminCreatePlanJSONRequestBody = CreatePlanRequest
+
+// AdminUpdatePlanJSONRequestBody defines body for AdminUpdatePlan for application/json ContentType.
+type AdminUpdatePlanJSONRequestBody = UpdatePlanRequest
+
 // AdminCreateTenantJSONRequestBody defines body for AdminCreateTenant for application/json ContentType.
 type AdminCreateTenantJSONRequestBody = AdminCreateTenantRequest
 
 // AdminUpdateTenantJSONRequestBody defines body for AdminUpdateTenant for application/json ContentType.
 type AdminUpdateTenantJSONRequestBody = AdminUpdateTenantRequest
+
+// AdminAssignPlanJSONRequestBody defines body for AdminAssignPlan for application/json ContentType.
+type AdminAssignPlanJSONRequestBody = AssignPlanRequest
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest

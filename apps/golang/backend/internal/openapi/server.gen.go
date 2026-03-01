@@ -17,6 +17,15 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// List plans (superadmin only)
+	// (GET /api/v1/admin/plans)
+	AdminListPlans(w http.ResponseWriter, r *http.Request)
+	// Create plan (superadmin only)
+	// (POST /api/v1/admin/plans)
+	AdminCreatePlan(w http.ResponseWriter, r *http.Request)
+	// Update plan (superadmin only)
+	// (PUT /api/v1/admin/plans/{id})
+	AdminUpdatePlan(w http.ResponseWriter, r *http.Request, id string)
 	// List tenants (superadmin only)
 	// (GET /api/v1/admin/tenants)
 	AdminListTenants(w http.ResponseWriter, r *http.Request)
@@ -26,6 +35,15 @@ type ServerInterface interface {
 	// Update tenant (superadmin only)
 	// (PATCH /api/v1/admin/tenants/{id})
 	AdminUpdateTenant(w http.ResponseWriter, r *http.Request, id string)
+	// Assign plan to tenant (superadmin only)
+	// (POST /api/v1/admin/tenants/{tenant_id}/plan)
+	AdminAssignPlan(w http.ResponseWriter, r *http.Request, tenantId string)
+	// Handle Google OAuth callback
+	// (GET /api/v1/auth/google/callback)
+	CallbackGoogleOAuth(w http.ResponseWriter, r *http.Request, params CallbackGoogleOAuthParams)
+	// Start Google OAuth login
+	// (GET /api/v1/auth/google/start)
+	StartGoogleOAuth(w http.ResponseWriter, r *http.Request)
 	// Login
 	// (POST /api/v1/auth/login)
 	Login(w http.ResponseWriter, r *http.Request)
@@ -122,6 +140,9 @@ type ServerInterface interface {
 	// Create module type schema version
 	// (POST /api/v1/module_types/{id}/schemas)
 	CreateModuleTypeSchema(w http.ResponseWriter, r *http.Request, id string, params CreateModuleTypeSchemaParams)
+	// Get current tenant plan
+	// (GET /api/v1/plan)
+	GetTenantPlan(w http.ResponseWriter, r *http.Request, params GetTenantPlanParams)
 	// Create invitation
 	// (POST /api/v1/tenants/current/invitations)
 	CreateInvitation(w http.ResponseWriter, r *http.Request, params CreateInvitationParams)
@@ -143,6 +164,9 @@ type ServerInterface interface {
 	// Mark upload complete
 	// (POST /api/v1/uploads/{id}/complete)
 	CompleteUpload(w http.ResponseWriter, r *http.Request, id string, params CompleteUploadParams)
+	// Get today's usage summary
+	// (GET /api/v1/usage/summary)
+	GetUsageSummary(w http.ResponseWriter, r *http.Request, params GetUsageSummaryParams)
 	// Health check
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
@@ -156,6 +180,77 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// AdminListPlans operation middleware
+func (siw *ServerInterfaceWrapper) AdminListPlans(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminListPlans(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminCreatePlan operation middleware
+func (siw *ServerInterfaceWrapper) AdminCreatePlan(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminCreatePlan(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminUpdatePlan operation middleware
+func (siw *ServerInterfaceWrapper) AdminUpdatePlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminUpdatePlan(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // AdminListTenants operation middleware
 func (siw *ServerInterfaceWrapper) AdminListTenants(w http.ResponseWriter, r *http.Request) {
@@ -219,6 +314,100 @@ func (siw *ServerInterfaceWrapper) AdminUpdateTenant(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.AdminUpdateTenant(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AdminAssignPlan operation middleware
+func (siw *ServerInterfaceWrapper) AdminAssignPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "tenant_id" -------------
+	var tenantId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenant_id", r.PathValue("tenant_id"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenant_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminAssignPlan(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CallbackGoogleOAuth operation middleware
+func (siw *ServerInterfaceWrapper) CallbackGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CallbackGoogleOAuthParams
+
+	// ------------- Required query parameter "code" -------------
+
+	if paramValue := r.URL.Query().Get("code"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "code"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "code", r.URL.Query(), &params.Code)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	if paramValue := r.URL.Query().Get("state"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "state", r.URL.Query(), &params.State)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CallbackGoogleOAuth(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartGoogleOAuth operation middleware
+func (siw *ServerInterfaceWrapper) StartGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartGoogleOAuth(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1964,6 +2153,56 @@ func (siw *ServerInterfaceWrapper) CreateModuleTypeSchema(w http.ResponseWriter,
 	handler.ServeHTTP(w, r)
 }
 
+// GetTenantPlan operation middleware
+func (siw *ServerInterfaceWrapper) GetTenantPlan(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetTenantPlanParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTenantPlan(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateInvitation operation middleware
 func (siw *ServerInterfaceWrapper) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 
@@ -2322,6 +2561,56 @@ func (siw *ServerInterfaceWrapper) CompleteUpload(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// GetUsageSummary operation middleware
+func (siw *ServerInterfaceWrapper) GetUsageSummary(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetUsageSummaryParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUsageSummary(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealthz operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Request) {
 
@@ -2456,9 +2745,15 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/admin/plans", wrapper.AdminListPlans)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/admin/plans", wrapper.AdminCreatePlan)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/admin/plans/{id}", wrapper.AdminUpdatePlan)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/admin/tenants", wrapper.AdminListTenants)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/admin/tenants", wrapper.AdminCreateTenant)
 	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/admin/tenants/{id}", wrapper.AdminUpdateTenant)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/admin/tenants/{tenant_id}/plan", wrapper.AdminAssignPlan)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/google/callback", wrapper.CallbackGoogleOAuth)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/google/start", wrapper.StartGoogleOAuth)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/login", wrapper.Login)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/me", wrapper.Me)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/register", wrapper.Register)
@@ -2491,6 +2786,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/module_types/{id}", wrapper.GetModuleType)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/module_types/{id}/schemas", wrapper.ListModuleTypeSchemas)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/module_types/{id}/schemas", wrapper.CreateModuleTypeSchema)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/plan", wrapper.GetTenantPlan)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/tenants/current/invitations", wrapper.CreateInvitation)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/tenants/current/invitations/{token}/accept", wrapper.AcceptInvitation)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/tenants/current/members", wrapper.ListTenantMembers)
@@ -2498,12 +2794,147 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/tenants/current/members/{user_id}", wrapper.UpdateMemberRole)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/presign", wrapper.CreateUploadPresign)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/{id}/complete", wrapper.CompleteUpload)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/usage/summary", wrapper.GetUsageSummary)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.GetHealthz)
 
 	return m
 }
 
 type ErrorResponseJSONResponse ErrorResponse
+
+type AdminListPlansRequestObject struct {
+}
+
+type AdminListPlansResponseObject interface {
+	VisitAdminListPlansResponse(w http.ResponseWriter) error
+}
+
+type AdminListPlans200JSONResponse struct {
+	Items []Plan `json:"items"`
+}
+
+func (response AdminListPlans200JSONResponse) VisitAdminListPlansResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminListPlans401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminListPlans401JSONResponse) VisitAdminListPlansResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminListPlans403JSONResponse ErrorResponse
+
+func (response AdminListPlans403JSONResponse) VisitAdminListPlansResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreatePlanRequestObject struct {
+	Body *AdminCreatePlanJSONRequestBody
+}
+
+type AdminCreatePlanResponseObject interface {
+	VisitAdminCreatePlanResponse(w http.ResponseWriter) error
+}
+
+type AdminCreatePlan201JSONResponse Plan
+
+func (response AdminCreatePlan201JSONResponse) VisitAdminCreatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreatePlan400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminCreatePlan400JSONResponse) VisitAdminCreatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreatePlan401JSONResponse ErrorResponse
+
+func (response AdminCreatePlan401JSONResponse) VisitAdminCreatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminCreatePlan403JSONResponse ErrorResponse
+
+func (response AdminCreatePlan403JSONResponse) VisitAdminCreatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdatePlanRequestObject struct {
+	Id   string `json:"id"`
+	Body *AdminUpdatePlanJSONRequestBody
+}
+
+type AdminUpdatePlanResponseObject interface {
+	VisitAdminUpdatePlanResponse(w http.ResponseWriter) error
+}
+
+type AdminUpdatePlan200JSONResponse Plan
+
+func (response AdminUpdatePlan200JSONResponse) VisitAdminUpdatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdatePlan400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminUpdatePlan400JSONResponse) VisitAdminUpdatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdatePlan401JSONResponse ErrorResponse
+
+func (response AdminUpdatePlan401JSONResponse) VisitAdminUpdatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdatePlan403JSONResponse ErrorResponse
+
+func (response AdminUpdatePlan403JSONResponse) VisitAdminUpdatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminUpdatePlan404JSONResponse ErrorResponse
+
+func (response AdminUpdatePlan404JSONResponse) VisitAdminUpdatePlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
 
 type AdminListTenantsRequestObject struct {
 }
@@ -2635,6 +3066,139 @@ type AdminUpdateTenant404JSONResponse ErrorResponse
 func (response AdminUpdateTenant404JSONResponse) VisitAdminUpdateTenantResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminAssignPlanRequestObject struct {
+	TenantId string `json:"tenant_id"`
+	Body     *AdminAssignPlanJSONRequestBody
+}
+
+type AdminAssignPlanResponseObject interface {
+	VisitAdminAssignPlanResponse(w http.ResponseWriter) error
+}
+
+type AdminAssignPlan200JSONResponse TenantPlanResponse
+
+func (response AdminAssignPlan200JSONResponse) VisitAdminAssignPlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminAssignPlan400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminAssignPlan400JSONResponse) VisitAdminAssignPlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminAssignPlan401JSONResponse ErrorResponse
+
+func (response AdminAssignPlan401JSONResponse) VisitAdminAssignPlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminAssignPlan403JSONResponse ErrorResponse
+
+func (response AdminAssignPlan403JSONResponse) VisitAdminAssignPlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminAssignPlan404JSONResponse ErrorResponse
+
+func (response AdminAssignPlan404JSONResponse) VisitAdminAssignPlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CallbackGoogleOAuthRequestObject struct {
+	Params CallbackGoogleOAuthParams
+}
+
+type CallbackGoogleOAuthResponseObject interface {
+	VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error
+}
+
+type CallbackGoogleOAuth302ResponseHeaders struct {
+	Location string
+}
+
+type CallbackGoogleOAuth302Response struct {
+	Headers CallbackGoogleOAuth302ResponseHeaders
+}
+
+func (response CallbackGoogleOAuth302Response) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type CallbackGoogleOAuth400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CallbackGoogleOAuth400JSONResponse) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CallbackGoogleOAuth401JSONResponse ErrorResponse
+
+func (response CallbackGoogleOAuth401JSONResponse) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CallbackGoogleOAuth500JSONResponse ErrorResponse
+
+func (response CallbackGoogleOAuth500JSONResponse) VisitCallbackGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StartGoogleOAuthRequestObject struct {
+}
+
+type StartGoogleOAuthResponseObject interface {
+	VisitStartGoogleOAuthResponse(w http.ResponseWriter) error
+}
+
+type StartGoogleOAuth302ResponseHeaders struct {
+	Location string
+}
+
+type StartGoogleOAuth302Response struct {
+	Headers StartGoogleOAuth302ResponseHeaders
+}
+
+func (response StartGoogleOAuth302Response) VisitStartGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Location", fmt.Sprint(response.Headers.Location))
+	w.WriteHeader(302)
+	return nil
+}
+
+type StartGoogleOAuth500JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response StartGoogleOAuth500JSONResponse) VisitStartGoogleOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -3029,6 +3593,15 @@ type IngestEvent401JSONResponse ErrorResponse
 func (response IngestEvent401JSONResponse) VisitIngestEventResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type IngestEvent402JSONResponse ErrorResponse
+
+func (response IngestEvent402JSONResponse) VisitIngestEventResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(402)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -3797,6 +4370,32 @@ func (response CreateModuleTypeSchema404JSONResponse) VisitCreateModuleTypeSchem
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetTenantPlanRequestObject struct {
+	Params GetTenantPlanParams
+}
+
+type GetTenantPlanResponseObject interface {
+	VisitGetTenantPlanResponse(w http.ResponseWriter) error
+}
+
+type GetTenantPlan200JSONResponse TenantPlanResponse
+
+func (response GetTenantPlan200JSONResponse) VisitGetTenantPlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTenantPlan401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetTenantPlan401JSONResponse) VisitGetTenantPlanResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateInvitationRequestObject struct {
 	Params CreateInvitationParams
 	Body   *CreateInvitationJSONRequestBody
@@ -4067,6 +4666,15 @@ func (response CreateUploadPresign401JSONResponse) VisitCreateUploadPresignRespo
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateUploadPresign402JSONResponse ErrorResponse
+
+func (response CreateUploadPresign402JSONResponse) VisitCreateUploadPresignResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(402)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CompleteUploadRequestObject struct {
 	Id     string `json:"id"`
 	Params CompleteUploadParams
@@ -4112,6 +4720,32 @@ func (response CompleteUpload409JSONResponse) VisitCompleteUploadResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type GetUsageSummaryRequestObject struct {
+	Params GetUsageSummaryParams
+}
+
+type GetUsageSummaryResponseObject interface {
+	VisitGetUsageSummaryResponse(w http.ResponseWriter) error
+}
+
+type GetUsageSummary200JSONResponse UsageSummaryResponse
+
+func (response GetUsageSummary200JSONResponse) VisitGetUsageSummaryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetUsageSummary401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetUsageSummary401JSONResponse) VisitGetUsageSummaryResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetHealthzRequestObject struct {
 }
 
@@ -4130,6 +4764,15 @@ func (response GetHealthz200JSONResponse) VisitGetHealthzResponse(w http.Respons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// List plans (superadmin only)
+	// (GET /api/v1/admin/plans)
+	AdminListPlans(ctx context.Context, request AdminListPlansRequestObject) (AdminListPlansResponseObject, error)
+	// Create plan (superadmin only)
+	// (POST /api/v1/admin/plans)
+	AdminCreatePlan(ctx context.Context, request AdminCreatePlanRequestObject) (AdminCreatePlanResponseObject, error)
+	// Update plan (superadmin only)
+	// (PUT /api/v1/admin/plans/{id})
+	AdminUpdatePlan(ctx context.Context, request AdminUpdatePlanRequestObject) (AdminUpdatePlanResponseObject, error)
 	// List tenants (superadmin only)
 	// (GET /api/v1/admin/tenants)
 	AdminListTenants(ctx context.Context, request AdminListTenantsRequestObject) (AdminListTenantsResponseObject, error)
@@ -4139,6 +4782,15 @@ type StrictServerInterface interface {
 	// Update tenant (superadmin only)
 	// (PATCH /api/v1/admin/tenants/{id})
 	AdminUpdateTenant(ctx context.Context, request AdminUpdateTenantRequestObject) (AdminUpdateTenantResponseObject, error)
+	// Assign plan to tenant (superadmin only)
+	// (POST /api/v1/admin/tenants/{tenant_id}/plan)
+	AdminAssignPlan(ctx context.Context, request AdminAssignPlanRequestObject) (AdminAssignPlanResponseObject, error)
+	// Handle Google OAuth callback
+	// (GET /api/v1/auth/google/callback)
+	CallbackGoogleOAuth(ctx context.Context, request CallbackGoogleOAuthRequestObject) (CallbackGoogleOAuthResponseObject, error)
+	// Start Google OAuth login
+	// (GET /api/v1/auth/google/start)
+	StartGoogleOAuth(ctx context.Context, request StartGoogleOAuthRequestObject) (StartGoogleOAuthResponseObject, error)
 	// Login
 	// (POST /api/v1/auth/login)
 	Login(ctx context.Context, request LoginRequestObject) (LoginResponseObject, error)
@@ -4235,6 +4887,9 @@ type StrictServerInterface interface {
 	// Create module type schema version
 	// (POST /api/v1/module_types/{id}/schemas)
 	CreateModuleTypeSchema(ctx context.Context, request CreateModuleTypeSchemaRequestObject) (CreateModuleTypeSchemaResponseObject, error)
+	// Get current tenant plan
+	// (GET /api/v1/plan)
+	GetTenantPlan(ctx context.Context, request GetTenantPlanRequestObject) (GetTenantPlanResponseObject, error)
 	// Create invitation
 	// (POST /api/v1/tenants/current/invitations)
 	CreateInvitation(ctx context.Context, request CreateInvitationRequestObject) (CreateInvitationResponseObject, error)
@@ -4256,6 +4911,9 @@ type StrictServerInterface interface {
 	// Mark upload complete
 	// (POST /api/v1/uploads/{id}/complete)
 	CompleteUpload(ctx context.Context, request CompleteUploadRequestObject) (CompleteUploadResponseObject, error)
+	// Get today's usage summary
+	// (GET /api/v1/usage/summary)
+	GetUsageSummary(ctx context.Context, request GetUsageSummaryRequestObject) (GetUsageSummaryResponseObject, error)
 	// Health check
 	// (GET /healthz)
 	GetHealthz(ctx context.Context, request GetHealthzRequestObject) (GetHealthzResponseObject, error)
@@ -4288,6 +4946,94 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// AdminListPlans operation middleware
+func (sh *strictHandler) AdminListPlans(w http.ResponseWriter, r *http.Request) {
+	var request AdminListPlansRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminListPlans(ctx, request.(AdminListPlansRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminListPlans")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminListPlansResponseObject); ok {
+		if err := validResponse.VisitAdminListPlansResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminCreatePlan operation middleware
+func (sh *strictHandler) AdminCreatePlan(w http.ResponseWriter, r *http.Request) {
+	var request AdminCreatePlanRequestObject
+
+	var body AdminCreatePlanJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminCreatePlan(ctx, request.(AdminCreatePlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminCreatePlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminCreatePlanResponseObject); ok {
+		if err := validResponse.VisitAdminCreatePlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminUpdatePlan operation middleware
+func (sh *strictHandler) AdminUpdatePlan(w http.ResponseWriter, r *http.Request, id string) {
+	var request AdminUpdatePlanRequestObject
+
+	request.Id = id
+
+	var body AdminUpdatePlanJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminUpdatePlan(ctx, request.(AdminUpdatePlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminUpdatePlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminUpdatePlanResponseObject); ok {
+		if err := validResponse.VisitAdminUpdatePlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // AdminListTenants operation middleware
@@ -4371,6 +5117,89 @@ func (sh *strictHandler) AdminUpdateTenant(w http.ResponseWriter, r *http.Reques
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(AdminUpdateTenantResponseObject); ok {
 		if err := validResponse.VisitAdminUpdateTenantResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AdminAssignPlan operation middleware
+func (sh *strictHandler) AdminAssignPlan(w http.ResponseWriter, r *http.Request, tenantId string) {
+	var request AdminAssignPlanRequestObject
+
+	request.TenantId = tenantId
+
+	var body AdminAssignPlanJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminAssignPlan(ctx, request.(AdminAssignPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminAssignPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminAssignPlanResponseObject); ok {
+		if err := validResponse.VisitAdminAssignPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CallbackGoogleOAuth operation middleware
+func (sh *strictHandler) CallbackGoogleOAuth(w http.ResponseWriter, r *http.Request, params CallbackGoogleOAuthParams) {
+	var request CallbackGoogleOAuthRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CallbackGoogleOAuth(ctx, request.(CallbackGoogleOAuthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CallbackGoogleOAuth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CallbackGoogleOAuthResponseObject); ok {
+		if err := validResponse.VisitCallbackGoogleOAuthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartGoogleOAuth operation middleware
+func (sh *strictHandler) StartGoogleOAuth(w http.ResponseWriter, r *http.Request) {
+	var request StartGoogleOAuthRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartGoogleOAuth(ctx, request.(StartGoogleOAuthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartGoogleOAuth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartGoogleOAuthResponseObject); ok {
+		if err := validResponse.VisitStartGoogleOAuthResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -5303,6 +6132,32 @@ func (sh *strictHandler) CreateModuleTypeSchema(w http.ResponseWriter, r *http.R
 	}
 }
 
+// GetTenantPlan operation middleware
+func (sh *strictHandler) GetTenantPlan(w http.ResponseWriter, r *http.Request, params GetTenantPlanParams) {
+	var request GetTenantPlanRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTenantPlan(ctx, request.(GetTenantPlanRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTenantPlan")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTenantPlanResponseObject); ok {
+		if err := validResponse.VisitGetTenantPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CreateInvitation operation middleware
 func (sh *strictHandler) CreateInvitation(w http.ResponseWriter, r *http.Request, params CreateInvitationParams) {
 	var request CreateInvitationRequestObject
@@ -5502,6 +6357,32 @@ func (sh *strictHandler) CompleteUpload(w http.ResponseWriter, r *http.Request, 
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(CompleteUploadResponseObject); ok {
 		if err := validResponse.VisitCompleteUploadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUsageSummary operation middleware
+func (sh *strictHandler) GetUsageSummary(w http.ResponseWriter, r *http.Request, params GetUsageSummaryParams) {
+	var request GetUsageSummaryRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUsageSummary(ctx, request.(GetUsageSummaryRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUsageSummary")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUsageSummaryResponseObject); ok {
+		if err := validResponse.VisitGetUsageSummaryResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

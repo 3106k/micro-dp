@@ -12,11 +12,12 @@ import (
 
 type EventHandler struct {
 	events  *usecase.EventService
+	plans   *usecase.PlanService
 	metrics *observability.EventMetrics
 }
 
-func NewEventHandler(events *usecase.EventService, metrics *observability.EventMetrics) *EventHandler {
-	return &EventHandler{events: events, metrics: metrics}
+func NewEventHandler(events *usecase.EventService, plans *usecase.PlanService, metrics *observability.EventMetrics) *EventHandler {
+	return &EventHandler{events: events, plans: plans, metrics: metrics}
 }
 
 func (h *EventHandler) Summary(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +47,13 @@ func (h *EventHandler) Summary(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *EventHandler) Ingest(w http.ResponseWriter, r *http.Request) {
+	if err := h.plans.CheckEventsQuota(r.Context()); err != nil {
+		if errors.Is(err, domain.ErrQuotaExceeded) {
+			writeError(w, http.StatusPaymentRequired, "events quota exceeded")
+			return
+		}
+	}
+
 	var req openapi.IngestEventRequest
 	if err := decodeJSON(r, &req); err != nil {
 		writeError(w, http.StatusBadRequest, "invalid request body")

@@ -72,6 +72,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start Google OAuth login */
+        get: operations["startGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/auth/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Handle Google OAuth callback */
+        get: operations["callbackGoogleOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/events": {
         parameters: {
             query?: never;
@@ -139,6 +173,92 @@ export interface paths {
         head?: never;
         /** Update tenant (superadmin only) */
         patch: operations["adminUpdateTenant"];
+        trace?: never;
+    };
+    "/api/v1/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current tenant plan */
+        get: operations["getTenantPlan"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/usage/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get today's usage summary */
+        get: operations["getUsageSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List plans (superadmin only) */
+        get: operations["adminListPlans"];
+        put?: never;
+        /** Create plan (superadmin only) */
+        post: operations["adminCreatePlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/plans/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update plan (superadmin only) */
+        put: operations["adminUpdatePlan"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/tenants/{tenant_id}/plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Assign plan to tenant (superadmin only) */
+        post: operations["adminAssignPlan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/v1/jobs": {
@@ -921,6 +1041,59 @@ export interface components {
         UpdateMemberRoleRequest: {
             role: components["schemas"]["TenantRole"];
         };
+        Plan: {
+            id: string;
+            name: string;
+            display_name: string;
+            max_events_per_day: number;
+            /** Format: int64 */
+            max_storage_bytes: number;
+            max_rows_per_day: number;
+            max_uploads_per_day: number;
+            is_default: boolean;
+        };
+        TenantPlanResponse: {
+            plan: components["schemas"]["Plan"];
+            /** Format: date-time */
+            started_at: string;
+            /** Format: date-time */
+            expires_at?: string;
+        };
+        UsageSummaryResponse: {
+            date: string;
+            events_count: number;
+            /** Format: int64 */
+            storage_bytes: number;
+            rows_count: number;
+            uploads_count: number;
+            plan?: components["schemas"]["Plan"];
+        };
+        CreatePlanRequest: {
+            name: string;
+            display_name: string;
+            /** @default -1 */
+            max_events_per_day: number;
+            /**
+             * Format: int64
+             * @default -1
+             */
+            max_storage_bytes: number;
+            /** @default -1 */
+            max_rows_per_day: number;
+            /** @default -1 */
+            max_uploads_per_day: number;
+        };
+        UpdatePlanRequest: {
+            display_name?: string;
+            max_events_per_day?: number;
+            /** Format: int64 */
+            max_storage_bytes?: number;
+            max_rows_per_day?: number;
+            max_uploads_per_day?: number;
+        };
+        AssignPlanRequest: {
+            plan_id: string;
+        };
     };
     responses: {
         /** @description Error response */
@@ -1035,6 +1208,51 @@ export interface operations {
             401: components["responses"]["ErrorResponse"];
         };
     };
+    startGoogleOAuth: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to Google OAuth consent page */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            500: components["responses"]["ErrorResponse"];
+        };
+    };
+    callbackGoogleOAuth: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to app after login attempt */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            500: components["responses"]["ErrorResponse"];
+        };
+    };
     ingestEvent: {
         parameters: {
             query?: never;
@@ -1061,6 +1279,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorResponse"];
             401: components["responses"]["ErrorResponse"];
+            402: components["responses"]["ErrorResponse"];
             409: components["responses"]["ErrorResponse"];
         };
     };
@@ -1160,6 +1379,163 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Tenant"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    getTenantPlan: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantPlanResponse"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    getUsageSummary: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Usage summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsageSummaryResponse"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    adminListPlans: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of plans */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Plan"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
+        };
+    };
+    adminCreatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Created plan */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
+        };
+    };
+    adminUpdatePlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdatePlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated plan */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Plan"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    adminAssignPlan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenant_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssignPlanRequest"];
+            };
+        };
+        responses: {
+            /** @description Plan assigned */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TenantPlanResponse"];
                 };
             };
             400: components["responses"]["ErrorResponse"];
@@ -1937,6 +2313,7 @@ export interface operations {
             };
             400: components["responses"]["ErrorResponse"];
             401: components["responses"]["ErrorResponse"];
+            402: components["responses"]["ErrorResponse"];
         };
     };
     completeUpload: {

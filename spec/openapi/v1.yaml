@@ -11,6 +11,8 @@ tags:
   - name: auth
   - name: events
   - name: admin
+  - name: plans
+  - name: usage
   - name: jobs
   - name: job_runs
   - name: module_types
@@ -91,6 +93,51 @@ paths:
                 $ref: "#/components/schemas/MeResponse"
         "401":
           $ref: "#/components/responses/ErrorResponse"
+  /api/v1/auth/google/start:
+    get:
+      tags: [auth]
+      summary: Start Google OAuth login
+      operationId: startGoogleOAuth
+      responses:
+        "302":
+          description: Redirect to Google OAuth consent page
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "500":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/auth/google/callback:
+    get:
+      tags: [auth]
+      summary: Handle Google OAuth callback
+      operationId: callbackGoogleOAuth
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to app after login attempt
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/ErrorResponse"
 
   # ---- Events ----
   /api/v1/events:
@@ -118,6 +165,8 @@ paths:
         "400":
           $ref: "#/components/responses/ErrorResponse"
         "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "402":
           $ref: "#/components/responses/ErrorResponse"
         "409":
           $ref: "#/components/responses/ErrorResponse"
@@ -218,6 +267,163 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Tenant"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Plan & Usage (tenant-scoped) ----
+  /api/v1/plan:
+    get:
+      tags: [plans]
+      summary: Get current tenant plan
+      operationId: getTenantPlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: Current plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantPlanResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/usage/summary:
+    get:
+      tags: [usage]
+      summary: Get today's usage summary
+      operationId: getUsageSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: Usage summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsageSummaryResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Admin Plans ----
+  /api/v1/admin/plans:
+    post:
+      tags: [admin]
+      summary: Create plan (superadmin only)
+      operationId: adminCreatePlan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlanRequest"
+      responses:
+        "201":
+          description: Created plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [admin]
+      summary: List plans (superadmin only)
+      operationId: adminListPlans
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: List of plans
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Plan"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/admin/plans/{id}:
+    put:
+      tags: [admin]
+      summary: Update plan (superadmin only)
+      operationId: adminUpdatePlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlanRequest"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/admin/tenants/{tenant_id}/plan:
+    post:
+      tags: [admin]
+      summary: Assign plan to tenant (superadmin only)
+      operationId: adminAssignPlan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: tenant_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignPlanRequest"
+      responses:
+        "200":
+          description: Plan assigned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantPlanResponse"
         "400":
           $ref: "#/components/responses/ErrorResponse"
         "401":
@@ -1038,6 +1244,8 @@ paths:
         "400":
           $ref: "#/components/responses/ErrorResponse"
         "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "402":
           $ref: "#/components/responses/ErrorResponse"
   /api/v1/uploads/{id}/complete:
     post:
@@ -1934,3 +2142,96 @@ components:
       properties:
         role:
           $ref: "#/components/schemas/TenantRole"
+
+    # ---- Plan & Usage schemas ----
+    Plan:
+      type: object
+      required: [id, name, display_name, max_events_per_day, max_storage_bytes, max_rows_per_day, max_uploads_per_day, is_default]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        display_name:
+          type: string
+        max_events_per_day:
+          type: integer
+        max_storage_bytes:
+          type: integer
+          format: int64
+        max_rows_per_day:
+          type: integer
+        max_uploads_per_day:
+          type: integer
+        is_default:
+          type: boolean
+    TenantPlanResponse:
+      type: object
+      required: [plan, started_at]
+      properties:
+        plan:
+          $ref: "#/components/schemas/Plan"
+        started_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+    UsageSummaryResponse:
+      type: object
+      required: [date, events_count, storage_bytes, rows_count, uploads_count]
+      properties:
+        date:
+          type: string
+        events_count:
+          type: integer
+        storage_bytes:
+          type: integer
+          format: int64
+        rows_count:
+          type: integer
+        uploads_count:
+          type: integer
+        plan:
+          $ref: "#/components/schemas/Plan"
+    CreatePlanRequest:
+      type: object
+      required: [name, display_name]
+      properties:
+        name:
+          type: string
+        display_name:
+          type: string
+        max_events_per_day:
+          type: integer
+          default: -1
+        max_storage_bytes:
+          type: integer
+          format: int64
+          default: -1
+        max_rows_per_day:
+          type: integer
+          default: -1
+        max_uploads_per_day:
+          type: integer
+          default: -1
+    UpdatePlanRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        max_events_per_day:
+          type: integer
+        max_storage_bytes:
+          type: integer
+          format: int64
+        max_rows_per_day:
+          type: integer
+        max_uploads_per_day:
+          type: integer
+    AssignPlanRequest:
+      type: object
+      required: [plan_id]
+      properties:
+        plan_id:
+          type: string
