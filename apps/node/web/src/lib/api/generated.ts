@@ -627,6 +627,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datasets/{id}/rows": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get dataset rows preview */
+        get: operations["getDatasetRows"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/uploads/presign": {
         parameters: {
             query?: never;
@@ -1037,6 +1054,20 @@ export interface components {
         };
         /** @enum {string} */
         DatasetSourceType: "tracker" | "parquet" | "import";
+        DatasetColumn: {
+            name: string;
+            type: string;
+        };
+        DatasetRowsResponse: {
+            columns: components["schemas"]["DatasetColumn"][];
+            rows: {
+                [key: string]: unknown;
+            }[];
+            /** Format: int64 */
+            total_rows: number;
+            limit: number;
+            offset: number;
+        };
         /** @enum {string} */
         UploadStatus: "presigned" | "uploaded";
         UploadFileInput: {
@@ -2442,6 +2473,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Dataset"];
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    getDatasetRows: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dataset rows preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetRowsResponse"];
                 };
             };
             401: components["responses"]["ErrorResponse"];
