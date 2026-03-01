@@ -66,6 +66,8 @@ export default async function DatasetDetailPage({
         displayName={me.display_name}
         email={me.email}
         platformRole={me.platform_role}
+        tenants={me.tenants}
+        currentTenantId={tenantId}
       />
       <main className="container space-y-6 py-8">
         <div className="flex items-center justify-between">

@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormError } from "@/components/ui/form-error";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { useToast } from "@/components/ui/toast-provider";
+import { readApiErrorMessage } from "@/lib/api/error";
 import {
   Card,
   CardContent,
@@ -18,6 +21,7 @@ import {
 
 export function SignupForm() {
   const router = useRouter();
+  const { pushToast } = useToast();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,14 +46,18 @@ export function SignupForm() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "Registration failed");
+        const message = await readApiErrorMessage(res, "Registration failed");
+        setError(message);
+        pushToast({ variant: "error", message });
         return;
       }
 
+      pushToast({ variant: "success", message: "Account created" });
       router.push("/signin");
     } catch {
-      setError("Network error");
+      const message = "Network error";
+      setError(message);
+      pushToast({ variant: "error", message });
     } finally {
       setLoading(false);
     }
@@ -65,9 +73,7 @@ export function SignupForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          <FormError message={error} />
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -100,9 +106,14 @@ export function SignupForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Creating account..." : "Sign Up"}
-          </Button>
+          <SubmitButton
+            type="submit"
+            className="w-full"
+            loading={loading}
+            loadingLabel="Creating account..."
+          >
+            Sign Up
+          </SubmitButton>
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
             <Link href="/signin" className="text-primary underline">

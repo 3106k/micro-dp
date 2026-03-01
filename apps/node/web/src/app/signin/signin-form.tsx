@@ -4,9 +4,12 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FormError } from "@/components/ui/form-error";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { useToast } from "@/components/ui/toast-provider";
+import { readApiErrorMessage } from "@/lib/api/error";
 import {
   Card,
   CardContent,
@@ -19,6 +22,7 @@ import {
 export function SigninForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { pushToast } = useToast();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
   const [email, setEmail] = useState("");
@@ -39,8 +43,9 @@ export function SigninForm() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error ?? "Login failed");
+        const message = await readApiErrorMessage(res, "Login failed");
+        setError(message);
+        pushToast({ variant: "error", message });
         return;
       }
 
@@ -48,7 +53,9 @@ export function SigninForm() {
       router.push(`${callbackUrl}${separator}event=login_success`);
       router.refresh();
     } catch {
-      setError("Network error");
+      const message = "Network error";
+      setError(message);
+      pushToast({ variant: "error", message });
     } finally {
       setLoading(false);
     }
@@ -64,9 +71,7 @@ export function SigninForm() {
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {error && (
-            <p className="text-sm text-destructive">{error}</p>
-          )}
+          <FormError message={error} />
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
@@ -90,9 +95,14 @@ export function SigninForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Signing in..." : "Sign In"}
-          </Button>
+          <SubmitButton
+            type="submit"
+            className="w-full"
+            loading={loading}
+            loadingLabel="Signing in..."
+          >
+            Sign In
+          </SubmitButton>
           <p className="text-sm text-muted-foreground">
             Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-primary underline">

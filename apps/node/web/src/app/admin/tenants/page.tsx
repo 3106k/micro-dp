@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { DashboardHeader } from "@/app/dashboard/dashboard-header";
 import type { components } from "@/lib/api/generated";
 import { backendFetch } from "@/lib/api/server";
-import { TOKEN_COOKIE } from "@/lib/auth/constants";
+import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
 import { TenantsManager } from "./tenants-manager";
 
 type MeResponse = components["schemas"]["MeResponse"];
@@ -13,6 +13,7 @@ type Tenant = components["schemas"]["Tenant"];
 export default async function AdminTenantsPage() {
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
+  const tenantCookie = jar.get(TENANT_COOKIE)?.value;
   if (!token) {
     redirect("/signin");
   }
@@ -24,6 +25,11 @@ export default async function AdminTenantsPage() {
     redirect("/signin");
   }
   const me: MeResponse = await meRes.json();
+  const tenantIds = new Set(me.tenants.map((tenant) => tenant.id));
+  const currentTenantId =
+    tenantCookie && tenantIds.has(tenantCookie)
+      ? tenantCookie
+      : me.tenants[0]?.id ?? "";
 
   if (me.platform_role !== "superadmin") {
     return (
@@ -32,6 +38,8 @@ export default async function AdminTenantsPage() {
           displayName={me.display_name}
           email={me.email}
           platformRole={me.platform_role}
+          tenants={me.tenants}
+          currentTenantId={currentTenantId}
         />
         <main className="container py-8">
           <div className="rounded-lg border p-6">
@@ -60,6 +68,8 @@ export default async function AdminTenantsPage() {
         displayName={me.display_name}
         email={me.email}
         platformRole={me.platform_role}
+        tenants={me.tenants}
+        currentTenantId={currentTenantId}
       />
       <main className="container space-y-6 py-8">
         <h1 className="text-2xl font-semibold tracking-tight">Admin Tenants</h1>
