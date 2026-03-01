@@ -11,16 +11,8 @@ import (
 	"github.com/open-feature/go-sdk/openfeature"
 )
 
-// Flag constants for feature flags.
-const (
-	FlagEventsIngest = "events_ingest"
-	FlagDatasetsAPI  = "datasets_api"
-	FlagAdminTenants = "admin_tenants"
-	FlagUploadsAPI   = "uploads_api"
-)
-
-// AllFlags lists every known flag key.
-var AllFlags = []string{FlagEventsIngest, FlagDatasetsAPI, FlagAdminTenants, FlagUploadsAPI}
+// AllFlags lists every known flag key. Add new flags here.
+var AllFlags []string
 
 // Config holds the resolved flag values.
 type Config struct {

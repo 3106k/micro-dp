@@ -86,6 +86,10 @@ func main() {
 	jobRunModuleRepo := db.NewJobRunModuleRepo(sqlDB)
 	jobRunArtifactRepo := db.NewJobRunArtifactRepo(sqlDB)
 
+	planRepo := db.NewPlanRepo(sqlDB)
+	tenantPlanRepo := db.NewTenantPlanRepo(sqlDB)
+	usageRepo := db.NewUsageRepo(sqlDB)
+
 	// Bootstrap superadmins
 	bootstrapCfg := usecase.ParseBootstrapConfig(os.Getenv("BOOTSTRAP_SUPERADMINS"), os.Getenv("SUPERADMIN_EMAILS"))
 	if err := usecase.BootstrapSuperadmins(context.Background(), userRepo, bootstrapCfg); err != nil {
@@ -114,6 +118,7 @@ func main() {
 	datasetService := usecase.NewDatasetService(datasetRepo)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
+	planService := usecase.NewPlanService(planRepo, tenantPlanRepo, usageRepo)
 
 	minioPresignClient, err := storage.NewMinIOPresignClient()
 	if err != nil {
@@ -133,11 +138,13 @@ func main() {
 	moduleTypeH := handler.NewModuleTypeHandler(moduleTypeService)
 	connectionH := handler.NewConnectionHandler(connectionService)
 	datasetH := handler.NewDatasetHandler(datasetService)
-	eventH := handler.NewEventHandler(eventService, eventMetrics)
-	uploadH := handler.NewUploadHandler(uploadService)
+	eventH := handler.NewEventHandler(eventService, planService, eventMetrics)
+	uploadH := handler.NewUploadHandler(uploadService, planService)
 	jobRunModuleH := handler.NewJobRunModuleHandler(jobRunModuleService)
 	jobRunArtifactH := handler.NewJobRunArtifactHandler(jobRunArtifactService)
 	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
+	planH := handler.NewPlanHandler(planService)
+	adminPlanH := handler.NewAdminPlanHandler(planService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -217,10 +224,20 @@ func main() {
 	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))
 	mux.Handle("POST /api/v1/uploads/{id}/complete", protected(uploadH.Complete))
 
+	// Plan & Usage
+	mux.Handle("GET /api/v1/plan", protected(planH.GetPlan))
+	mux.Handle("GET /api/v1/usage/summary", protected(planH.GetUsageSummary))
+
 	// Admin tenants
 	mux.Handle("POST /api/v1/admin/tenants", adminProtected(adminTenantH.Create))
 	mux.Handle("GET /api/v1/admin/tenants", adminProtected(adminTenantH.List))
 	mux.Handle("PATCH /api/v1/admin/tenants/{id}", adminProtected(adminTenantH.Patch))
+
+	// Admin plans
+	mux.Handle("POST /api/v1/admin/plans", adminProtected(adminPlanH.Create))
+	mux.Handle("GET /api/v1/admin/plans", adminProtected(adminPlanH.List))
+	mux.Handle("PUT /api/v1/admin/plans/{id}", adminProtected(adminPlanH.Update))
+	mux.Handle("POST /api/v1/admin/tenants/{tenant_id}/plan", adminProtected(adminPlanH.AssignPlan))
 
 	addr := ":8080"
 	log.Printf("api server starting on %s", addr)

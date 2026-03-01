@@ -124,14 +124,11 @@ Internal container ports are fixed; only host-side ports change per environment.
 | `MINIO_ROOT_PASSWORD` | `minioadmin` | MinIO 認証 |
 | `MINIO_BUCKET` | `micro-dp` | MinIO バケット名 |
 
-### Feature Flags
+### Edition
 
 | Variable | Default | Description |
 | -------- | ------- | ----------- |
-| `FF_EVENTS_INGEST` | `true` | Events 取り込み |
-| `FF_DATASETS_API` | `true` | Datasets API |
-| `FF_ADMIN_TENANTS` | `true` | Admin テナント管理 |
-| `FF_UPLOADS_API` | `true` | Uploads API |
+| `EDITION` | `oss` | エディション (`oss` or `web`)。`web` 時のみクォータ適用 |
 
 ### Notification
 
@@ -208,6 +205,8 @@ Internal container ports are fixed; only host-side ports change per environment.
 | GET | `/api/v1/datasets/{id}` | Get dataset |
 | POST | `/api/v1/uploads/presign` | Request presigned upload URLs |
 | POST | `/api/v1/uploads/{id}/complete` | Mark upload complete |
+| GET | `/api/v1/plan` | Current tenant plan |
+| GET | `/api/v1/usage/summary` | Today's usage summary |
 
 ### Admin (Bearer + Superadmin)
 
@@ -216,6 +215,10 @@ Internal container ports are fixed; only host-side ports change per environment.
 | POST | `/api/v1/admin/tenants` | Create tenant |
 | GET | `/api/v1/admin/tenants` | List tenants |
 | PATCH | `/api/v1/admin/tenants/{id}` | Update tenant |
+| POST | `/api/v1/admin/plans` | Create plan |
+| GET | `/api/v1/admin/plans` | List plans |
+| PUT | `/api/v1/admin/plans/{id}` | Update plan |
+| POST | `/api/v1/admin/tenants/{tenant_id}/plan` | Assign plan to tenant |
 
 ## Events Ingest Pipeline
 
@@ -423,12 +426,7 @@ OpenFeature ベースの feature flag 基盤。初期は環境変数プロバイ
 
 ### フラグ一覧
 
-| Flag 定数 | 環境変数 | デフォルト | 対象機能 |
-|-----------|---------|-----------|---------|
-| `events_ingest` | `FF_EVENTS_INGEST` | `true` | Events 取り込み |
-| `datasets_api` | `FF_DATASETS_API` | `true` | Datasets API |
-| `admin_tenants` | `FF_ADMIN_TENANTS` | `true` | Admin テナント管理 |
-| `uploads_api` | `FF_UPLOADS_API` | `true` | Uploads API |
+現在アクティブなフラグはなし。`AllFlags` に追加して `FF_*` 環境変数で制御可能。
 
 ### 初期化パターン
 

@@ -8,12 +8,14 @@ import (
 
 	"github.com/user/micro-dp/domain"
 	"github.com/user/micro-dp/internal/observability"
+	"github.com/user/micro-dp/usecase"
 )
 
 type EventConsumer struct {
 	queue         domain.EventQueue
 	writer        *ParquetWriter
 	metrics       *observability.EventMetrics
+	metering      *usecase.MeteringService
 	batchSize     int
 	flushInterval time.Duration
 
@@ -22,11 +24,12 @@ type EventConsumer struct {
 	lastFlush time.Time
 }
 
-func NewEventConsumer(queue domain.EventQueue, writer *ParquetWriter, metrics *observability.EventMetrics) *EventConsumer {
+func NewEventConsumer(queue domain.EventQueue, writer *ParquetWriter, metrics *observability.EventMetrics, metering *usecase.MeteringService) *EventConsumer {
 	return &EventConsumer{
 		queue:         queue,
 		writer:        writer,
 		metrics:       metrics,
+		metering:      metering,
 		batchSize:     1000,
 		flushInterval: 30 * time.Second,
 		buffer:        make([]*domain.EventQueueMessage, 0, 1000),
@@ -112,6 +115,9 @@ func (c *EventConsumer) flush(ctx context.Context) {
 		} else {
 			log.Printf("flushed batch tenant=%s count=%d", tenantID, len(events))
 			c.metrics.ProcessedTotal.Add(ctx, int64(len(events)))
+			if c.metering != nil {
+				c.metering.RecordEventsBestEffort(ctx, tenantID, len(events))
+			}
 		}
 
 		c.metrics.BatchSize.Record(ctx, int64(len(events)))
