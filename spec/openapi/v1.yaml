@@ -13,6 +13,7 @@ tags:
   - name: admin
   - name: plans
   - name: usage
+  - name: billing
   - name: jobs
   - name: job_runs
   - name: module_types
@@ -311,6 +312,107 @@ paths:
               schema:
                 $ref: "#/components/schemas/UsageSummaryResponse"
         "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/billing/checkout-session:
+    post:
+      tags: [billing]
+      summary: Create Stripe Checkout session
+      operationId: createBillingCheckoutSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBillingCheckoutSessionRequest"
+      responses:
+        "200":
+          description: Checkout session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateBillingCheckoutSessionResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "402":
+          $ref: "#/components/responses/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/billing/portal-session:
+    post:
+      tags: [billing]
+      summary: Create Stripe Billing Portal session
+      operationId: createBillingPortalSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBillingPortalSessionRequest"
+      responses:
+        "200":
+          description: Portal session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateBillingPortalSessionResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "500":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/billing/subscription:
+    get:
+      tags: [billing]
+      summary: Get current tenant billing subscription
+      operationId: getBillingSubscription
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: Billing subscription state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingSubscriptionResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/billing/webhook:
+    post:
+      tags: [billing]
+      summary: Receive Stripe webhook events
+      operationId: billingWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingWebhookResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "500":
           $ref: "#/components/responses/ErrorResponse"
 
   # ---- Admin Plans ----
@@ -2027,3 +2129,60 @@ components:
       properties:
         plan_id:
           type: string
+    CreateBillingCheckoutSessionRequest:
+      type: object
+      required: [price_id]
+      properties:
+        price_id:
+          type: string
+        success_url:
+          type: string
+          format: uri
+        cancel_url:
+          type: string
+          format: uri
+    CreateBillingCheckoutSessionResponse:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+    CreateBillingPortalSessionRequest:
+      type: object
+      properties:
+        return_url:
+          type: string
+          format: uri
+    CreateBillingPortalSessionResponse:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+    BillingSubscriptionResponse:
+      type: object
+      required: [tenant_id, status]
+      properties:
+        tenant_id:
+          type: string
+        stripe_customer_id:
+          type: string
+        stripe_subscription_id:
+          type: string
+        stripe_price_id:
+          type: string
+        status:
+          type: string
+        current_period_end:
+          type: string
+          format: date-time
+        plan:
+          $ref: "#/components/schemas/Plan"
+    BillingWebhookResponse:
+      type: object
+      required: [received]
+      properties:
+        received:
+          type: boolean

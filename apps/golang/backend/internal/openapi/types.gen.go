@@ -97,6 +97,22 @@ type AssignPlanRequest struct {
 	PlanId string `json:"plan_id"`
 }
 
+// BillingSubscriptionResponse defines model for BillingSubscriptionResponse.
+type BillingSubscriptionResponse struct {
+	CurrentPeriodEnd     *time.Time `json:"current_period_end,omitempty"`
+	Plan                 *Plan      `json:"plan,omitempty"`
+	Status               string     `json:"status"`
+	StripeCustomerId     *string    `json:"stripe_customer_id,omitempty"`
+	StripePriceId        *string    `json:"stripe_price_id,omitempty"`
+	StripeSubscriptionId *string    `json:"stripe_subscription_id,omitempty"`
+	TenantId             string     `json:"tenant_id"`
+}
+
+// BillingWebhookResponse defines model for BillingWebhookResponse.
+type BillingWebhookResponse struct {
+	Received bool `json:"received"`
+}
+
 // Connection defines model for Connection.
 type Connection struct {
 	ConfigJson *string    `json:"config_json,omitempty"`
@@ -107,6 +123,28 @@ type Connection struct {
 	TenantId   string     `json:"tenant_id"`
 	Type       string     `json:"type"`
 	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+}
+
+// CreateBillingCheckoutSessionRequest defines model for CreateBillingCheckoutSessionRequest.
+type CreateBillingCheckoutSessionRequest struct {
+	CancelUrl  *string `json:"cancel_url,omitempty"`
+	PriceId    string  `json:"price_id"`
+	SuccessUrl *string `json:"success_url,omitempty"`
+}
+
+// CreateBillingCheckoutSessionResponse defines model for CreateBillingCheckoutSessionResponse.
+type CreateBillingCheckoutSessionResponse struct {
+	Url string `json:"url"`
+}
+
+// CreateBillingPortalSessionRequest defines model for CreateBillingPortalSessionRequest.
+type CreateBillingPortalSessionRequest struct {
+	ReturnUrl *string `json:"return_url,omitempty"`
+}
+
+// CreateBillingPortalSessionResponse defines model for CreateBillingPortalSessionResponse.
+type CreateBillingPortalSessionResponse struct {
+	Url string `json:"url"`
 }
 
 // CreateConnectionRequest defines model for CreateConnectionRequest.
@@ -528,6 +566,24 @@ type CallbackGoogleOAuthParams struct {
 	State string `form:"state" json:"state"`
 }
 
+// CreateBillingCheckoutSessionParams defines parameters for CreateBillingCheckoutSession.
+type CreateBillingCheckoutSessionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateBillingPortalSessionParams defines parameters for CreateBillingPortalSession.
+type CreateBillingPortalSessionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetBillingSubscriptionParams defines parameters for GetBillingSubscription.
+type GetBillingSubscriptionParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// BillingWebhookJSONBody defines parameters for BillingWebhook.
+type BillingWebhookJSONBody map[string]interface{}
+
 // ListConnectionsParams defines parameters for ListConnections.
 type ListConnectionsParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -718,6 +774,15 @@ type LoginJSONRequestBody = LoginRequest
 
 // RegisterJSONRequestBody defines body for Register for application/json ContentType.
 type RegisterJSONRequestBody = RegisterRequest
+
+// CreateBillingCheckoutSessionJSONRequestBody defines body for CreateBillingCheckoutSession for application/json ContentType.
+type CreateBillingCheckoutSessionJSONRequestBody = CreateBillingCheckoutSessionRequest
+
+// CreateBillingPortalSessionJSONRequestBody defines body for CreateBillingPortalSession for application/json ContentType.
+type CreateBillingPortalSessionJSONRequestBody = CreateBillingPortalSessionRequest
+
+// BillingWebhookJSONRequestBody defines body for BillingWebhook for application/json ContentType.
+type BillingWebhookJSONRequestBody BillingWebhookJSONBody
 
 // CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
 type CreateConnectionJSONRequestBody = CreateConnectionRequest

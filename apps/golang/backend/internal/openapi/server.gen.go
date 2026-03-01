@@ -53,6 +53,18 @@ type ServerInterface interface {
 	// Register user
 	// (POST /api/v1/auth/register)
 	Register(w http.ResponseWriter, r *http.Request)
+	// Create Stripe Checkout session
+	// (POST /api/v1/billing/checkout-session)
+	CreateBillingCheckoutSession(w http.ResponseWriter, r *http.Request, params CreateBillingCheckoutSessionParams)
+	// Create Stripe Billing Portal session
+	// (POST /api/v1/billing/portal-session)
+	CreateBillingPortalSession(w http.ResponseWriter, r *http.Request, params CreateBillingPortalSessionParams)
+	// Get current tenant billing subscription
+	// (GET /api/v1/billing/subscription)
+	GetBillingSubscription(w http.ResponseWriter, r *http.Request, params GetBillingSubscriptionParams)
+	// Receive Stripe webhook events
+	// (POST /api/v1/billing/webhook)
+	BillingWebhook(w http.ResponseWriter, r *http.Request)
 	// List connections
 	// (GET /api/v1/connections)
 	ListConnections(w http.ResponseWriter, r *http.Request, params ListConnectionsParams)
@@ -441,6 +453,170 @@ func (siw *ServerInterfaceWrapper) Register(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Register(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateBillingCheckoutSession operation middleware
+func (siw *ServerInterfaceWrapper) CreateBillingCheckoutSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateBillingCheckoutSessionParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateBillingCheckoutSession(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateBillingPortalSession operation middleware
+func (siw *ServerInterfaceWrapper) CreateBillingPortalSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateBillingPortalSessionParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateBillingPortalSession(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetBillingSubscription operation middleware
+func (siw *ServerInterfaceWrapper) GetBillingSubscription(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetBillingSubscriptionParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetBillingSubscription(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BillingWebhook operation middleware
+func (siw *ServerInterfaceWrapper) BillingWebhook(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BillingWebhook(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2493,6 +2669,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/login", wrapper.Login)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/auth/me", wrapper.Me)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/auth/register", wrapper.Register)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/billing/checkout-session", wrapper.CreateBillingCheckoutSession)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/billing/portal-session", wrapper.CreateBillingPortalSession)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/billing/subscription", wrapper.GetBillingSubscription)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/billing/webhook", wrapper.BillingWebhook)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections", wrapper.ListConnections)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/connections", wrapper.CreateConnection)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/connections/{id}", wrapper.DeleteConnection)
@@ -3025,6 +3205,175 @@ type Register409JSONResponse ErrorResponse
 func (response Register409JSONResponse) VisitRegisterResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingCheckoutSessionRequestObject struct {
+	Params CreateBillingCheckoutSessionParams
+	Body   *CreateBillingCheckoutSessionJSONRequestBody
+}
+
+type CreateBillingCheckoutSessionResponseObject interface {
+	VisitCreateBillingCheckoutSessionResponse(w http.ResponseWriter) error
+}
+
+type CreateBillingCheckoutSession200JSONResponse CreateBillingCheckoutSessionResponse
+
+func (response CreateBillingCheckoutSession200JSONResponse) VisitCreateBillingCheckoutSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingCheckoutSession400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateBillingCheckoutSession400JSONResponse) VisitCreateBillingCheckoutSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingCheckoutSession401JSONResponse ErrorResponse
+
+func (response CreateBillingCheckoutSession401JSONResponse) VisitCreateBillingCheckoutSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingCheckoutSession402JSONResponse ErrorResponse
+
+func (response CreateBillingCheckoutSession402JSONResponse) VisitCreateBillingCheckoutSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(402)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingCheckoutSession500JSONResponse ErrorResponse
+
+func (response CreateBillingCheckoutSession500JSONResponse) VisitCreateBillingCheckoutSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingPortalSessionRequestObject struct {
+	Params CreateBillingPortalSessionParams
+	Body   *CreateBillingPortalSessionJSONRequestBody
+}
+
+type CreateBillingPortalSessionResponseObject interface {
+	VisitCreateBillingPortalSessionResponse(w http.ResponseWriter) error
+}
+
+type CreateBillingPortalSession200JSONResponse CreateBillingPortalSessionResponse
+
+func (response CreateBillingPortalSession200JSONResponse) VisitCreateBillingPortalSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingPortalSession400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateBillingPortalSession400JSONResponse) VisitCreateBillingPortalSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingPortalSession401JSONResponse ErrorResponse
+
+func (response CreateBillingPortalSession401JSONResponse) VisitCreateBillingPortalSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateBillingPortalSession500JSONResponse ErrorResponse
+
+func (response CreateBillingPortalSession500JSONResponse) VisitCreateBillingPortalSessionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBillingSubscriptionRequestObject struct {
+	Params GetBillingSubscriptionParams
+}
+
+type GetBillingSubscriptionResponseObject interface {
+	VisitGetBillingSubscriptionResponse(w http.ResponseWriter) error
+}
+
+type GetBillingSubscription200JSONResponse BillingSubscriptionResponse
+
+func (response GetBillingSubscription200JSONResponse) VisitGetBillingSubscriptionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBillingSubscription401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetBillingSubscription401JSONResponse) VisitGetBillingSubscriptionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetBillingSubscription404JSONResponse ErrorResponse
+
+func (response GetBillingSubscription404JSONResponse) VisitGetBillingSubscriptionResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BillingWebhookRequestObject struct {
+	Body *BillingWebhookJSONRequestBody
+}
+
+type BillingWebhookResponseObject interface {
+	VisitBillingWebhookResponse(w http.ResponseWriter) error
+}
+
+type BillingWebhook200JSONResponse BillingWebhookResponse
+
+func (response BillingWebhook200JSONResponse) VisitBillingWebhookResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BillingWebhook400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response BillingWebhook400JSONResponse) VisitBillingWebhookResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type BillingWebhook500JSONResponse ErrorResponse
+
+func (response BillingWebhook500JSONResponse) VisitBillingWebhookResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(500)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -4297,6 +4646,18 @@ type StrictServerInterface interface {
 	// Register user
 	// (POST /api/v1/auth/register)
 	Register(ctx context.Context, request RegisterRequestObject) (RegisterResponseObject, error)
+	// Create Stripe Checkout session
+	// (POST /api/v1/billing/checkout-session)
+	CreateBillingCheckoutSession(ctx context.Context, request CreateBillingCheckoutSessionRequestObject) (CreateBillingCheckoutSessionResponseObject, error)
+	// Create Stripe Billing Portal session
+	// (POST /api/v1/billing/portal-session)
+	CreateBillingPortalSession(ctx context.Context, request CreateBillingPortalSessionRequestObject) (CreateBillingPortalSessionResponseObject, error)
+	// Get current tenant billing subscription
+	// (GET /api/v1/billing/subscription)
+	GetBillingSubscription(ctx context.Context, request GetBillingSubscriptionRequestObject) (GetBillingSubscriptionResponseObject, error)
+	// Receive Stripe webhook events
+	// (POST /api/v1/billing/webhook)
+	BillingWebhook(ctx context.Context, request BillingWebhookRequestObject) (BillingWebhookResponseObject, error)
 	// List connections
 	// (GET /api/v1/connections)
 	ListConnections(ctx context.Context, request ListConnectionsRequestObject) (ListConnectionsResponseObject, error)
@@ -4768,6 +5129,129 @@ func (sh *strictHandler) Register(w http.ResponseWriter, r *http.Request) {
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(RegisterResponseObject); ok {
 		if err := validResponse.VisitRegisterResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateBillingCheckoutSession operation middleware
+func (sh *strictHandler) CreateBillingCheckoutSession(w http.ResponseWriter, r *http.Request, params CreateBillingCheckoutSessionParams) {
+	var request CreateBillingCheckoutSessionRequestObject
+
+	request.Params = params
+
+	var body CreateBillingCheckoutSessionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateBillingCheckoutSession(ctx, request.(CreateBillingCheckoutSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateBillingCheckoutSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateBillingCheckoutSessionResponseObject); ok {
+		if err := validResponse.VisitCreateBillingCheckoutSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateBillingPortalSession operation middleware
+func (sh *strictHandler) CreateBillingPortalSession(w http.ResponseWriter, r *http.Request, params CreateBillingPortalSessionParams) {
+	var request CreateBillingPortalSessionRequestObject
+
+	request.Params = params
+
+	var body CreateBillingPortalSessionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateBillingPortalSession(ctx, request.(CreateBillingPortalSessionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateBillingPortalSession")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateBillingPortalSessionResponseObject); ok {
+		if err := validResponse.VisitCreateBillingPortalSessionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetBillingSubscription operation middleware
+func (sh *strictHandler) GetBillingSubscription(w http.ResponseWriter, r *http.Request, params GetBillingSubscriptionParams) {
+	var request GetBillingSubscriptionRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetBillingSubscription(ctx, request.(GetBillingSubscriptionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetBillingSubscription")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetBillingSubscriptionResponseObject); ok {
+		if err := validResponse.VisitGetBillingSubscriptionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// BillingWebhook operation middleware
+func (sh *strictHandler) BillingWebhook(w http.ResponseWriter, r *http.Request) {
+	var request BillingWebhookRequestObject
+
+	var body BillingWebhookJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.BillingWebhook(ctx, request.(BillingWebhookRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BillingWebhook")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(BillingWebhookResponseObject); ok {
+		if err := validResponse.VisitBillingWebhookResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

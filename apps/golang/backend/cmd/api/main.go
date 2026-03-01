@@ -81,6 +81,9 @@ func main() {
 	datasetRepo := db.NewDatasetRepo(sqlDB)
 	uploadRepo := db.NewUploadRepo(sqlDB)
 	adminAuditLogRepo := db.NewAdminAuditLogRepo(sqlDB)
+	billingSubscriptionRepo := db.NewBillingSubscriptionRepo(sqlDB)
+	stripeWebhookEventRepo := db.NewStripeWebhookEventRepo(sqlDB)
+	billingAuditLogRepo := db.NewBillingAuditLogRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
 	jobRunModuleRepo := db.NewJobRunModuleRepo(sqlDB)
@@ -119,6 +122,21 @@ func main() {
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
 	planService := usecase.NewPlanService(planRepo, tenantPlanRepo, usageRepo)
+	billingService := usecase.NewBillingService(
+		billingSubscriptionRepo,
+		stripeWebhookEventRepo,
+		billingAuditLogRepo,
+		planRepo,
+		planService,
+		usecase.StripeConfig{
+			SecretKey:         os.Getenv("STRIPE_SECRET_KEY"),
+			WebhookSecret:     os.Getenv("STRIPE_WEBHOOK_SECRET"),
+			DefaultSuccessURL: os.Getenv("STRIPE_CHECKOUT_SUCCESS_URL"),
+			DefaultCancelURL:  os.Getenv("STRIPE_CHECKOUT_CANCEL_URL"),
+			DefaultReturnURL:  os.Getenv("STRIPE_PORTAL_RETURN_URL"),
+			PriceIDToPlanName: usecase.ParsePriceIDToPlanMap(os.Getenv("STRIPE_PRICE_TO_PLAN_MAP")),
+		},
+	)
 
 	minioPresignClient, err := storage.NewMinIOPresignClient()
 	if err != nil {
@@ -145,6 +163,7 @@ func main() {
 	adminTenantH := handler.NewAdminTenantHandler(adminTenantService)
 	planH := handler.NewPlanHandler(planService)
 	adminPlanH := handler.NewAdminPlanHandler(planService)
+	billingH := handler.NewBillingHandler(billingService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -227,6 +246,12 @@ func main() {
 	// Plan & Usage
 	mux.Handle("GET /api/v1/plan", protected(planH.GetPlan))
 	mux.Handle("GET /api/v1/usage/summary", protected(planH.GetUsageSummary))
+
+	// Billing
+	mux.Handle("POST /api/v1/billing/checkout-session", protected(billingH.CreateCheckoutSession))
+	mux.Handle("POST /api/v1/billing/portal-session", protected(billingH.CreatePortalSession))
+	mux.Handle("GET /api/v1/billing/subscription", protected(billingH.GetSubscription))
+	mux.HandleFunc("POST /api/v1/billing/webhook", billingH.Webhook)
 
 	// Admin tenants
 	mux.Handle("POST /api/v1/admin/tenants", adminProtected(adminTenantH.Create))

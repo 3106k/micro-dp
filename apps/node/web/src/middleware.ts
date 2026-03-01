@@ -14,6 +14,7 @@ export function middleware(request: NextRequest) {
       pathname.startsWith("/datasets") ||
       pathname.startsWith("/uploads") ||
       pathname.startsWith("/connections") ||
+      pathname.startsWith("/billing") ||
       pathname.startsWith("/admin")) &&
     !token
   ) {
@@ -42,6 +43,7 @@ export const config = {
     "/datasets/:path*",
     "/uploads/:path*",
     "/connections/:path*",
+    "/billing/:path*",
     "/admin/:path*",
     "/signin",
     "/signup",
