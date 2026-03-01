@@ -1,4 +1,4 @@
-CREATE TABLE user_identities (
+CREATE TABLE IF NOT EXISTS user_identities (
     id TEXT PRIMARY KEY,
     provider TEXT NOT NULL,
     subject TEXT NOT NULL,
@@ -9,4 +9,4 @@ CREATE TABLE user_identities (
     UNIQUE (provider, subject)
 );
 
-CREATE INDEX idx_user_identities_user_id ON user_identities(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_identities_user_id ON user_identities(user_id);

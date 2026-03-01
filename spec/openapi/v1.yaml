@@ -20,6 +20,7 @@ tags:
   - name: connections
   - name: datasets
   - name: uploads
+  - name: members
 paths:
   /healthz:
     get:
@@ -1376,6 +1377,147 @@ paths:
         "409":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Members ----
+  /api/v1/tenants/current/members:
+    get:
+      tags: [members]
+      summary: List tenant members
+      operationId: listTenantMembers
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of tenant members
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TenantMember"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/tenants/current/invitations:
+    post:
+      tags: [members]
+      summary: Create invitation
+      operationId: createInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationRequest"
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvitation"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/tenants/current/invitations/{token}/accept:
+    post:
+      tags: [members]
+      summary: Accept invitation
+      operationId: acceptInvitation
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantInvitation"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+        "410":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/tenants/current/members/{user_id}:
+    patch:
+      tags: [members]
+      summary: Update member role
+      operationId: updateMemberRole
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMemberRoleRequest"
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantMember"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+    delete:
+      tags: [members]
+      summary: Remove member
+      operationId: removeMember
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Member removed
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+
 components:
   parameters:
     XTenantID:
@@ -2036,6 +2178,72 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    # ---- Member schemas ----
+    TenantRole:
+      type: string
+      enum: [owner, admin, member]
+    TenantMember:
+      type: object
+      required: [user_id, email, display_name, role, joined_at]
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+        role:
+          $ref: "#/components/schemas/TenantRole"
+        joined_at:
+          type: string
+          format: date-time
+    TenantInvitation:
+      type: object
+      required: [id, tenant_id, email, role, status, created_at]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/TenantRole"
+        token:
+          type: string
+          description: Invitation token (returned on creation only)
+        status:
+          type: string
+          enum: [pending, accepted, expired]
+        invited_by:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        accepted_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+    CreateInvitationRequest:
+      type: object
+      required: [email, role]
+      properties:
+        email:
+          type: string
+          format: email
+        role:
+          $ref: "#/components/schemas/TenantRole"
+    UpdateMemberRoleRequest:
+      type: object
+      required: [role]
+      properties:
+        role:
+          $ref: "#/components/schemas/TenantRole"
 
     # ---- Plan & Usage schemas ----
     Plan:

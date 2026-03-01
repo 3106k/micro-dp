@@ -35,7 +35,7 @@ const (
 
 // Defines values for IngestEventResponseStatus.
 const (
-	Accepted IngestEventResponseStatus = "accepted"
+	IngestEventResponseStatusAccepted IngestEventResponseStatus = "accepted"
 )
 
 // Defines values for JobRunModuleStatus.
@@ -73,6 +73,20 @@ const (
 	ModuleTypeCategoryDestination ModuleTypeCategory = "destination"
 	ModuleTypeCategorySource      ModuleTypeCategory = "source"
 	ModuleTypeCategoryTransform   ModuleTypeCategory = "transform"
+)
+
+// Defines values for TenantInvitationStatus.
+const (
+	TenantInvitationStatusAccepted TenantInvitationStatus = "accepted"
+	TenantInvitationStatusExpired  TenantInvitationStatus = "expired"
+	TenantInvitationStatusPending  TenantInvitationStatus = "pending"
+)
+
+// Defines values for TenantRole.
+const (
+	Admin  TenantRole = "admin"
+	Member TenantRole = "member"
+	Owner  TenantRole = "owner"
 )
 
 // Defines values for UploadStatus.
@@ -159,6 +173,12 @@ type CreateConnectionRequest struct {
 type CreateEdgeInput struct {
 	SourceModuleIndex int `json:"source_module_index"`
 	TargetModuleIndex int `json:"target_module_index"`
+}
+
+// CreateInvitationRequest defines model for CreateInvitationRequest.
+type CreateInvitationRequest struct {
+	Email openapi_types.Email `json:"email"`
+	Role  TenantRole          `json:"role"`
 }
 
 // CreateJobModuleInput defines model for CreateJobModuleInput.
@@ -475,12 +495,43 @@ type Tenant struct {
 	Name     string `json:"name"`
 }
 
+// TenantInvitation defines model for TenantInvitation.
+type TenantInvitation struct {
+	AcceptedAt *time.Time             `json:"accepted_at,omitempty"`
+	CreatedAt  time.Time              `json:"created_at"`
+	Email      openapi_types.Email    `json:"email"`
+	ExpiresAt  *time.Time             `json:"expires_at,omitempty"`
+	Id         string                 `json:"id"`
+	InvitedBy  *string                `json:"invited_by,omitempty"`
+	Role       TenantRole             `json:"role"`
+	Status     TenantInvitationStatus `json:"status"`
+	TenantId   string                 `json:"tenant_id"`
+
+	// Token Invitation token (returned on creation only)
+	Token *string `json:"token,omitempty"`
+}
+
+// TenantInvitationStatus defines model for TenantInvitation.Status.
+type TenantInvitationStatus string
+
+// TenantMember defines model for TenantMember.
+type TenantMember struct {
+	DisplayName string              `json:"display_name"`
+	Email       openapi_types.Email `json:"email"`
+	JoinedAt    time.Time           `json:"joined_at"`
+	Role        TenantRole          `json:"role"`
+	UserId      string              `json:"user_id"`
+}
+
 // TenantPlanResponse defines model for TenantPlanResponse.
 type TenantPlanResponse struct {
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 	Plan      Plan       `json:"plan"`
 	StartedAt time.Time  `json:"started_at"`
 }
+
+// TenantRole defines model for TenantRole.
+type TenantRole string
 
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
 type UpdateConnectionRequest struct {
@@ -496,6 +547,11 @@ type UpdateJobRequest struct {
 	IsActive    bool    `json:"is_active"`
 	Name        string  `json:"name"`
 	Slug        string  `json:"slug"`
+}
+
+// UpdateMemberRoleRequest defines model for UpdateMemberRoleRequest.
+type UpdateMemberRoleRequest struct {
+	Role TenantRole `json:"role"`
 }
 
 // UpdatePlanRequest defines model for UpdatePlanRequest.
@@ -739,6 +795,26 @@ type GetTenantPlanParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// CreateInvitationParams defines parameters for CreateInvitation.
+type CreateInvitationParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListTenantMembersParams defines parameters for ListTenantMembers.
+type ListTenantMembersParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// RemoveMemberParams defines parameters for RemoveMember.
+type RemoveMemberParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// UpdateMemberRoleParams defines parameters for UpdateMemberRole.
+type UpdateMemberRoleParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // CreateUploadPresignParams defines parameters for CreateUploadPresign.
 type CreateUploadPresignParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -810,6 +886,12 @@ type CreateModuleTypeJSONRequestBody = CreateModuleTypeRequest
 
 // CreateModuleTypeSchemaJSONRequestBody defines body for CreateModuleTypeSchema for application/json ContentType.
 type CreateModuleTypeSchemaJSONRequestBody = CreateModuleTypeSchemaRequest
+
+// CreateInvitationJSONRequestBody defines body for CreateInvitation for application/json ContentType.
+type CreateInvitationJSONRequestBody = CreateInvitationRequest
+
+// UpdateMemberRoleJSONRequestBody defines body for UpdateMemberRole for application/json ContentType.
+type UpdateMemberRoleJSONRequestBody = UpdateMemberRoleRequest
 
 // CreateUploadPresignJSONRequestBody defines body for CreateUploadPresign for application/json ContentType.
 type CreateUploadPresignJSONRequestBody = CreateUploadPresignRequest

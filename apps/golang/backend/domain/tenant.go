@@ -33,4 +33,9 @@ type TenantRepository interface {
 	AddUserToTenant(ctx context.Context, ut *UserTenant) error
 	ListByUserID(ctx context.Context, userID string) ([]Tenant, error)
 	IsUserInTenant(ctx context.Context, userID, tenantID string) (bool, error)
+	ListMembersByTenantID(ctx context.Context, tenantID string) ([]TenantMember, error)
+	GetUserRole(ctx context.Context, userID, tenantID string) (string, error)
+	UpdateUserRole(ctx context.Context, userID, tenantID, role string) error
+	RemoveUserFromTenant(ctx context.Context, userID, tenantID string) error
+	CountOwners(ctx context.Context, tenantID string) (int, error)
 }

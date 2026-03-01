@@ -94,6 +94,6 @@ func (h *EventHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusAccepted, openapi.IngestEventResponse{
 		EventId: req.EventId,
-		Status:  openapi.Accepted,
+		Status:  openapi.IngestEventResponseStatusAccepted,
 	})
 }
