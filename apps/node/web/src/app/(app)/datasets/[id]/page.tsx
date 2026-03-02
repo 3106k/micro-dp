@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 
 import { backendFetch } from "@/lib/api/server";
-import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
+import { getAuthContext } from "@/lib/auth/get-auth-context";
 import type { components } from "@/lib/api/generated";
 import { DatasetRowsPreview } from "./dataset-rows-preview";
 
@@ -19,21 +18,26 @@ function prettyJSON(input?: string): string {
   }
 }
 
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
+
 export default async function DatasetDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-
-  const jar = await cookies();
-  const token = jar.get(TOKEN_COOKIE)?.value!;
-  const tenantId = jar.get(TENANT_COOKIE)?.value!;
+  const { token, currentTenantId } = await getAuthContext();
 
   const datasetRes = await backendFetch(`/api/v1/datasets/${id}`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      "X-Tenant-ID": tenantId,
+      "X-Tenant-ID": currentTenantId,
     },
     cache: "no-store",
   });
@@ -50,7 +54,9 @@ export default async function DatasetDetailPage({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Dataset Detail</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {dataset?.name ?? "Dataset Detail"}
+        </h1>
         <Link href="/datasets" className="text-sm underline-offset-2 hover:underline">
           Back to list
         </Link>
@@ -89,7 +95,7 @@ export default async function DatasetDetailPage({
               <p className="text-xs text-muted-foreground">Last Updated</p>
               <p className="text-sm">
                 {dataset.last_updated_at
-                  ? new Date(dataset.last_updated_at).toLocaleString()
+                  ? formatDate(dataset.last_updated_at)
                   : "-"}
               </p>
             </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormError } from "@/components/ui/form-error";
@@ -121,14 +122,15 @@ export function SigninForm() {
           </div>
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <button
+          <Button
             type="button"
-            className="inline-flex h-10 w-full items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors hover:bg-accent"
+            variant="outline"
+            className="w-full"
             onClick={handleGoogleSignin}
             disabled={loading || loadingGoogle}
           >
             {loadingGoogle ? "Opening Google..." : "Continue with Google"}
-          </button>
+          </Button>
           <SubmitButton
             type="submit"
             className="w-full"

@@ -5,6 +5,7 @@ import { FormEvent, useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast-provider";
 import type { components } from "@/lib/api/generated";
 import { ConnectorSchemaForm } from "./connector-schema-form";
 
@@ -32,16 +33,15 @@ export function ConnectionsManager({
   initialConnections: Connection[];
   initialConnectors: ConnectorDefinition[];
 }) {
+  const { pushToast } = useToast();
   const [connections, setConnections] = useState(initialConnections);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [message, setMessage] = useState<string>("");
   const [loading, setLoading] = useState(false);
 
   // Spec fetched for the currently selected connector type
   const [spec, setSpec] = useState<Record<string, unknown> | null>(null);
   const [specLoading, setSpecLoading] = useState(false);
-  const [testMessage, setTestMessage] = useState<string>("");
   const [testLoading, setTestLoading] = useState(false);
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
@@ -90,7 +90,6 @@ export function ConnectionsManager({
   function handleTypeChange(connectorId: string) {
     setForm((prev) => ({ ...prev, type: connectorId, configValues: {} }));
     setSpec(null);
-    setTestMessage("");
     if (connectorId) {
       fetchSpec(connectorId);
     }
@@ -99,7 +98,6 @@ export function ConnectionsManager({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
-    setMessage("");
     try {
       const payload = {
         name: form.name,
@@ -126,10 +124,15 @@ export function ConnectionsManager({
       setForm(emptyForm);
       setEditingId(null);
       setSpec(null);
-      setTestMessage("");
-      setMessage(isEditing ? "Connection updated." : "Connection created.");
+      pushToast({
+        variant: "success",
+        message: isEditing ? "Connection updated" : "Connection created",
+      });
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: e instanceof Error ? e.message : "request failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -137,7 +140,6 @@ export function ConnectionsManager({
 
   async function handleTestConnection() {
     setTestLoading(true);
-    setTestMessage("");
     try {
       const res = await fetch("/api/connections/test", {
         method: "POST",
@@ -149,16 +151,22 @@ export function ConnectionsManager({
       });
       const data = await res.json();
       if (!res.ok) {
-        setTestMessage(data.error ?? "Test failed");
+        pushToast({ variant: "error", message: data.error ?? "Test failed" });
         return;
       }
-      setTestMessage(
-        data.status === "ok"
-          ? "Connection test passed."
-          : `Test failed: ${data.message ?? "unknown error"}`
-      );
+      if (data.status === "ok") {
+        pushToast({ variant: "success", message: "Connection test passed" });
+      } else {
+        pushToast({
+          variant: "error",
+          message: `Test failed: ${data.message ?? "unknown error"}`,
+        });
+      }
     } catch (e) {
-      setTestMessage(e instanceof Error ? e.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: e instanceof Error ? e.message : "request failed",
+      });
     } finally {
       setTestLoading(false);
     }
@@ -178,14 +186,11 @@ export function ConnectionsManager({
       configValues,
       secret_ref: connection.secret_ref ?? "",
     });
-    setMessage("");
-    setTestMessage("");
     fetchSpec(connection.type);
   }
 
   async function handleDelete(id: string) {
     setLoading(true);
-    setMessage("");
     try {
       const res = await fetch(`/api/connections/${id}`, { method: "DELETE" });
       if (!res.ok && res.status !== 204) {
@@ -197,11 +202,13 @@ export function ConnectionsManager({
         setEditingId(null);
         setForm(emptyForm);
         setSpec(null);
-        setTestMessage("");
       }
-      setMessage("Connection deleted.");
+      pushToast({ variant: "success", message: "Connection deleted" });
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: e instanceof Error ? e.message : "request failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -271,7 +278,13 @@ export function ConnectionsManager({
 
         <div className="flex items-center gap-2">
           <Button type="submit" disabled={loading}>
-            {isEditing ? "Update" : "Create"}
+            {loading
+              ? isEditing
+                ? "Updating..."
+                : "Creating..."
+              : isEditing
+                ? "Update"
+                : "Create"}
           </Button>
           {form.type ? (
             <Button
@@ -291,17 +304,12 @@ export function ConnectionsManager({
                 setEditingId(null);
                 setForm(emptyForm);
                 setSpec(null);
-                setTestMessage("");
               }}
             >
               Cancel
             </Button>
           ) : null}
         </div>
-        {testMessage ? (
-          <p className="text-sm text-muted-foreground">{testMessage}</p>
-        ) : null}
-        {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
       </form>
 
       <div className="rounded-lg border">
@@ -311,7 +319,7 @@ export function ConnectionsManager({
               <th className="px-4 py-3 text-left font-medium">Name</th>
               <th className="px-4 py-3 text-left font-medium">Type</th>
               <th className="px-4 py-3 text-left font-medium">Secret Ref</th>
-              <th className="px-4 py-3 text-left font-medium">Actions</th>
+              <th className="px-4 py-3 text-right font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -322,8 +330,8 @@ export function ConnectionsManager({
                 <td className="px-4 py-3 text-muted-foreground">
                   {connection.secret_ref ?? "-"}
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
+                <td className="px-4 py-3 text-right">
+                  <div className="flex justify-end gap-2">
                     <Button
                       size="sm"
                       variant="outline"

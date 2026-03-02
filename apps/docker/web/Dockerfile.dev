@@ -9,4 +9,7 @@ RUN npm install
 COPY apps/node/web/ .
 
 EXPOSE 3000
+COPY apps/docker/web/entrypoint.dev.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["npm", "run", "dev"]

@@ -1,21 +1,17 @@
-import { cookies } from "next/headers";
-
 import type { components } from "@/lib/api/generated";
 import { backendFetch } from "@/lib/api/server";
-import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
+import { getAuthContext } from "@/lib/auth/get-auth-context";
 import { ConnectionsManager } from "./connections-manager";
 
 type Connection = components["schemas"]["Connection"];
 type ConnectorDefinition = components["schemas"]["ConnectorDefinition"];
 
 export default async function ConnectionsPage() {
-  const jar = await cookies();
-  const token = jar.get(TOKEN_COOKIE)?.value!;
-  const tenantId = jar.get(TENANT_COOKIE)?.value!;
+  const { token, currentTenantId } = await getAuthContext();
 
   const authHeaders = {
     Authorization: `Bearer ${token}`,
-    "X-Tenant-ID": tenantId,
+    "X-Tenant-ID": currentTenantId,
   };
 
   const [connectionsRes, connectorsRes] = await Promise.all([

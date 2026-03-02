@@ -1,7 +1,5 @@
-import { cookies } from "next/headers";
-
 import { backendFetch } from "@/lib/api/server";
-import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
+import { getAuthContext } from "@/lib/auth/get-auth-context";
 import type { components } from "@/lib/api/generated";
 import { BillingActions } from "./billing-actions";
 
@@ -9,39 +7,39 @@ type BillingSubscriptionResponse =
   components["schemas"]["BillingSubscriptionResponse"];
 
 export default async function BillingPage() {
-  const jar = await cookies();
-  const token = jar.get(TOKEN_COOKIE)?.value;
-  const tenantId = jar.get(TENANT_COOKIE)?.value;
+  const { token, currentTenantId } = await getAuthContext();
 
   let subscription: BillingSubscriptionResponse | null = null;
-  if (token && tenantId) {
-    const res = await backendFetch("/api/v1/billing/subscription", {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "X-Tenant-ID": tenantId,
-      },
-    });
-    if (res.ok) {
-      subscription = await res.json();
-    }
+  const res = await backendFetch("/api/v1/billing/subscription", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Tenant-ID": currentTenantId,
+    },
+  });
+  if (res.ok) {
+    subscription = await res.json();
   }
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
-      <div className="rounded-lg border bg-card p-4 text-sm space-y-2">
-        <p>
-          <span className="font-medium">Status:</span>{" "}
-          {subscription?.status ?? "inactive"}
-        </p>
-        <p>
-          <span className="font-medium">Current plan:</span>{" "}
-          {subscription?.plan?.display_name ?? "N/A"}
-        </p>
-        <p>
-          <span className="font-medium">Current period end:</span>{" "}
-          {subscription?.current_period_end ?? "N/A"}
-        </p>
+      <div className="grid gap-4 rounded-lg border p-4 md:grid-cols-2">
+        <div>
+          <p className="text-xs text-muted-foreground">Status</p>
+          <p className="text-sm">{subscription?.status ?? "inactive"}</p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Current Plan</p>
+          <p className="text-sm">
+            {subscription?.plan?.display_name ?? "N/A"}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-muted-foreground">Current Period End</p>
+          <p className="text-sm">
+            {subscription?.current_period_end ?? "N/A"}
+          </p>
+        </div>
       </div>
       <BillingActions />
     </div>
