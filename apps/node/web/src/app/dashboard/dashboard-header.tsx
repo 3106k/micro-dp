@@ -44,6 +44,7 @@ export function DashboardHeader({
   ];
   if (platformRole === "superadmin") {
     navItems.push({ href: "/admin/tenants", label: "Admin Tenants" });
+    navItems.push({ href: "/admin/analytics", label: "Analytics" });
   }
 
   async function handleSignOut() {

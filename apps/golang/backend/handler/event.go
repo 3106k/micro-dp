@@ -11,13 +11,14 @@ import (
 )
 
 type EventHandler struct {
-	events  *usecase.EventService
-	plans   *usecase.PlanService
-	metrics *observability.EventMetrics
+	events          *usecase.EventService
+	plans           *usecase.PlanService
+	metrics         *observability.EventMetrics
+	trackerTenantID string
 }
 
-func NewEventHandler(events *usecase.EventService, plans *usecase.PlanService, metrics *observability.EventMetrics) *EventHandler {
-	return &EventHandler{events: events, plans: plans, metrics: metrics}
+func NewEventHandler(events *usecase.EventService, plans *usecase.PlanService, metrics *observability.EventMetrics, trackerTenantID string) *EventHandler {
+	return &EventHandler{events: events, plans: plans, metrics: metrics, trackerTenantID: trackerTenantID}
 }
 
 func (h *EventHandler) Summary(w http.ResponseWriter, r *http.Request) {
@@ -95,5 +96,88 @@ func (h *EventHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusAccepted, openapi.IngestEventResponse{
 		EventId: req.EventId,
 		Status:  openapi.IngestEventResponseStatusAccepted,
+	})
+}
+
+func (h *EventHandler) TrackerIngest(w http.ResponseWriter, r *http.Request) {
+	if h.trackerTenantID == "" {
+		writeError(w, http.StatusServiceUnavailable, "tracker not configured")
+		return
+	}
+
+	var req openapi.IngestEventRequest
+	if err := decodeJSON(r, &req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	if req.EventId == "" {
+		writeError(w, http.StatusBadRequest, "event_id is required")
+		return
+	}
+	if req.EventName == "" {
+		writeError(w, http.StatusBadRequest, "event_name is required")
+		return
+	}
+	if req.EventTime.IsZero() {
+		writeError(w, http.StatusBadRequest, "event_time is required")
+		return
+	}
+
+	h.metrics.ReceivedTotal.Add(r.Context(), 1)
+
+	var props map[string]any
+	if req.Properties != nil {
+		props = *req.Properties
+	}
+
+	ctx := domain.ContextWithTenantID(r.Context(), h.trackerTenantID)
+	err := h.events.Ingest(ctx, req.EventId, req.EventName, props, req.EventTime)
+	if err != nil {
+		if errors.Is(err, domain.ErrEventDuplicate) {
+			h.metrics.DuplicateTotal.Add(r.Context(), 1)
+			writeError(w, http.StatusConflict, "event already processed")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	h.metrics.EnqueuedTotal.Add(r.Context(), 1)
+
+	writeJSON(w, http.StatusAccepted, openapi.IngestEventResponse{
+		EventId: req.EventId,
+		Status:  openapi.IngestEventResponseStatusAccepted,
+	})
+}
+
+func (h *EventHandler) TrackerSummary(w http.ResponseWriter, r *http.Request) {
+	if h.trackerTenantID == "" {
+		writeError(w, http.StatusServiceUnavailable, "tracker not configured")
+		return
+	}
+
+	ctx := domain.ContextWithTenantID(r.Context(), h.trackerTenantID)
+	counts, err := h.events.Summary(ctx)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	var items []openapi.EventCount
+	var total int64
+	for name, count := range counts {
+		items = append(items, openapi.EventCount{
+			EventName: name,
+			Count:     count,
+		})
+		total += count
+	}
+	if items == nil {
+		items = []openapi.EventCount{}
+	}
+
+	writeJSON(w, http.StatusOK, openapi.EventsSummaryResponse{
+		Counts: items,
+		Total:  total,
 	})
 }

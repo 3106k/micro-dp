@@ -174,7 +174,8 @@ func main() {
 	connectionH := handler.NewConnectionHandler(connectionService, connectorRegistry)
 	connectorH := handler.NewConnectorHandler(connectorRegistry)
 	datasetH := handler.NewDatasetHandler(datasetService)
-	eventH := handler.NewEventHandler(eventService, planService, eventMetrics)
+	trackerTenantID := os.Getenv("TRACKER_TENANT_ID")
+	eventH := handler.NewEventHandler(eventService, planService, eventMetrics, trackerTenantID)
 	uploadH := handler.NewUploadHandler(uploadService, planService)
 	jobRunModuleH := handler.NewJobRunModuleHandler(jobRunModuleService)
 	jobRunArtifactH := handler.NewJobRunArtifactHandler(jobRunArtifactService)
@@ -214,6 +215,10 @@ func main() {
 	// Events
 	mux.Handle("POST /api/v1/events", protected(eventH.Ingest))
 	mux.Handle("GET /api/v1/events/summary", protected(eventH.Summary))
+
+	// Tracker (authMW only — no tenant scope)
+	mux.Handle("POST /api/v1/tracker/events", authMW(http.HandlerFunc(eventH.TrackerIngest)))
+	mux.Handle("GET /api/v1/tracker/summary", adminProtected(eventH.TrackerSummary))
 
 	// Job runs
 	mux.Handle("POST /api/v1/job_runs", protected(jobRunH.Create))
