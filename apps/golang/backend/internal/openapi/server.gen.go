@@ -182,6 +182,15 @@ type ServerInterface interface {
 	// Update member role
 	// (PATCH /api/v1/tenants/current/members/{user_id})
 	UpdateMemberRole(w http.ResponseWriter, r *http.Request, userId string, params UpdateMemberRoleParams)
+	// Create transform job
+	// (POST /api/v1/transform/jobs)
+	CreateTransformJob(w http.ResponseWriter, r *http.Request, params CreateTransformJobParams)
+	// Preview transform SQL results
+	// (POST /api/v1/transform/preview)
+	TransformPreview(w http.ResponseWriter, r *http.Request, params TransformPreviewParams)
+	// Validate transform SQL
+	// (POST /api/v1/transform/validate)
+	TransformValidate(w http.ResponseWriter, r *http.Request, params TransformValidateParams)
 	// Request presigned upload URLs
 	// (POST /api/v1/uploads/presign)
 	CreateUploadPresign(w http.ResponseWriter, r *http.Request, params CreateUploadPresignParams)
@@ -2882,6 +2891,156 @@ func (siw *ServerInterfaceWrapper) UpdateMemberRole(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// CreateTransformJob operation middleware
+func (siw *ServerInterfaceWrapper) CreateTransformJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateTransformJobParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTransformJob(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TransformPreview operation middleware
+func (siw *ServerInterfaceWrapper) TransformPreview(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TransformPreviewParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TransformPreview(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TransformValidate operation middleware
+func (siw *ServerInterfaceWrapper) TransformValidate(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params TransformValidateParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TransformValidate(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateUploadPresign operation middleware
 func (siw *ServerInterfaceWrapper) CreateUploadPresign(w http.ResponseWriter, r *http.Request) {
 
@@ -3230,6 +3389,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/tenants/current/members", wrapper.ListTenantMembers)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/tenants/current/members/{user_id}", wrapper.RemoveMember)
 	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/tenants/current/members/{user_id}", wrapper.UpdateMemberRole)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/transform/jobs", wrapper.CreateTransformJob)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/transform/preview", wrapper.TransformPreview)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/transform/validate", wrapper.TransformValidate)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/presign", wrapper.CreateUploadPresign)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/{id}/complete", wrapper.CompleteUpload)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/usage/summary", wrapper.GetUsageSummary)
@@ -5400,6 +5562,123 @@ func (response UpdateMemberRole403JSONResponse) VisitUpdateMemberRoleResponse(w 
 	return json.NewEncoder(w).Encode(response)
 }
 
+type CreateTransformJobRequestObject struct {
+	Params CreateTransformJobParams
+	Body   *CreateTransformJobJSONRequestBody
+}
+
+type CreateTransformJobResponseObject interface {
+	VisitCreateTransformJobResponse(w http.ResponseWriter) error
+}
+
+type CreateTransformJob201JSONResponse CreateTransformJobResponse
+
+func (response CreateTransformJob201JSONResponse) VisitCreateTransformJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTransformJob400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateTransformJob400JSONResponse) VisitCreateTransformJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTransformJob401JSONResponse ErrorResponse
+
+func (response CreateTransformJob401JSONResponse) VisitCreateTransformJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTransformJob409JSONResponse ErrorResponse
+
+func (response CreateTransformJob409JSONResponse) VisitCreateTransformJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TransformPreviewRequestObject struct {
+	Params TransformPreviewParams
+	Body   *TransformPreviewJSONRequestBody
+}
+
+type TransformPreviewResponseObject interface {
+	VisitTransformPreviewResponse(w http.ResponseWriter) error
+}
+
+type TransformPreview200JSONResponse TransformPreviewResponse
+
+func (response TransformPreview200JSONResponse) VisitTransformPreviewResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TransformPreview400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response TransformPreview400JSONResponse) VisitTransformPreviewResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TransformPreview401JSONResponse ErrorResponse
+
+func (response TransformPreview401JSONResponse) VisitTransformPreviewResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TransformValidateRequestObject struct {
+	Params TransformValidateParams
+	Body   *TransformValidateJSONRequestBody
+}
+
+type TransformValidateResponseObject interface {
+	VisitTransformValidateResponse(w http.ResponseWriter) error
+}
+
+type TransformValidate200JSONResponse TransformValidateResponse
+
+func (response TransformValidate200JSONResponse) VisitTransformValidateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TransformValidate400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response TransformValidate400JSONResponse) VisitTransformValidateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type TransformValidate401JSONResponse ErrorResponse
+
+func (response TransformValidate401JSONResponse) VisitTransformValidateResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateUploadPresignRequestObject struct {
 	Params CreateUploadPresignParams
 	Body   *CreateUploadPresignJSONRequestBody
@@ -5699,6 +5978,15 @@ type StrictServerInterface interface {
 	// Update member role
 	// (PATCH /api/v1/tenants/current/members/{user_id})
 	UpdateMemberRole(ctx context.Context, request UpdateMemberRoleRequestObject) (UpdateMemberRoleResponseObject, error)
+	// Create transform job
+	// (POST /api/v1/transform/jobs)
+	CreateTransformJob(ctx context.Context, request CreateTransformJobRequestObject) (CreateTransformJobResponseObject, error)
+	// Preview transform SQL results
+	// (POST /api/v1/transform/preview)
+	TransformPreview(ctx context.Context, request TransformPreviewRequestObject) (TransformPreviewResponseObject, error)
+	// Validate transform SQL
+	// (POST /api/v1/transform/validate)
+	TransformValidate(ctx context.Context, request TransformValidateRequestObject) (TransformValidateResponseObject, error)
 	// Request presigned upload URLs
 	// (POST /api/v1/uploads/presign)
 	CreateUploadPresign(ctx context.Context, request CreateUploadPresignRequestObject) (CreateUploadPresignResponseObject, error)
@@ -7327,6 +7615,105 @@ func (sh *strictHandler) UpdateMemberRole(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(UpdateMemberRoleResponseObject); ok {
 		if err := validResponse.VisitUpdateMemberRoleResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateTransformJob operation middleware
+func (sh *strictHandler) CreateTransformJob(w http.ResponseWriter, r *http.Request, params CreateTransformJobParams) {
+	var request CreateTransformJobRequestObject
+
+	request.Params = params
+
+	var body CreateTransformJobJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateTransformJob(ctx, request.(CreateTransformJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateTransformJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateTransformJobResponseObject); ok {
+		if err := validResponse.VisitCreateTransformJobResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TransformPreview operation middleware
+func (sh *strictHandler) TransformPreview(w http.ResponseWriter, r *http.Request, params TransformPreviewParams) {
+	var request TransformPreviewRequestObject
+
+	request.Params = params
+
+	var body TransformPreviewJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TransformPreview(ctx, request.(TransformPreviewRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TransformPreview")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TransformPreviewResponseObject); ok {
+		if err := validResponse.VisitTransformPreviewResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// TransformValidate operation middleware
+func (sh *strictHandler) TransformValidate(w http.ResponseWriter, r *http.Request, params TransformValidateParams) {
+	var request TransformValidateRequestObject
+
+	request.Params = params
+
+	var body TransformValidateJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.TransformValidate(ctx, request.(TransformValidateRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "TransformValidate")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(TransformValidateResponseObject); ok {
+		if err := validResponse.VisitTransformValidateResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

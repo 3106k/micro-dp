@@ -48,10 +48,14 @@ func NewJobService(
 	}
 }
 
-func (s *JobService) CreateJob(ctx context.Context, name, slug, description string) (*domain.Job, error) {
+func (s *JobService) CreateJob(ctx context.Context, name, slug, description, kind string) (*domain.Job, error) {
 	tenantID, ok := domain.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("tenant id not found in context")
+	}
+
+	if kind == "" {
+		kind = domain.JobKindPipeline
 	}
 
 	job := &domain.Job{
@@ -60,6 +64,7 @@ func (s *JobService) CreateJob(ctx context.Context, name, slug, description stri
 		Name:        name,
 		Slug:        slug,
 		Description: description,
+		Kind:        kind,
 		IsActive:    true,
 	}
 

@@ -28,9 +28,10 @@ const (
 
 // Defines values for DatasetSourceType.
 const (
-	Import  DatasetSourceType = "import"
-	Parquet DatasetSourceType = "parquet"
-	Tracker DatasetSourceType = "tracker"
+	DatasetSourceTypeImport    DatasetSourceType = "import"
+	DatasetSourceTypeParquet   DatasetSourceType = "parquet"
+	DatasetSourceTypeTracker   DatasetSourceType = "tracker"
+	DatasetSourceTypeTransform DatasetSourceType = "transform"
 )
 
 // Defines values for HealthResponseStatus.
@@ -42,6 +43,14 @@ const (
 // Defines values for IngestEventResponseStatus.
 const (
 	IngestEventResponseStatusAccepted IngestEventResponseStatus = "accepted"
+)
+
+// Defines values for JobKind.
+const (
+	JobKindExport    JobKind = "export"
+	JobKindImport    JobKind = "import"
+	JobKindPipeline  JobKind = "pipeline"
+	JobKindTransform JobKind = "transform"
 )
 
 // Defines values for JobRunModuleStatus.
@@ -99,6 +108,13 @@ const (
 const (
 	TestConnectionResponseStatusFailed TestConnectionResponseStatus = "failed"
 	TestConnectionResponseStatusOk     TestConnectionResponseStatus = "ok"
+)
+
+// Defines values for TransformExecution.
+const (
+	Immediate TransformExecution = "immediate"
+	SaveOnly  TransformExecution = "save_only"
+	Scheduled TransformExecution = "scheduled"
 )
 
 // Defines values for UploadStatus.
@@ -228,9 +244,10 @@ type CreateJobModuleInput struct {
 
 // CreateJobRequest defines model for CreateJobRequest.
 type CreateJobRequest struct {
-	Description *string `json:"description,omitempty"`
-	Name        string  `json:"name"`
-	Slug        string  `json:"slug"`
+	Description *string  `json:"description,omitempty"`
+	Kind        *JobKind `json:"kind,omitempty"`
+	Name        string   `json:"name"`
+	Slug        string   `json:"slug"`
 }
 
 // CreateJobRunRequest defines model for CreateJobRunRequest.
@@ -267,6 +284,24 @@ type CreatePlanRequest struct {
 	MaxStorageBytes  *int64 `json:"max_storage_bytes,omitempty"`
 	MaxUploadsPerDay *int   `json:"max_uploads_per_day,omitempty"`
 	Name             string `json:"name"`
+}
+
+// CreateTransformJobRequest defines model for CreateTransformJobRequest.
+type CreateTransformJobRequest struct {
+	DatasetIds  []string            `json:"dataset_ids"`
+	Description *string             `json:"description,omitempty"`
+	Execution   *TransformExecution `json:"execution,omitempty"`
+	Name        string              `json:"name"`
+	ScheduledAt *time.Time          `json:"scheduled_at,omitempty"`
+	Slug        string              `json:"slug"`
+	Sql         string              `json:"sql"`
+}
+
+// CreateTransformJobResponse defines model for CreateTransformJobResponse.
+type CreateTransformJobResponse struct {
+	Job     Job        `json:"job"`
+	JobRun  *JobRun    `json:"job_run,omitempty"`
+	Version JobVersion `json:"version"`
 }
 
 // CreateUploadPresignRequest defines model for CreateUploadPresignRequest.
@@ -361,11 +396,15 @@ type Job struct {
 	Description *string    `json:"description,omitempty"`
 	Id          string     `json:"id"`
 	IsActive    bool       `json:"is_active"`
+	Kind        JobKind    `json:"kind"`
 	Name        string     `json:"name"`
 	Slug        string     `json:"slug"`
 	TenantId    string     `json:"tenant_id"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty"`
 }
+
+// JobKind defines model for JobKind.
+type JobKind string
 
 // JobModule defines model for JobModule.
 type JobModule struct {
@@ -596,6 +635,36 @@ type TestConnectionResponse struct {
 
 // TestConnectionResponseStatus defines model for TestConnectionResponse.Status.
 type TestConnectionResponseStatus string
+
+// TransformExecution defines model for TransformExecution.
+type TransformExecution string
+
+// TransformPreviewRequest defines model for TransformPreviewRequest.
+type TransformPreviewRequest struct {
+	DatasetIds []string `json:"dataset_ids"`
+	Limit      *int     `json:"limit,omitempty"`
+	Sql        string   `json:"sql"`
+}
+
+// TransformPreviewResponse defines model for TransformPreviewResponse.
+type TransformPreviewResponse struct {
+	Columns  []DatasetColumn          `json:"columns"`
+	RowCount int                      `json:"row_count"`
+	Rows     []map[string]interface{} `json:"rows"`
+}
+
+// TransformValidateRequest defines model for TransformValidateRequest.
+type TransformValidateRequest struct {
+	DatasetIds []string `json:"dataset_ids"`
+	Sql        string   `json:"sql"`
+}
+
+// TransformValidateResponse defines model for TransformValidateResponse.
+type TransformValidateResponse struct {
+	Columns *[]DatasetColumn `json:"columns,omitempty"`
+	Error   *string          `json:"error,omitempty"`
+	Valid   bool             `json:"valid"`
+}
 
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
 type UpdateConnectionRequest struct {
@@ -902,6 +971,21 @@ type UpdateMemberRoleParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// CreateTransformJobParams defines parameters for CreateTransformJob.
+type CreateTransformJobParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// TransformPreviewParams defines parameters for TransformPreview.
+type TransformPreviewParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// TransformValidateParams defines parameters for TransformValidate.
+type TransformValidateParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // CreateUploadPresignParams defines parameters for CreateUploadPresign.
 type CreateUploadPresignParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -982,6 +1066,15 @@ type CreateInvitationJSONRequestBody = CreateInvitationRequest
 
 // UpdateMemberRoleJSONRequestBody defines body for UpdateMemberRole for application/json ContentType.
 type UpdateMemberRoleJSONRequestBody = UpdateMemberRoleRequest
+
+// CreateTransformJobJSONRequestBody defines body for CreateTransformJob for application/json ContentType.
+type CreateTransformJobJSONRequestBody = CreateTransformJobRequest
+
+// TransformPreviewJSONRequestBody defines body for TransformPreview for application/json ContentType.
+type TransformPreviewJSONRequestBody = TransformPreviewRequest
+
+// TransformValidateJSONRequestBody defines body for TransformValidate for application/json ContentType.
+type TransformValidateJSONRequestBody = TransformValidateRequest
 
 // CreateUploadPresignJSONRequestBody defines body for CreateUploadPresign for application/json ContentType.
 type CreateUploadPresignJSONRequestBody = CreateUploadPresignRequest

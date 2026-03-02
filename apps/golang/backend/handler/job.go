@@ -33,7 +33,12 @@ func (h *JobHandler) Create(w http.ResponseWriter, r *http.Request) {
 		desc = *req.Description
 	}
 
-	job, err := h.jobs.CreateJob(r.Context(), req.Name, req.Slug, desc)
+	kind := ""
+	if req.Kind != nil {
+		kind = string(*req.Kind)
+	}
+
+	job, err := h.jobs.CreateJob(r.Context(), req.Name, req.Slug, desc, kind)
 	if err != nil {
 		if errors.Is(err, domain.ErrJobSlugDuplicate) {
 			writeError(w, http.StatusConflict, "job slug already exists")

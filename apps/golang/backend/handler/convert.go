@@ -40,11 +40,13 @@ func toOpenAPITenant(t domain.Tenant) tenantResponse {
 }
 
 func toOpenAPIJob(j *domain.Job) openapi.Job {
+	kind := openapi.JobKind(j.Kind)
 	out := openapi.Job{
 		Id:       j.ID,
 		TenantId: j.TenantID,
 		Name:     j.Name,
 		Slug:     j.Slug,
+		Kind:     kind,
 		IsActive: j.IsActive,
 	}
 	if j.Description != "" {

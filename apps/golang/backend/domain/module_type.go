@@ -38,6 +38,7 @@ type ModuleTypeSchema struct {
 type ModuleTypeRepository interface {
 	Create(ctx context.Context, mt *ModuleType) error
 	FindByID(ctx context.Context, tenantID, id string) (*ModuleType, error)
+	FindByTenantAndName(ctx context.Context, tenantID, name string) (*ModuleType, error)
 	ListByTenant(ctx context.Context, tenantID string) ([]ModuleType, error)
 }
 

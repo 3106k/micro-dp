@@ -154,6 +154,7 @@ func main() {
 		log.Fatalf("minio presign client: %v", err)
 	}
 	uploadQueue := queue.NewUploadQueue(valkeyClient)
+	transformQueue := queue.NewTransformQueue(valkeyClient)
 	uploadService := usecase.NewUploadService(uploadRepo, minioPresignClient, uploadQueue)
 	jobRunModuleService := usecase.NewJobRunModuleService(jobRunModuleRepo)
 	jobRunArtifactService := usecase.NewJobRunArtifactService(jobRunArtifactRepo)
@@ -164,6 +165,10 @@ func main() {
 		appBaseURL = "http://localhost:8080"
 	}
 	memberService := usecase.NewMemberService(tenantRepo, userRepo, invitationRepo, emailSender, appBaseURL)
+	transformService := usecase.NewTransformService(
+		datasetRepo, minioClient, jobService, moduleTypeRepo,
+		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
+	)
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
@@ -184,6 +189,7 @@ func main() {
 	planH := handler.NewPlanHandler(planService)
 	adminPlanH := handler.NewAdminPlanHandler(planService)
 	billingH := handler.NewBillingHandler(billingService)
+	transformH := handler.NewTransformHandler(transformService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -272,6 +278,11 @@ func main() {
 	// Uploads
 	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))
 	mux.Handle("POST /api/v1/uploads/{id}/complete", protected(uploadH.Complete))
+
+	// Transform
+	mux.Handle("POST /api/v1/transform/validate", protected(transformH.Validate))
+	mux.Handle("POST /api/v1/transform/preview", protected(transformH.Preview))
+	mux.Handle("POST /api/v1/transform/jobs", protected(transformH.CreateJob))
 
 	// Members (tenant-scoped)
 	mux.Handle("GET /api/v1/tenants/current/members", protected(memberH.List))

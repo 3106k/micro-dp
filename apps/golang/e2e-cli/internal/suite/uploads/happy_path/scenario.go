@@ -137,7 +137,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 			return fmt.Errorf("datasets list: status=%d body=%s", code, string(lastBody))
 		}
 		for _, ds := range datasetsResp.Items {
-			if ds.Name == "test-data" && ds.SourceType == openapi.Import {
+			if ds.Name == "test-data" && ds.SourceType == openapi.DatasetSourceTypeImport {
 				found = true
 				if ds.StoragePath == "" {
 					return fmt.Errorf("dataset storage_path is empty")

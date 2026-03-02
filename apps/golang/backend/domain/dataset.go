@@ -9,9 +9,10 @@ import (
 var ErrDatasetNotFound = errors.New("dataset not found")
 
 const (
-	SourceTypeTracker = "tracker"
-	SourceTypeParquet = "parquet"
-	SourceTypeImport  = "import"
+	SourceTypeTracker   = "tracker"
+	SourceTypeParquet   = "parquet"
+	SourceTypeImport    = "import"
+	SourceTypeTransform = "transform"
 )
 
 type Dataset struct {
