@@ -12,18 +12,29 @@ import { track, flush } from "@micro-dp/sdk-tracker";
 
 type Tenant = components["schemas"]["Tenant"];
 
-export function DashboardHeader({
+export type NavItem = { href: string; label: string };
+
+const mainNavItems: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/jobs", label: "Jobs" },
+  { href: "/job-runs", label: "Job Runs" },
+  { href: "/datasets", label: "Datasets" },
+];
+
+export function AppHeader({
   displayName,
   email,
   platformRole,
   tenants,
   currentTenantId,
+  sectionLabel,
 }: {
   displayName: string;
   email: string;
   platformRole: "user" | "superadmin";
   tenants: Tenant[];
   currentTenantId: string;
+  sectionLabel?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -31,21 +42,6 @@ export function DashboardHeader({
   const [tenantId, setTenantId] = useState(currentTenantId);
   const [switchingTenant, setSwitchingTenant] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
-
-  const navItems: Array<{ href: string; label: string }> = [
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/jobs", label: "Jobs" },
-    { href: "/job-runs", label: "Job Runs" },
-    { href: "/datasets", label: "Datasets" },
-    { href: "/uploads", label: "Uploads" },
-    { href: "/connections", label: "Connections" },
-    { href: "/billing", label: "Billing" },
-    { href: "/members", label: "Members" },
-  ];
-  if (platformRole === "superadmin") {
-    navItems.push({ href: "/admin/tenants", label: "Admin Tenants" });
-    navItems.push({ href: "/admin/analytics", label: "Analytics" });
-  }
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -95,14 +91,25 @@ export function DashboardHeader({
     }
   }
 
+  function isActive(href: string): boolean {
+    return pathname === href || pathname.startsWith(href + "/");
+  }
+
   return (
     <header className="border-b">
       <div className="container flex min-h-14 flex-wrap items-center justify-between gap-3 py-2">
         <div className="flex items-center gap-6">
-          <span className="font-semibold">micro-dp</span>
+          <span className="font-semibold">
+            micro-dp
+            {sectionLabel ? (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">
+                / {sectionLabel}
+              </span>
+            ) : null}
+          </span>
           <nav className="flex items-center gap-2 text-sm">
-            {navItems.map((item) => {
-              const active = pathname === item.href;
+            {mainNavItems.map((item) => {
+              const active = isActive(item.href);
               return (
                 <Link
                   key={item.href}
@@ -120,6 +127,47 @@ export function DashboardHeader({
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <Link
+            href="/connections"
+            className="rounded-md px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+            title="Settings"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </Link>
+          {platformRole === "superadmin" ? (
+            <Link
+              href="/admin/tenants"
+              className="rounded-md px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Admin"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+              </svg>
+            </Link>
+          ) : null}
           {tenants.length > 1 && (
             <label className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Tenant</span>
