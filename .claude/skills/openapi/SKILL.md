@@ -37,10 +37,11 @@ make openapi-generate
 
 ### 3. Go build
 
-生成型が handler/usecase と整合するか確認:
+生成型が handler/usecase/e2e シナリオと整合するか確認:
 
 ```bash
 cd apps/golang/backend && CGO_ENABLED=1 go build ./...
+cd apps/golang/e2e-cli && go build ./...
 ```
 
 ビルドエラーがあれば、生成型と既存コードの不整合箇所を特定して報告する。
@@ -69,3 +70,4 @@ git diff --exit-code
 生成されたファイル:
 - `apps/node/web/src/lib/api/generated.ts`
 - `apps/golang/backend/internal/openapi/*.gen.go`
+- `apps/golang/e2e-cli/internal/openapi/types.gen.go`
