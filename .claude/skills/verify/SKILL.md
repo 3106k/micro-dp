@@ -19,8 +19,11 @@ argument-hint: "[--skip-e2e]"
 
 ### 1. Go build
 
+backend と e2e-cli の両方をビルドする:
+
 ```bash
 cd apps/golang/backend && CGO_ENABLED=1 go build ./...
+cd apps/golang/e2e-cli && go build ./...
 ```
 
 ビルドが失敗した場合はエラー内容を報告して停止する。
