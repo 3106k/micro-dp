@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { backendFetch } from "@/lib/api/server";
-import { TOKEN_COOKIE, TENANT_COOKIE } from "@/lib/auth/constants";
+import { TOKEN_COOKIE } from "@/lib/auth/constants";
 
 const BATCH_LIMIT = 100;
 
@@ -21,9 +21,8 @@ interface TrackerEvent {
 export async function POST(request: NextRequest) {
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
-  const tenantId = jar.get(TENANT_COOKIE)?.value;
 
-  if (!token || !tenantId) {
+  if (!token) {
     return NextResponse.json({ error: "not authenticated" }, { status: 401 });
   }
 
@@ -57,11 +56,10 @@ export async function POST(request: NextRequest) {
 
   for (const event of events) {
     try {
-      const res = await backendFetch("/api/v1/events", {
+      const res = await backendFetch("/api/v1/tracker/events", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          "X-Tenant-ID": tenantId,
         },
         body: JSON.stringify({
           event_id: event.event_id,
