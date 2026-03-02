@@ -21,10 +21,14 @@ func (r *JobRepo) Create(ctx context.Context, job *domain.Job) error {
 	if job.IsActive {
 		isActive = 1
 	}
+	kind := job.Kind
+	if kind == "" {
+		kind = domain.JobKindPipeline
+	}
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO jobs (id, tenant_id, name, slug, description, is_active, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-		job.ID, job.TenantID, job.Name, job.Slug, job.Description, isActive,
+		`INSERT INTO jobs (id, tenant_id, name, slug, description, kind, is_active, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+		job.ID, job.TenantID, job.Name, job.Slug, job.Description, kind, isActive,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -37,7 +41,7 @@ func (r *JobRepo) Create(ctx context.Context, job *domain.Job) error {
 
 func (r *JobRepo) FindByID(ctx context.Context, tenantID, id string) (*domain.Job, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, tenant_id, name, slug, description, is_active, created_at, updated_at
+		`SELECT id, tenant_id, name, slug, description, kind, is_active, created_at, updated_at
 		 FROM jobs WHERE tenant_id = ? AND id = ?`, tenantID, id,
 	)
 	return scanJob(row)
@@ -45,7 +49,7 @@ func (r *JobRepo) FindByID(ctx context.Context, tenantID, id string) (*domain.Jo
 
 func (r *JobRepo) ListByTenant(ctx context.Context, tenantID string) ([]domain.Job, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, tenant_id, name, slug, description, is_active, created_at, updated_at
+		`SELECT id, tenant_id, name, slug, description, kind, is_active, created_at, updated_at
 		 FROM jobs WHERE tenant_id = ?
 		 ORDER BY created_at DESC`, tenantID,
 	)
@@ -58,7 +62,7 @@ func (r *JobRepo) ListByTenant(ctx context.Context, tenantID string) ([]domain.J
 	for rows.Next() {
 		var j domain.Job
 		var isActive int
-		if err := rows.Scan(&j.ID, &j.TenantID, &j.Name, &j.Slug, &j.Description, &isActive, &j.CreatedAt, &j.UpdatedAt); err != nil {
+		if err := rows.Scan(&j.ID, &j.TenantID, &j.Name, &j.Slug, &j.Description, &j.Kind, &isActive, &j.CreatedAt, &j.UpdatedAt); err != nil {
 			return nil, err
 		}
 		j.IsActive = isActive != 0
@@ -73,9 +77,9 @@ func (r *JobRepo) Update(ctx context.Context, job *domain.Job) error {
 		isActive = 1
 	}
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE jobs SET name = ?, slug = ?, description = ?, is_active = ?, updated_at = datetime('now')
+		`UPDATE jobs SET name = ?, slug = ?, description = ?, kind = ?, is_active = ?, updated_at = datetime('now')
 		 WHERE tenant_id = ? AND id = ?`,
-		job.Name, job.Slug, job.Description, isActive, job.TenantID, job.ID,
+		job.Name, job.Slug, job.Description, job.Kind, isActive, job.TenantID, job.ID,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -89,7 +93,7 @@ func (r *JobRepo) Update(ctx context.Context, job *domain.Job) error {
 func scanJob(row *sql.Row) (*domain.Job, error) {
 	var j domain.Job
 	var isActive int
-	if err := row.Scan(&j.ID, &j.TenantID, &j.Name, &j.Slug, &j.Description, &isActive, &j.CreatedAt, &j.UpdatedAt); err != nil {
+	if err := row.Scan(&j.ID, &j.TenantID, &j.Name, &j.Slug, &j.Description, &j.Kind, &isActive, &j.CreatedAt, &j.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrJobNotFound
 		}

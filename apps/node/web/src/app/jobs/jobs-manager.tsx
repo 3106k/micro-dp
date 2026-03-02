@@ -1,21 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { components } from "@/lib/api/generated";
 
 type Job = components["schemas"]["Job"];
 
+const kindBadgeColors: Record<string, string> = {
+  pipeline: "bg-blue-100 text-blue-800",
+  transform: "bg-purple-100 text-purple-800",
+  import: "bg-green-100 text-green-800",
+  export: "bg-orange-100 text-orange-800",
+};
+
 export function JobsManager({ initialJobs }: { initialJobs: Job[] }) {
   const [jobs, setJobs] = useState(initialJobs);
-  const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
 
   async function refreshJobs() {
     const res = await fetch("/api/jobs", { cache: "no-store" });
@@ -26,61 +27,19 @@ export function JobsManager({ initialJobs }: { initialJobs: Job[] }) {
     setJobs(data.items ?? []);
   }
 
-  async function handleCreate(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setMessage("");
-    try {
-      const res = await fetch("/api/jobs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug, description }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error ?? "failed to create job");
-      }
-      setName("");
-      setSlug("");
-      setDescription("");
-      await refreshJobs();
-      setMessage("Job created.");
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : "request failed");
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="space-y-8">
-      <form onSubmit={handleCreate} className="space-y-4 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold">Create Job</h2>
-        <div className="grid gap-3 md:grid-cols-2">
-          <Input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Job name"
-            required
-          />
-          <Input
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            placeholder="job-slug"
-            required
-          />
-          <Input
-            className="md:col-span-2"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Description"
-          />
-        </div>
-        <Button type="submit" disabled={loading}>
-          Create
+      <div className="flex items-center gap-3">
+        <Link href="/jobs/new">
+          <Button>Create Transform Job</Button>
+        </Link>
+        <Button variant="outline" disabled title="Coming Soon">
+          Import Job
         </Button>
-        {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
-      </form>
+        <Button variant="outline" disabled title="Coming Soon">
+          Export Job
+        </Button>
+      </div>
 
       <div className="rounded-lg border">
         <table className="w-full text-sm">
@@ -88,6 +47,7 @@ export function JobsManager({ initialJobs }: { initialJobs: Job[] }) {
             <tr className="border-b bg-muted/50">
               <th className="px-4 py-3 text-left font-medium">Name</th>
               <th className="px-4 py-3 text-left font-medium">Slug</th>
+              <th className="px-4 py-3 text-left font-medium">Kind</th>
               <th className="px-4 py-3 text-left font-medium">Status</th>
               <th className="px-4 py-3 text-left font-medium">Updated</th>
             </tr>
@@ -104,15 +64,31 @@ export function JobsManager({ initialJobs }: { initialJobs: Job[] }) {
                   </Link>
                 </td>
                 <td className="px-4 py-3">{job.slug}</td>
-                <td className="px-4 py-3">{job.is_active ? "active" : "inactive"}</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      kindBadgeColors[job.kind] ?? "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {job.kind}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  {job.is_active ? "active" : "inactive"}
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {job.updated_at ? new Date(job.updated_at).toLocaleString() : "-"}
+                  {job.updated_at
+                    ? new Date(job.updated_at).toLocaleString()
+                    : "-"}
                 </td>
               </tr>
             ))}
             {jobs.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                <td
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-muted-foreground"
+                >
                   No jobs yet.
                 </td>
               </tr>

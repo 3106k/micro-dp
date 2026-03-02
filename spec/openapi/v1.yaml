@@ -22,6 +22,7 @@ tags:
   - name: datasets
   - name: uploads
   - name: members
+  - name: transform
 paths:
   /healthz:
     get:
@@ -415,6 +416,88 @@ paths:
         "400":
           $ref: "#/components/responses/ErrorResponse"
         "500":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Transform ----
+  /api/v1/transform/validate:
+    post:
+      tags: [transform]
+      summary: Validate transform SQL
+      operationId: transformValidate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransformValidateRequest"
+      responses:
+        "200":
+          description: Validation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransformValidateResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/transform/preview:
+    post:
+      tags: [transform]
+      summary: Preview transform SQL results
+      operationId: transformPreview
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransformPreviewRequest"
+      responses:
+        "200":
+          description: Preview results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransformPreviewResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/transform/jobs:
+    post:
+      tags: [transform]
+      summary: Create transform job
+      operationId: createTransformJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTransformJobRequest"
+      responses:
+        "201":
+          description: Created transform job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateTransformJobResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
           $ref: "#/components/responses/ErrorResponse"
 
   # ---- Admin Plans ----
@@ -1809,9 +1892,12 @@ components:
           format: int64
 
     # ---- Job schemas ----
+    JobKind:
+      type: string
+      enum: [pipeline, transform, import, export]
     Job:
       type: object
-      required: [id, tenant_id, name, slug, is_active]
+      required: [id, tenant_id, name, slug, is_active, kind]
       properties:
         id:
           type: string
@@ -1823,6 +1909,8 @@ components:
           type: string
         description:
           type: string
+        kind:
+          $ref: "#/components/schemas/JobKind"
         is_active:
           type: boolean
         created_at:
@@ -1841,6 +1929,8 @@ components:
           type: string
         description:
           type: string
+        kind:
+          $ref: "#/components/schemas/JobKind"
     UpdateJobRequest:
       type: object
       required: [name, slug, is_active]
@@ -2268,7 +2358,7 @@ components:
           format: date-time
     DatasetSourceType:
       type: string
-      enum: [tracker, parquet, import]
+      enum: [tracker, parquet, import, transform]
     DatasetColumn:
       type: object
       required: [name, type]
@@ -2604,3 +2694,89 @@ components:
       properties:
         received:
           type: boolean
+
+    # ---- Transform schemas ----
+    TransformValidateRequest:
+      type: object
+      required: [sql, dataset_ids]
+      properties:
+        sql:
+          type: string
+        dataset_ids:
+          type: array
+          items:
+            type: string
+    TransformValidateResponse:
+      type: object
+      required: [valid]
+      properties:
+        valid:
+          type: boolean
+        error:
+          type: string
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasetColumn"
+    TransformPreviewRequest:
+      type: object
+      required: [sql, dataset_ids]
+      properties:
+        sql:
+          type: string
+        dataset_ids:
+          type: array
+          items:
+            type: string
+        limit:
+          type: integer
+          default: 100
+    TransformPreviewResponse:
+      type: object
+      required: [columns, rows, row_count]
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasetColumn"
+        rows:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        row_count:
+          type: integer
+    TransformExecution:
+      type: string
+      enum: [save_only, immediate, scheduled]
+    CreateTransformJobRequest:
+      type: object
+      required: [name, slug, sql, dataset_ids]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        sql:
+          type: string
+        dataset_ids:
+          type: array
+          items:
+            type: string
+        execution:
+          $ref: "#/components/schemas/TransformExecution"
+        scheduled_at:
+          type: string
+          format: date-time
+    CreateTransformJobResponse:
+      type: object
+      required: [job, version]
+      properties:
+        job:
+          $ref: "#/components/schemas/Job"
+        version:
+          $ref: "#/components/schemas/JobVersion"
+        job_run:
+          $ref: "#/components/schemas/JobRun"

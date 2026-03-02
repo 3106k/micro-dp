@@ -78,6 +78,17 @@ func main() {
 
 	go uploadConsumer.Run(ctx)
 
+	// Transform consumer (SQL→Parquet)
+	jobRunRepo := db.NewJobRunRepo(sqlDB)
+	transformQueue := queue.NewTransformQueue(valkeyClient)
+	transformMetrics := observability.NewTransformMetrics()
+	transformWriter := worker.NewTransformWriter(minioClient, datasetRepo)
+	transformConsumer := worker.NewTransformConsumer(
+		transformQueue, transformWriter, transformMetrics, meteringService, jobRunRepo,
+	)
+
+	go transformConsumer.Run(ctx)
+
 	// Health check server
 	healthH := handler.NewHealthHandler(sqlDB)
 	mux := http.NewServeMux()

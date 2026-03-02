@@ -277,6 +277,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/transform/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate transform SQL */
+        post: operations["transformValidate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transform/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview transform SQL results */
+        post: operations["transformPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/transform/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create transform job */
+        post: operations["createTransformJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plans": {
         parameters: {
             query?: never;
@@ -890,12 +941,15 @@ export interface components {
             /** Format: int64 */
             count: number;
         };
+        /** @enum {string} */
+        JobKind: "pipeline" | "transform" | "import" | "export";
         Job: {
             id: string;
             tenant_id: string;
             name: string;
             slug: string;
             description?: string;
+            kind: components["schemas"]["JobKind"];
             is_active: boolean;
             /** Format: date-time */
             created_at?: string;
@@ -906,6 +960,7 @@ export interface components {
             name: string;
             slug: string;
             description?: string;
+            kind?: components["schemas"]["JobKind"];
         };
         UpdateJobRequest: {
             name: string;
@@ -1121,7 +1176,7 @@ export interface components {
             updated_at?: string;
         };
         /** @enum {string} */
-        DatasetSourceType: "tracker" | "parquet" | "import";
+        DatasetSourceType: "tracker" | "parquet" | "import" | "transform";
         DatasetColumn: {
             name: string;
             type: string;
@@ -1301,6 +1356,45 @@ export interface components {
         };
         BillingWebhookResponse: {
             received: boolean;
+        };
+        TransformValidateRequest: {
+            sql: string;
+            dataset_ids: string[];
+        };
+        TransformValidateResponse: {
+            valid: boolean;
+            error?: string;
+            columns?: components["schemas"]["DatasetColumn"][];
+        };
+        TransformPreviewRequest: {
+            sql: string;
+            dataset_ids: string[];
+            /** @default 100 */
+            limit: number;
+        };
+        TransformPreviewResponse: {
+            columns: components["schemas"]["DatasetColumn"][];
+            rows: {
+                [key: string]: unknown;
+            }[];
+            row_count: number;
+        };
+        /** @enum {string} */
+        TransformExecution: "save_only" | "immediate" | "scheduled";
+        CreateTransformJobRequest: {
+            name: string;
+            slug: string;
+            description?: string;
+            sql: string;
+            dataset_ids: string[];
+            execution?: components["schemas"]["TransformExecution"];
+            /** Format: date-time */
+            scheduled_at?: string;
+        };
+        CreateTransformJobResponse: {
+            job: components["schemas"]["Job"];
+            version: components["schemas"]["JobVersion"];
+            job_run?: components["schemas"]["JobRun"];
         };
     };
     responses: {
@@ -1750,6 +1844,91 @@ export interface operations {
             };
             400: components["responses"]["ErrorResponse"];
             500: components["responses"]["ErrorResponse"];
+        };
+    };
+    transformValidate: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransformValidateRequest"];
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransformValidateResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    transformPreview: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransformPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Preview results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransformPreviewResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    createTransformJob: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTransformJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Created transform job */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateTransformJobResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            409: components["responses"]["ErrorResponse"];
         };
     };
     adminListPlans: {

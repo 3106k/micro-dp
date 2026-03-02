@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+const (
+	JobKindPipeline  = "pipeline"
+	JobKindTransform = "transform"
+	JobKindImport    = "import"
+	JobKindExport    = "export"
+)
+
 var (
 	ErrJobNotFound      = errors.New("job not found")
 	ErrJobSlugDuplicate = errors.New("job slug already exists")
@@ -17,6 +24,7 @@ type Job struct {
 	Name        string    `json:"name"`
 	Slug        string    `json:"slug"`
 	Description string    `json:"description"`
+	Kind        string    `json:"kind"`
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
