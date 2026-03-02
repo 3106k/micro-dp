@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps health clean setup-env dev-api dev-worker sdk-tracker-build sdk-tracker-test e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate-e2e openapi-generate openapi-check worktree worktree-rm worktree-ls
+.PHONY: up restart down build logs ps health clean setup-env dev-api dev-worker sdk-tracker-build sdk-tracker-test e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate-e2e openapi-generate openapi-check worktree worktree-rm worktree-ls
 
 COMPOSE_DIR := apps/docker
 COMPOSE     := cd $(COMPOSE_DIR) && docker compose --env-file ../../.env
@@ -20,6 +20,9 @@ setup-env:
 
 up:
 	$(COMPOSE) up -d --build
+
+restart:
+	$(COMPOSE) up -d
 
 down:
 	$(COMPOSE) down
