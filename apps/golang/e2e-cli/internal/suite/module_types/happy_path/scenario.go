@@ -142,13 +142,12 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 
 	// 6. POST /api/v1/module_types/{id}/schemas -> 201 (#74)
 	schemaReq := map[string]string{
-		"version":     "1.0.0",
 		"json_schema": `{"type":"object"}`,
 	}
 	var schemaResp struct {
 		ID           string `json:"id"`
 		ModuleTypeID string `json:"module_type_id"`
-		Version      string `json:"version"`
+		Version      int    `json:"version"`
 	}
 	code, body, err = client.PostJSON(ctx, "/api/v1/module_types/"+moduleTypeID+"/schemas", schemaReq, &schemaResp)
 	if err != nil {
@@ -163,8 +162,8 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if schemaResp.ModuleTypeID != moduleTypeID {
 		return fmt.Errorf("create module type schema: module_type_id mismatch: got=%s want=%s", schemaResp.ModuleTypeID, moduleTypeID)
 	}
-	if schemaResp.Version != "1.0.0" {
-		return fmt.Errorf("create module type schema: version mismatch: got=%s want=1.0.0", schemaResp.Version)
+	if schemaResp.Version < 1 {
+		return fmt.Errorf("create module type schema: version should be >= 1, got=%d", schemaResp.Version)
 	}
 
 	// 7. GET /api/v1/module_types/{id}/schemas -> 200 (#75)
