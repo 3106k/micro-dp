@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -31,14 +32,11 @@ func (s *Scenario) ID() string {
 
 func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	// Register a new user
-	var registerResp struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
-	registerReq := map[string]string{
-		"email":        s.email,
-		"password":     s.password,
-		"display_name": s.displayName,
+	var registerResp openapi.RegisterResponse
+	registerReq := openapi.RegisterRequest{
+		Email:       openapi.Email(s.email),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}
 	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", registerReq, &registerResp)
 	if err != nil {
@@ -49,12 +47,10 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// Login
-	var loginResp struct {
-		Token string `json:"token"`
-	}
-	loginReq := map[string]string{
-		"email":    s.email,
-		"password": s.password,
+	var loginResp openapi.LoginResponse
+	loginReq := openapi.LoginRequest{
+		Email:    openapi.Email(s.email),
+		Password: s.password,
 	}
 	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", loginReq, &loginResp)
 	if err != nil {
@@ -65,16 +61,13 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	client.SetToken(loginResp.Token)
-	client.SetTenantID(registerResp.TenantID)
+	client.SetTenantID(registerResp.TenantId)
 
 	// POST /api/v1/jobs → 201 (create a job first)
-	var jobResp struct {
-		ID   string `json:"id"`
-		Slug string `json:"slug"`
-	}
-	jobReq := map[string]string{
-		"name": "Test Job",
-		"slug": "test-job",
+	var jobResp openapi.Job
+	jobReq := openapi.CreateJobRequest{
+		Name: "Test Job",
+		Slug: "test-job",
 	}
 	code, body, err = client.PostJSON(ctx, "/api/v1/jobs", jobReq, &jobResp)
 	if err != nil {
@@ -83,19 +76,14 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 201 {
 		return fmt.Errorf("create job: expected 201, got %d body=%s", code, string(body))
 	}
-	if jobResp.ID == "" {
+	if jobResp.Id == "" {
 		return fmt.Errorf("create job: missing id in response")
 	}
 
 	// POST /api/v1/job_runs → 201
-	var createResp struct {
-		ID       string `json:"id"`
-		TenantID string `json:"tenant_id"`
-		JobID    string `json:"job_id"`
-		Status   string `json:"status"`
-	}
-	createReq := map[string]string{
-		"job_id": jobResp.ID,
+	var createResp openapi.JobRun
+	createReq := openapi.CreateJobRunRequest{
+		JobId: jobResp.Id,
 	}
 	code, body, err = client.PostJSON(ctx, "/api/v1/job_runs", createReq, &createResp)
 	if err != nil {
@@ -104,22 +92,18 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 201 {
 		return fmt.Errorf("create job run: expected 201, got %d body=%s", code, string(body))
 	}
-	if createResp.ID == "" {
+	if createResp.Id == "" {
 		return fmt.Errorf("create job run: missing id in response")
 	}
-	if createResp.TenantID != registerResp.TenantID {
-		return fmt.Errorf("create job run: tenant_id mismatch: got=%s want=%s", createResp.TenantID, registerResp.TenantID)
+	if createResp.TenantId != registerResp.TenantId {
+		return fmt.Errorf("create job run: tenant_id mismatch: got=%s want=%s", createResp.TenantId, registerResp.TenantId)
 	}
-	if createResp.Status != "queued" {
+	if createResp.Status != openapi.JobRunStatusQueued {
 		return fmt.Errorf("create job run: expected status 'queued', got '%s'", createResp.Status)
 	}
 
 	// GET /api/v1/job_runs → 200
-	var listResp struct {
-		Items []struct {
-			ID string `json:"id"`
-		} `json:"items"`
-	}
+	var listResp openapi.ListResponse[openapi.JobRun]
 	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs", &listResp)
 	if err != nil {
 		return err
@@ -129,29 +113,26 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 	found := false
 	for _, jr := range listResp.Items {
-		if jr.ID == createResp.ID {
+		if jr.Id == createResp.Id {
 			found = true
 			break
 		}
 	}
 	if !found {
-		return fmt.Errorf("list job runs: created job run %s not found in list", createResp.ID)
+		return fmt.Errorf("list job runs: created job run %s not found in list", createResp.Id)
 	}
 
 	// GET /api/v1/job_runs/{id} → 200
-	var getResp struct {
-		ID    string `json:"id"`
-		JobID string `json:"job_id"`
-	}
-	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs/"+createResp.ID, &getResp)
+	var getResp openapi.JobRun
+	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs/"+createResp.Id, &getResp)
 	if err != nil {
 		return err
 	}
 	if code != 200 {
 		return fmt.Errorf("get job run: expected 200, got %d body=%s", code, string(body))
 	}
-	if getResp.ID != createResp.ID {
-		return fmt.Errorf("get job run: id mismatch: got=%s want=%s", getResp.ID, createResp.ID)
+	if getResp.Id != createResp.Id {
+		return fmt.Errorf("get job run: id mismatch: got=%s want=%s", getResp.Id, createResp.Id)
 	}
 
 	return nil

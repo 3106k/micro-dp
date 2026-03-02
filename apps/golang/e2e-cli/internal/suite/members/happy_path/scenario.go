@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -41,9 +42,9 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("setup B: %w", err)
 	}
 
-	// 3. User A: list members → 1 (owner)
+	// 3. User A: list members -> 1 (owner)
 	client.SetToken(tokenA)
-	client.SetTenantID(regA.TenantID)
+	client.SetTenantID(regA.TenantId)
 
 	members, err := listMembers(ctx, client)
 	if err != nil {
@@ -52,26 +53,26 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if len(members) != 1 {
 		return fmt.Errorf("expected 1 member, got %d", len(members))
 	}
-	if members[0].Role != "owner" {
+	if members[0].Role != openapi.Owner {
 		return fmt.Errorf("expected owner role, got %s", members[0].Role)
 	}
 
-	// 4. User A: invite User B as member → 201
-	inv, err := createInvitation(ctx, client, emailB, "member")
+	// 4. User A: invite User B as member -> 201
+	inv, err := createInvitation(ctx, client, emailB, openapi.Member)
 	if err != nil {
 		return err
 	}
-	if inv.Status != "pending" {
+	if inv.Status != openapi.TenantInvitationStatusPending {
 		return fmt.Errorf("expected pending status, got %s", inv.Status)
 	}
-	if inv.Token == "" {
+	if inv.Token == nil || *inv.Token == "" {
 		return fmt.Errorf("invitation token is empty")
 	}
-	invTokenB := inv.Token
+	invTokenB := *inv.Token
 
-	// 5. User A: duplicate invitation → 409
-	code, body, err := client.PostJSON(ctx, "/api/v1/tenants/current/invitations", map[string]string{
-		"email": emailB, "role": "member",
+	// 5. User A: duplicate invitation -> 409
+	code, body, err := client.PostJSON(ctx, "/api/v1/tenants/current/invitations", openapi.CreateInvitationRequest{
+		Email: openapi.Email(emailB), Role: openapi.Member,
 	}, nil)
 	if err != nil {
 		return err
@@ -84,10 +85,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	client.SetToken(tokenB)
 	client.SetTenantID("")
 
-	var acceptResp struct {
-		ID     string `json:"id"`
-		Status string `json:"status"`
-	}
+	var acceptResp openapi.TenantInvitation
 	code, body, err = client.PostJSON(ctx, "/api/v1/tenants/current/invitations/"+invTokenB+"/accept", nil, &acceptResp)
 	if err != nil {
 		return err
@@ -95,13 +93,13 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 200 {
 		return fmt.Errorf("accept invitation: status=%d body=%s", code, string(body))
 	}
-	if acceptResp.Status != "accepted" {
+	if acceptResp.Status != openapi.TenantInvitationStatusAccepted {
 		return fmt.Errorf("expected accepted status, got %s", acceptResp.Status)
 	}
 
-	// 7. User A: list members → 2
+	// 7. User A: list members -> 2
 	client.SetToken(tokenA)
-	client.SetTenantID(regA.TenantID)
+	client.SetTenantID(regA.TenantId)
 
 	members, err = listMembers(ctx, client)
 	if err != nil {
@@ -111,11 +109,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("expected 2 members, got %d", len(members))
 	}
 
-	// 8. User A: change B to admin → 200
+	// 8. User A: change B to admin -> 200
 	var userBID string
 	for _, m := range members {
-		if m.Role == "member" {
-			userBID = m.UserID
+		if m.Role == openapi.Member {
+			userBID = m.UserId
 			break
 		}
 	}
@@ -123,12 +121,9 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("cannot find member user B")
 	}
 
-	var updateResp struct {
-		UserID string `json:"user_id"`
-		Role   string `json:"role"`
-	}
-	code, body, err = client.PatchJSON(ctx, "/api/v1/tenants/current/members/"+userBID, map[string]string{
-		"role": "admin",
+	var updateResp openapi.TenantMember
+	code, body, err = client.PatchJSON(ctx, "/api/v1/tenants/current/members/"+userBID, openapi.UpdateMemberRoleRequest{
+		Role: openapi.Admin,
 	}, &updateResp)
 	if err != nil {
 		return err
@@ -136,11 +131,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 200 {
 		return fmt.Errorf("update role: status=%d body=%s", code, string(body))
 	}
-	if updateResp.Role != "admin" {
+	if updateResp.Role != openapi.Admin {
 		return fmt.Errorf("expected admin role, got %s", updateResp.Role)
 	}
 
-	// 9. User A: remove B → 204
+	// 9. User A: remove B -> 204
 	code, body, err = client.Delete(ctx, "/api/v1/tenants/current/members/"+userBID)
 	if err != nil {
 		return err
@@ -149,7 +144,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("remove member: expected 204, got %d body=%s", code, string(body))
 	}
 
-	// 10. User A: list members → 1 again
+	// 10. User A: list members -> 1 again
 	members, err = listMembers(ctx, client)
 	if err != nil {
 		return err
@@ -161,18 +156,10 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	return nil
 }
 
-type regResult struct {
-	UserID   string
-	TenantID string
-}
-
-func registerAndLogin(ctx context.Context, client *httpclient.Client, email, password, displayName string) (*regResult, string, error) {
-	var regResp struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
-	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", map[string]string{
-		"email": email, "password": password, "display_name": displayName,
+func registerAndLogin(ctx context.Context, client *httpclient.Client, email, password, displayName string) (*openapi.RegisterResponse, string, error) {
+	var regResp openapi.RegisterResponse
+	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", openapi.RegisterRequest{
+		Email: openapi.Email(email), Password: password, DisplayName: openapi.Ptr(displayName),
 	}, &regResp)
 	if err != nil {
 		return nil, "", err
@@ -181,11 +168,9 @@ func registerAndLogin(ctx context.Context, client *httpclient.Client, email, pas
 		return nil, "", fmt.Errorf("register: status=%d body=%s", code, string(body))
 	}
 
-	var loginResp struct {
-		Token string `json:"token"`
-	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", map[string]string{
-		"email": email, "password": password,
+	var loginResp openapi.LoginResponse
+	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", openapi.LoginRequest{
+		Email: openapi.Email(email), Password: password,
 	}, &loginResp)
 	if err != nil {
 		return nil, "", err
@@ -194,21 +179,11 @@ func registerAndLogin(ctx context.Context, client *httpclient.Client, email, pas
 		return nil, "", fmt.Errorf("login: status=%d body=%s", code, string(body))
 	}
 
-	return &regResult{UserID: regResp.UserID, TenantID: regResp.TenantID}, loginResp.Token, nil
+	return &regResp, loginResp.Token, nil
 }
 
-type memberInfo struct {
-	UserID string
-	Role   string
-}
-
-func listMembers(ctx context.Context, client *httpclient.Client) ([]memberInfo, error) {
-	var resp struct {
-		Items []struct {
-			UserID string `json:"user_id"`
-			Role   string `json:"role"`
-		} `json:"items"`
-	}
+func listMembers(ctx context.Context, client *httpclient.Client) ([]openapi.TenantMember, error) {
+	var resp openapi.ListResponse[openapi.TenantMember]
 	code, body, err := client.GetJSON(ctx, "/api/v1/tenants/current/members", &resp)
 	if err != nil {
 		return nil, err
@@ -216,27 +191,13 @@ func listMembers(ctx context.Context, client *httpclient.Client) ([]memberInfo, 
 	if code != 200 {
 		return nil, fmt.Errorf("list members: status=%d body=%s", code, string(body))
 	}
-	out := make([]memberInfo, len(resp.Items))
-	for i, item := range resp.Items {
-		out[i] = memberInfo{UserID: item.UserID, Role: item.Role}
-	}
-	return out, nil
+	return resp.Items, nil
 }
 
-type invInfo struct {
-	ID     string
-	Token  string
-	Status string
-}
-
-func createInvitation(ctx context.Context, client *httpclient.Client, email, role string) (*invInfo, error) {
-	var resp struct {
-		ID     string `json:"id"`
-		Token  string `json:"token"`
-		Status string `json:"status"`
-	}
-	code, body, err := client.PostJSON(ctx, "/api/v1/tenants/current/invitations", map[string]string{
-		"email": email, "role": role,
+func createInvitation(ctx context.Context, client *httpclient.Client, email string, role openapi.TenantRole) (*openapi.TenantInvitation, error) {
+	var resp openapi.TenantInvitation
+	code, body, err := client.PostJSON(ctx, "/api/v1/tenants/current/invitations", openapi.CreateInvitationRequest{
+		Email: openapi.Email(email), Role: role,
 	}, &resp)
 	if err != nil {
 		return nil, err
@@ -244,5 +205,5 @@ func createInvitation(ctx context.Context, client *httpclient.Client, email, rol
 	if code != 201 {
 		return nil, fmt.Errorf("create invitation: status=%d body=%s", code, string(body))
 	}
-	return &invInfo{ID: resp.ID, Token: resp.Token, Status: resp.Status}, nil
+	return &resp, nil
 }

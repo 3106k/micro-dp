@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct{}
@@ -21,9 +22,7 @@ func (s *Scenario) ID() string {
 func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	// GET /api/v1/auth/google/start when OAuth is NOT configured (typical E2E env)
 	// Expected: 500 with error "google oauth is not configured"
-	var errResp struct {
-		Error string `json:"error"`
-	}
+	var errResp openapi.ErrorResponse
 	code, body, err := client.GetJSON(ctx, "/api/v1/auth/google/start", &errResp)
 	if err != nil {
 		return err

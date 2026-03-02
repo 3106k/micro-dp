@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -29,14 +30,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 
 	// Register User A → gets tenant_a
 	emailA := fmt.Sprintf("e2e_tenantA_%d@example.com", ts)
-	var registerA struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
-	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", map[string]string{
-		"email":        emailA,
-		"password":     s.password,
-		"display_name": s.displayName,
+	var registerA openapi.RegisterResponse
+	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", openapi.RegisterRequest{
+		Email:       openapi.Email(emailA),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}, &registerA)
 	if err != nil {
 		return err
@@ -47,14 +45,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 
 	// Register User B → gets tenant_b
 	emailB := fmt.Sprintf("e2e_tenantB_%d@example.com", ts)
-	var registerB struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/auth/register", map[string]string{
-		"email":        emailB,
-		"password":     s.password,
-		"display_name": s.displayName,
+	var registerB openapi.RegisterResponse
+	code, body, err = client.PostJSON(ctx, "/api/v1/auth/register", openapi.RegisterRequest{
+		Email:       openapi.Email(emailB),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}, &registerB)
 	if err != nil {
 		return err
@@ -64,12 +59,10 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// Login as User A
-	var loginResp struct {
-		Token string `json:"token"`
-	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", map[string]string{
-		"email":    emailA,
-		"password": s.password,
+	var loginResp openapi.LoginResponse
+	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", openapi.LoginRequest{
+		Email:    openapi.Email(emailA),
+		Password: s.password,
 	}, &loginResp)
 	if err != nil {
 		return err
@@ -80,11 +73,9 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 
 	// Use User A's token but User B's tenant → 403
 	client.SetToken(loginResp.Token)
-	client.SetTenantID(registerB.TenantID)
+	client.SetTenantID(registerB.TenantId)
 
-	var errResp struct {
-		Error string `json:"error"`
-	}
+	var errResp openapi.ErrorResponse
 	code, body, err = client.GetJSON(ctx, "/api/v1/job_runs", &errResp)
 	if err != nil {
 		return err

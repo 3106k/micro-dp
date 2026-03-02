@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct{}
@@ -18,9 +19,7 @@ func (s *Scenario) ID() string {
 }
 
 func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
-	var resp struct {
-		Status string `json:"status"`
-	}
+	var resp openapi.HealthResponse
 	code, body, err := client.GetJSON(ctx, "/healthz", &resp)
 	if err != nil {
 		return err
@@ -28,7 +27,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 200 {
 		return fmt.Errorf("unexpected status code: %d body=%s", code, string(body))
 	}
-	if resp.Status != "ok" && resp.Status != "degraded" {
+	if resp.Status != openapi.HealthResponseStatusOk && resp.Status != openapi.HealthResponseStatusDegraded {
 		return fmt.Errorf("unexpected status field: %q", resp.Status)
 	}
 	return nil

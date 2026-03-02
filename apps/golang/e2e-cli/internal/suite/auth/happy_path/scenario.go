@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -30,15 +31,12 @@ func (s *Scenario) ID() string {
 }
 
 func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
-	registerReq := map[string]string{
-		"email":        s.email,
-		"password":     s.password,
-		"display_name": s.displayName,
+	registerReq := openapi.RegisterRequest{
+		Email:       openapi.Email(s.email),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}
-	var registerResp struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
+	var registerResp openapi.RegisterResponse
 	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", registerReq, &registerResp)
 	if err != nil {
 		return err
@@ -46,17 +44,15 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 201 {
 		return fmt.Errorf("register unexpected status code: %d body=%s", code, string(body))
 	}
-	if registerResp.UserID == "" || registerResp.TenantID == "" {
+	if registerResp.UserId == "" || registerResp.TenantId == "" {
 		return fmt.Errorf("register response missing user_id/tenant_id")
 	}
 
-	loginReq := map[string]string{
-		"email":    s.email,
-		"password": s.password,
+	loginReq := openapi.LoginRequest{
+		Email:    openapi.Email(s.email),
+		Password: s.password,
 	}
-	var loginResp struct {
-		Token string `json:"token"`
-	}
+	var loginResp openapi.LoginResponse
 	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", loginReq, &loginResp)
 	if err != nil {
 		return err
@@ -69,10 +65,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 	client.SetToken(loginResp.Token)
 
-	var meResp struct {
-		UserID string `json:"user_id"`
-		Email  string `json:"email"`
-	}
+	var meResp openapi.MeResponse
 	code, body, err = client.GetJSON(ctx, "/api/v1/auth/me", &meResp)
 	if err != nil {
 		return err
@@ -80,11 +73,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 200 {
 		return fmt.Errorf("me unexpected status code: %d body=%s", code, string(body))
 	}
-	if meResp.UserID != registerResp.UserID {
-		return fmt.Errorf("me user_id mismatch: got=%s want=%s", meResp.UserID, registerResp.UserID)
+	if meResp.UserId != registerResp.UserId {
+		return fmt.Errorf("me user_id mismatch: got=%s want=%s", meResp.UserId, registerResp.UserId)
 	}
-	if meResp.Email != s.email {
-		return fmt.Errorf("me email mismatch: got=%s want=%s", meResp.Email, s.email)
+	if string(meResp.Email) != s.email {
+		return fmt.Errorf("me email mismatch: got=%s want=%s", string(meResp.Email), s.email)
 	}
 	return nil
 }

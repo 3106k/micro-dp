@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps health clean setup-env dev-api dev-worker sdk-tracker-build sdk-tracker-test e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate openapi-check worktree worktree-rm worktree-ls
+.PHONY: up down build logs ps health clean setup-env dev-api dev-worker sdk-tracker-build sdk-tracker-test e2e-cli e2e-ci-template openapi-lint openapi-bundle openapi-generate-fe openapi-generate-be openapi-generate-e2e openapi-generate openapi-check worktree worktree-rm worktree-ls
 
 COMPOSE_DIR := apps/docker
 COMPOSE     := cd $(COMPOSE_DIR) && docker compose --env-file ../../.env
@@ -74,7 +74,11 @@ openapi-generate-be:
 	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-types.cfg.yaml ../../../spec/openapi/v1.yaml
 	cd apps/golang/backend && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 -config oapi-server.cfg.yaml ../../../spec/openapi/v1.yaml
 
-openapi-generate: openapi-generate-fe openapi-generate-be
+openapi-generate-e2e:
+	cd apps/golang/e2e-cli && go run github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@v2.4.1 \
+		-config oapi-types.cfg.yaml ../../../spec/openapi/v1.yaml
+
+openapi-generate: openapi-generate-fe openapi-generate-be openapi-generate-e2e
 
 openapi-check:
 	$(MAKE) openapi-lint

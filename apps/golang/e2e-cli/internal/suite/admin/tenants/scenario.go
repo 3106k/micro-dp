@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 	"github.com/user/micro-dp/e2e-cli/internal/runner"
 )
 
@@ -35,12 +36,10 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 1. Login with admin credentials
-	var loginResp struct {
-		Token string `json:"token"`
-	}
-	code, body, err := client.PostJSON(ctx, "/api/v1/auth/login", map[string]string{
-		"email":    s.adminEmail,
-		"password": s.adminPassword,
+	var loginResp openapi.LoginResponse
+	code, body, err := client.PostJSON(ctx, "/api/v1/auth/login", openapi.LoginRequest{
+		Email:    openapi.Email(s.adminEmail),
+		Password: s.adminPassword,
 	}, &loginResp)
 	if err != nil {
 		return err
@@ -53,14 +52,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	client.SetTenantID("")
 
 	// 2. GET /api/v1/admin/tenants -> 200 (#86)
-	type tenantItem struct {
-		ID       string `json:"id"`
-		Name     string `json:"name"`
-		IsActive bool   `json:"is_active"`
-	}
-	var listResp struct {
-		Items []tenantItem `json:"items"`
-	}
+	var listResp openapi.ListResponse[openapi.Tenant]
 	code, body, err = client.GetJSON(ctx, "/api/v1/admin/tenants", &listResp)
 	if err != nil {
 		return err
@@ -76,12 +68,12 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// Capture first tenant id for PATCH
-	firstTenantID := listResp.Items[0].ID
+	firstTenantID := listResp.Items[0].Id
 
 	// 3. PATCH /api/v1/admin/tenants/{id} -> 200 (#87)
-	var patchResp tenantItem
-	code, body, err = client.PatchJSON(ctx, "/api/v1/admin/tenants/"+firstTenantID, map[string]any{
-		"is_active": true,
+	var patchResp openapi.Tenant
+	code, body, err = client.PatchJSON(ctx, "/api/v1/admin/tenants/"+firstTenantID, openapi.AdminUpdateTenantRequest{
+		IsActive: openapi.Ptr(true),
 	}, &patchResp)
 	if err != nil {
 		return err
@@ -89,8 +81,8 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 200 {
 		return fmt.Errorf("patch tenant: expected 200, got %d body=%s", code, string(body))
 	}
-	if patchResp.ID != firstTenantID {
-		return fmt.Errorf("patch tenant: expected id=%s, got id=%s body=%s", firstTenantID, patchResp.ID, string(body))
+	if patchResp.Id != firstTenantID {
+		return fmt.Errorf("patch tenant: expected id=%s, got id=%s body=%s", firstTenantID, patchResp.Id, string(body))
 	}
 	if !patchResp.IsActive {
 		return fmt.Errorf("patch tenant: expected is_active=true, body=%s", string(body))
@@ -110,15 +102,12 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	// Register a regular user
 	ts := time.Now().UnixNano()
 	regEmail := fmt.Sprintf("e2e_admin_tenants_%d@example.com", ts)
-	var regResp struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
+	var regResp openapi.RegisterResponse
 	client.SetToken("")
-	code, body, err = client.PostJSON(ctx, "/api/v1/auth/register", map[string]string{
-		"email":        regEmail,
-		"password":     s.password,
-		"display_name": s.displayName,
+	code, body, err = client.PostJSON(ctx, "/api/v1/auth/register", openapi.RegisterRequest{
+		Email:       openapi.Email(regEmail),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}, &regResp)
 	if err != nil {
 		return err
@@ -128,12 +117,10 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// Login as regular user
-	var regLoginResp struct {
-		Token string `json:"token"`
-	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", map[string]string{
-		"email":    regEmail,
-		"password": s.password,
+	var regLoginResp openapi.LoginResponse
+	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", openapi.LoginRequest{
+		Email:    openapi.Email(regEmail),
+		Password: s.password,
 	}, &regLoginResp)
 	if err != nil {
 		return err
