@@ -129,7 +129,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 			return fmt.Errorf("datasets list: status=%d body=%s", code, string(lastBody))
 		}
 		for _, ds := range datasetsResp.Items {
-			if ds.SourceType == openapi.Import {
+			if ds.SourceType == openapi.DatasetSourceTypeImport {
 				datasetID = ds.Id
 				found = true
 				break

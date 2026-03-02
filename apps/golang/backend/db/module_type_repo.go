@@ -48,6 +48,21 @@ func (r *ModuleTypeRepo) FindByID(ctx context.Context, tenantID, id string) (*do
 	return &mt, nil
 }
 
+func (r *ModuleTypeRepo) FindByTenantAndName(ctx context.Context, tenantID, name string) (*domain.ModuleType, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT id, tenant_id, name, category, created_at, updated_at
+		 FROM module_types WHERE tenant_id = ? AND name = ?`, tenantID, name,
+	)
+	var mt domain.ModuleType
+	if err := row.Scan(&mt.ID, &mt.TenantID, &mt.Name, &mt.Category, &mt.CreatedAt, &mt.UpdatedAt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, domain.ErrModuleTypeNotFound
+		}
+		return nil, err
+	}
+	return &mt, nil
+}
+
 func (r *ModuleTypeRepo) ListByTenant(ctx context.Context, tenantID string) ([]domain.ModuleType, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT id, tenant_id, name, category, created_at, updated_at
