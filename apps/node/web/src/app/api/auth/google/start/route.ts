@@ -17,9 +17,18 @@ export async function GET() {
     redirect: "manual",
   });
 
+  const setCookies =
+    typeof res.headers.getSetCookie === "function"
+      ? res.headers.getSetCookie()
+      : [];
+
   const location = res.headers.get("location");
   if (location && res.status >= 300 && res.status < 400) {
-    return NextResponse.json({ url: location } satisfies GoogleStartResponse);
+    const out = NextResponse.json({ url: location } satisfies GoogleStartResponse);
+    for (const c of setCookies) {
+      out.headers.append("set-cookie", c);
+    }
+    return out;
   }
 
   if (!res.ok) {
@@ -27,14 +36,22 @@ export async function GET() {
       res,
       "google oauth is not available"
     );
-    return NextResponse.json(
+    const out = NextResponse.json(
       { error: message } satisfies ErrorResponse,
       { status: res.status }
     );
+    for (const c of setCookies) {
+      out.headers.append("set-cookie", c);
+    }
+    return out;
   }
 
-  return NextResponse.json(
+  const out = NextResponse.json(
     { error: "google oauth start did not return redirect url" } satisfies ErrorResponse,
     { status: 502 }
   );
+  for (const c of setCookies) {
+    out.headers.append("set-cookie", c);
+  }
+  return out;
 }
