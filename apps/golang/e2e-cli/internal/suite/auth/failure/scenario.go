@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -23,9 +24,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	// Save current token and clear it for unauthenticated request
 	client.SetToken("")
 
-	var errResp struct {
-		Error string `json:"error"`
-	}
+	var errResp openapi.ErrorResponse
 
 	// GET /api/v1/auth/me without token → 401
 	code, body, err := client.GetJSON(ctx, "/api/v1/auth/me", &errResp)
@@ -37,9 +36,9 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// POST /api/v1/auth/login with wrong password → 401
-	loginReq := map[string]string{
-		"email":    "nonexistent@example.com",
-		"password": s.password,
+	loginReq := openapi.LoginRequest{
+		Email:    openapi.Email("nonexistent@example.com"),
+		Password: s.password,
 	}
 	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", loginReq, &errResp)
 	if err != nil {

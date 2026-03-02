@@ -25,14 +25,36 @@ export function SigninForm() {
   const { pushToast } = useToast();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
   const oauthReason = searchParams.get("reason");
-  const googleAuthStartUrl = `${
-    process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
-  }/api/v1/auth/google/start`;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
+
+  async function handleGoogleSignin() {
+    setError("");
+    setLoadingGoogle(true);
+    try {
+      const res = await fetch("/api/auth/google/start", {
+        method: "GET",
+      });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        const message = data.error || "google oauth is not available";
+        setError(message);
+        pushToast({ variant: "error", message });
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      const message = "Network error";
+      setError(message);
+      pushToast({ variant: "error", message });
+    } finally {
+      setLoadingGoogle(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -102,12 +124,10 @@ export function SigninForm() {
           <button
             type="button"
             className="inline-flex h-10 w-full items-center justify-center rounded-md border px-4 text-sm font-medium transition-colors hover:bg-accent"
-            onClick={() => {
-              window.location.href = googleAuthStartUrl;
-            }}
-            disabled={loading}
+            onClick={handleGoogleSignin}
+            disabled={loading || loadingGoogle}
           >
-            Continue with Google
+            {loadingGoogle ? "Opening Google..." : "Continue with Google"}
           </button>
           <SubmitButton
             type="submit"

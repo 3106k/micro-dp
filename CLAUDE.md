@@ -13,6 +13,7 @@ micro-dp is a data pipeline platform built as a monorepo. The stack is Next.js (
 **Monorepo layout by language**:
 
 - `apps/golang/backend/` — Go API + Worker
+- `apps/golang/e2e-cli/` — E2E test CLI (OpenAPI generated types)
 - `apps/node/web/` — Next.js frontend (App Router, standalone output)
 - `apps/docker/` — All Docker/Compose configuration
 - `apps/shell/` — Shell scripts (worktree env setup)
@@ -441,7 +442,8 @@ make openapi-lint         # Redocly lint for spec/openapi/v1.yaml
 make openapi-bundle       # bundle output to spec/openapi/dist/v1.bundle.yaml
 make openapi-generate-fe  # generate TS types to apps/node/web/src/lib/api/generated.ts
 make openapi-generate-be  # generate Go types/server interfaces to apps/golang/backend/internal/openapi/*.gen.go
-make openapi-generate     # run FE + BE generation
+make openapi-generate-e2e # generate Go models to apps/golang/e2e-cli/internal/openapi/types.gen.go
+make openapi-generate     # run FE + BE + E2E generation
 make openapi-check        # lint + generate + git diff --exit-code (drift detection)
 ```
 
@@ -451,7 +453,8 @@ When API contract is changed:
 
 1. Update `spec/openapi/v1.yaml`
 2. Run `make openapi-generate` (or `make openapi-check`)
-3. Commit spec and generated artifacts together
+3. Build all Go modules: `cd apps/golang/backend && go build ./...` and `cd apps/golang/e2e-cli && go build ./...`
+4. Commit spec and generated artifacts together
 
 ## Feature Flags
 
