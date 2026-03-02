@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -27,15 +28,12 @@ func (s *Scenario) ID() string {
 func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	// 1. Register
 	email := fmt.Sprintf("e2e_events_summary_%d@example.com", time.Now().UnixNano())
-	registerReq := map[string]string{
-		"email":        email,
-		"password":     s.password,
-		"display_name": s.displayName,
+	registerReq := openapi.RegisterRequest{
+		Email:       openapi.Email(email),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}
-	var registerResp struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
+	var registerResp openapi.RegisterResponse
 	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", registerReq, &registerResp)
 	if err != nil {
 		return err
@@ -45,13 +43,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 2. Login
-	loginReq := map[string]string{
-		"email":    email,
-		"password": s.password,
+	loginReq := openapi.LoginRequest{
+		Email:    openapi.Email(email),
+		Password: s.password,
 	}
-	var loginResp struct {
-		Token string `json:"token"`
-	}
+	var loginResp openapi.LoginResponse
 	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", loginReq, &loginResp)
 	if err != nil {
 		return err
@@ -60,19 +56,16 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("login: status=%d body=%s", code, string(body))
 	}
 	client.SetToken(loginResp.Token)
-	client.SetTenantID(registerResp.TenantID)
+	client.SetTenantID(registerResp.TenantId)
 
 	// 3. POST /api/v1/events with a valid event -> 202
-	eventReq := map[string]any{
-		"event_id":   fmt.Sprintf("summary-test-%d", time.Now().UnixNano()),
-		"event_name": "page_view",
-		"properties": map[string]any{"page": "/home"},
-		"event_time": time.Now().UTC().Format(time.RFC3339),
+	eventReq := openapi.IngestEventRequest{
+		EventId:    fmt.Sprintf("summary-test-%d", time.Now().UnixNano()),
+		EventName:  "page_view",
+		Properties: openapi.Ptr(map[string]interface{}{"page": "/home"}),
+		EventTime:  time.Now().UTC(),
 	}
-	var eventResp struct {
-		EventID string `json:"event_id"`
-		Status  string `json:"status"`
-	}
+	var eventResp openapi.IngestEventResponse
 	code, body, err = client.PostJSON(ctx, "/api/v1/events", eventReq, &eventResp)
 	if err != nil {
 		return err
@@ -82,10 +75,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 4. GET /api/v1/events/summary -> 200
-	var summaryResp struct {
-		Counts []map[string]any `json:"counts"`
-		Total  int64            `json:"total"`
-	}
+	var summaryResp openapi.EventsSummaryResponse
 	code, body, err = client.GetJSON(ctx, "/api/v1/events/summary", &summaryResp)
 	if err != nil {
 		return err

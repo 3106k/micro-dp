@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -29,15 +30,12 @@ func (s *Scenario) ID() string {
 func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	// 1. Register
 	email := fmt.Sprintf("e2e_dataset_rows_%d@example.com", time.Now().UnixNano())
-	registerReq := map[string]string{
-		"email":        email,
-		"password":     s.password,
-		"display_name": s.displayName,
+	registerReq := openapi.RegisterRequest{
+		Email:       openapi.Email(email),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}
-	var registerResp struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
+	var registerResp openapi.RegisterResponse
 	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", registerReq, &registerResp)
 	if err != nil {
 		return err
@@ -47,13 +45,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 2. Login
-	loginReq := map[string]string{
-		"email":    email,
-		"password": s.password,
+	loginReq := openapi.LoginRequest{
+		Email:    openapi.Email(email),
+		Password: s.password,
 	}
-	var loginResp struct {
-		Token string `json:"token"`
-	}
+	var loginResp openapi.LoginResponse
 	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", loginReq, &loginResp)
 	if err != nil {
 		return err
@@ -62,25 +58,19 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("login: status=%d body=%s", code, string(body))
 	}
 	client.SetToken(loginResp.Token)
-	client.SetTenantID(registerResp.TenantID)
+	client.SetTenantID(registerResp.TenantId)
 
 	// 3. POST /api/v1/uploads/presign (single file) -> 201
-	presignReq := map[string]any{
-		"files": []map[string]any{
+	presignReq := openapi.CreateUploadPresignRequest{
+		Files: []openapi.UploadFileInput{
 			{
-				"filename":     "test-rows.csv",
-				"content_type": "text/csv",
-				"size_bytes":   50,
+				Filename:    "test-rows.csv",
+				ContentType: "text/csv",
+				SizeBytes:   50,
 			},
 		},
 	}
-	var presignResp struct {
-		UploadID string `json:"upload_id"`
-		Files    []struct {
-			FileID       string `json:"file_id"`
-			PresignedURL string `json:"presigned_url"`
-		} `json:"files"`
-	}
+	var presignResp openapi.CreateUploadPresignResponse
 	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/presign", presignReq, &presignResp)
 	if err != nil {
 		return err
@@ -88,19 +78,19 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 201 {
 		return fmt.Errorf("presign: status=%d body=%s", code, string(body))
 	}
-	if presignResp.UploadID == "" {
+	if presignResp.UploadId == "" {
 		return fmt.Errorf("presign: upload_id is empty")
 	}
 	if len(presignResp.Files) != 1 {
 		return fmt.Errorf("presign: expected 1 file, got=%d", len(presignResp.Files))
 	}
-	if presignResp.Files[0].PresignedURL == "" {
+	if presignResp.Files[0].PresignedUrl == "" {
 		return fmt.Errorf("presign: presigned_url is empty")
 	}
 
 	// 4. PUT CSV data to presigned URL
 	csvData := []byte("id,name,age\n1,Alice,30\n2,Bob,25\n")
-	putReq, err := http.NewRequestWithContext(ctx, http.MethodPut, presignResp.Files[0].PresignedURL, bytes.NewReader(csvData))
+	putReq, err := http.NewRequestWithContext(ctx, http.MethodPut, presignResp.Files[0].PresignedUrl, bytes.NewReader(csvData))
 	if err != nil {
 		return fmt.Errorf("create put request: %w", err)
 	}
@@ -115,11 +105,8 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 5. POST /api/v1/uploads/{upload_id}/complete -> 200
-	var completeResp struct {
-		ID     string `json:"id"`
-		Status string `json:"status"`
-	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/"+presignResp.UploadID+"/complete", nil, &completeResp)
+	var completeResp openapi.Upload
+	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/"+presignResp.UploadId+"/complete", nil, &completeResp)
 	if err != nil {
 		return err
 	}
@@ -133,13 +120,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	found := false
 	for attempt := 0; attempt < 15; attempt++ {
 		time.Sleep(1 * time.Second)
-		var datasetsResp struct {
-			Items []struct {
-				ID         string `json:"id"`
-				Name       string `json:"name"`
-				SourceType string `json:"source_type"`
-			} `json:"items"`
-		}
+		var datasetsResp openapi.ListResponse[openapi.Dataset]
 		code, lastBody, err = client.GetJSON(ctx, "/api/v1/datasets?source_type=import", &datasetsResp)
 		if err != nil {
 			return err
@@ -148,8 +129,8 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 			return fmt.Errorf("datasets list: status=%d body=%s", code, string(lastBody))
 		}
 		for _, ds := range datasetsResp.Items {
-			if ds.SourceType == "import" {
-				datasetID = ds.ID
+			if ds.SourceType == openapi.Import {
+				datasetID = ds.Id
 				found = true
 				break
 			}
@@ -163,13 +144,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 7. GET /api/v1/datasets/{id}/rows -> 200
-	var rowsResp struct {
-		Columns   []map[string]any `json:"columns"`
-		Rows      []map[string]any `json:"rows"`
-		TotalRows int64            `json:"total_rows"`
-		Limit     int              `json:"limit"`
-		Offset    int              `json:"offset"`
-	}
+	var rowsResp openapi.DatasetRowsResponse
 	code, body, err = client.GetJSON(ctx, "/api/v1/datasets/"+datasetID+"/rows", &rowsResp)
 	if err != nil {
 		return err
@@ -188,13 +163,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 8. GET /api/v1/datasets/{id}/rows?limit=1&offset=0 -> 200
-	var paginatedResp struct {
-		Columns   []map[string]any `json:"columns"`
-		Rows      []map[string]any `json:"rows"`
-		TotalRows int64            `json:"total_rows"`
-		Limit     int              `json:"limit"`
-		Offset    int              `json:"offset"`
-	}
+	var paginatedResp openapi.DatasetRowsResponse
 	code, body, err = client.GetJSON(ctx, "/api/v1/datasets/"+datasetID+"/rows?limit=1&offset=0", &paginatedResp)
 	if err != nil {
 		return err

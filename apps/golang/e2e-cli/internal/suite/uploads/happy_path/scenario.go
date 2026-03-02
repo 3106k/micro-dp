@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/e2e-cli/internal/httpclient"
+	"github.com/user/micro-dp/e2e-cli/internal/openapi"
 )
 
 type Scenario struct {
@@ -29,15 +30,12 @@ func (s *Scenario) ID() string {
 func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	// 1. Register
 	email := fmt.Sprintf("e2e_uploads_%d@example.com", time.Now().UnixNano())
-	registerReq := map[string]string{
-		"email":        email,
-		"password":     s.password,
-		"display_name": s.displayName,
+	registerReq := openapi.RegisterRequest{
+		Email:       openapi.Email(email),
+		Password:    s.password,
+		DisplayName: openapi.Ptr(s.displayName),
 	}
-	var registerResp struct {
-		UserID   string `json:"user_id"`
-		TenantID string `json:"tenant_id"`
-	}
+	var registerResp openapi.RegisterResponse
 	code, body, err := client.PostJSON(ctx, "/api/v1/auth/register", registerReq, &registerResp)
 	if err != nil {
 		return err
@@ -47,13 +45,11 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 2. Login
-	loginReq := map[string]string{
-		"email":    email,
-		"password": s.password,
+	loginReq := openapi.LoginRequest{
+		Email:    openapi.Email(email),
+		Password: s.password,
 	}
-	var loginResp struct {
-		Token string `json:"token"`
-	}
+	var loginResp openapi.LoginResponse
 	code, body, err = client.PostJSON(ctx, "/api/v1/auth/login", loginReq, &loginResp)
 	if err != nil {
 		return err
@@ -62,27 +58,19 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("login: status=%d body=%s", code, string(body))
 	}
 	client.SetToken(loginResp.Token)
-	client.SetTenantID(registerResp.TenantID)
+	client.SetTenantID(registerResp.TenantId)
 
 	// 3. POST /api/v1/uploads/presign (single file) → 201
-	presignReq := map[string]any{
-		"files": []map[string]any{
+	presignReq := openapi.CreateUploadPresignRequest{
+		Files: []openapi.UploadFileInput{
 			{
-				"filename":     "test-data.csv",
-				"content_type": "text/csv",
-				"size_bytes":   1024,
+				Filename:    "test-data.csv",
+				ContentType: "text/csv",
+				SizeBytes:   1024,
 			},
 		},
 	}
-	var presignResp struct {
-		UploadID string `json:"upload_id"`
-		Files    []struct {
-			FileID       string `json:"file_id"`
-			Filename     string `json:"filename"`
-			PresignedURL string `json:"presigned_url"`
-			ObjectKey    string `json:"object_key"`
-		} `json:"files"`
-	}
+	var presignResp openapi.CreateUploadPresignResponse
 	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/presign", presignReq, &presignResp)
 	if err != nil {
 		return err
@@ -90,13 +78,13 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 201 {
 		return fmt.Errorf("presign: status=%d body=%s", code, string(body))
 	}
-	if presignResp.UploadID == "" {
+	if presignResp.UploadId == "" {
 		return fmt.Errorf("presign: upload_id is empty")
 	}
 	if len(presignResp.Files) != 1 {
 		return fmt.Errorf("presign: expected 1 file, got=%d", len(presignResp.Files))
 	}
-	if presignResp.Files[0].PresignedURL == "" {
+	if presignResp.Files[0].PresignedUrl == "" {
 		return fmt.Errorf("presign: presigned_url is empty")
 	}
 	if presignResp.Files[0].ObjectKey == "" {
@@ -105,7 +93,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 
 	// 3b. PUT CSV data to presigned URL
 	csvData := []byte("id,name,age\n1,Alice,30\n2,Bob,25\n3,Charlie,35\n")
-	putReq, err := http.NewRequestWithContext(ctx, http.MethodPut, presignResp.Files[0].PresignedURL, bytes.NewReader(csvData))
+	putReq, err := http.NewRequestWithContext(ctx, http.MethodPut, presignResp.Files[0].PresignedUrl, bytes.NewReader(csvData))
 	if err != nil {
 		return fmt.Errorf("create put request: %w", err)
 	}
@@ -120,25 +108,15 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 4. POST /api/v1/uploads/{id}/complete → 200, status=uploaded
-	var completeResp struct {
-		ID       string `json:"id"`
-		TenantID string `json:"tenant_id"`
-		Status   string `json:"status"`
-		Files    []struct {
-			ID        string `json:"id"`
-			UploadID  string `json:"upload_id"`
-			FileName  string `json:"file_name"`
-			ObjectKey string `json:"object_key"`
-		} `json:"files"`
-	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/"+presignResp.UploadID+"/complete", nil, &completeResp)
+	var completeResp openapi.Upload
+	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/"+presignResp.UploadId+"/complete", nil, &completeResp)
 	if err != nil {
 		return err
 	}
 	if code != 200 {
 		return fmt.Errorf("complete: status=%d body=%s", code, string(body))
 	}
-	if completeResp.Status != "uploaded" {
+	if completeResp.Status != openapi.Uploaded {
 		return fmt.Errorf("complete: expected status=uploaded, got=%s", completeResp.Status)
 	}
 	if len(completeResp.Files) != 1 {
@@ -150,15 +128,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	found := false
 	for attempt := 0; attempt < 15; attempt++ {
 		time.Sleep(1 * time.Second)
-		var datasetsResp struct {
-			Items []struct {
-				ID          string `json:"id"`
-				Name        string `json:"name"`
-				SourceType  string `json:"source_type"`
-				StoragePath string `json:"storage_path"`
-				RowCount    *int64 `json:"row_count"`
-			} `json:"items"`
-		}
+		var datasetsResp openapi.ListResponse[openapi.Dataset]
 		code, lastBody, err = client.GetJSON(ctx, "/api/v1/datasets?source_type=import", &datasetsResp)
 		if err != nil {
 			return err
@@ -167,7 +137,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 			return fmt.Errorf("datasets list: status=%d body=%s", code, string(lastBody))
 		}
 		for _, ds := range datasetsResp.Items {
-			if ds.Name == "test-data" && ds.SourceType == "import" {
+			if ds.Name == "test-data" && ds.SourceType == openapi.Import {
 				found = true
 				if ds.StoragePath == "" {
 					return fmt.Errorf("dataset storage_path is empty")
@@ -187,7 +157,7 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 5. POST /api/v1/uploads/{id}/complete again → 409
-	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/"+presignResp.UploadID+"/complete", nil, nil)
+	code, body, err = client.PostJSON(ctx, "/api/v1/uploads/"+presignResp.UploadId+"/complete", nil, nil)
 	if err != nil {
 		return err
 	}
@@ -196,12 +166,12 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 6. POST /api/v1/uploads/presign (invalid extension .exe) → 400
-	badExtReq := map[string]any{
-		"files": []map[string]any{
+	badExtReq := openapi.CreateUploadPresignRequest{
+		Files: []openapi.UploadFileInput{
 			{
-				"filename":     "malware.exe",
-				"content_type": "application/octet-stream",
-				"size_bytes":   1024,
+				Filename:    "malware.exe",
+				ContentType: "application/octet-stream",
+				SizeBytes:   1024,
 			},
 		},
 	}
@@ -214,12 +184,12 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	}
 
 	// 7. POST /api/v1/uploads/presign (size exceeds 100MB) → 400
-	bigFileReq := map[string]any{
-		"files": []map[string]any{
+	bigFileReq := openapi.CreateUploadPresignRequest{
+		Files: []openapi.UploadFileInput{
 			{
-				"filename":     "huge.csv",
-				"content_type": "text/csv",
-				"size_bytes":   200 * 1024 * 1024, // 200MB
+				Filename:    "huge.csv",
+				ContentType: "text/csv",
+				SizeBytes:   200 * 1024 * 1024, // 200MB
 			},
 		},
 	}
