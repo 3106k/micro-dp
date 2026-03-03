@@ -11,6 +11,9 @@ import { useToast } from "@/components/ui/toast-provider";
 import type { components } from "@/lib/api/generated";
 
 type Job = components["schemas"]["Job"];
+type JobVersionDetail = components["schemas"]["JobVersionDetail"];
+type JobModule = components["schemas"]["JobModule"];
+type ModuleType = components["schemas"]["ModuleType"];
 
 const kindStyles: Record<string, string> = {
   pipeline: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
@@ -22,6 +25,14 @@ const kindStyles: Record<string, string> = {
     "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
 };
 
+const categoryStyles: Record<string, string> = {
+  source: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  transform:
+    "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+  destination:
+    "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+};
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
     year: "numeric",
@@ -30,7 +41,60 @@ function formatDate(iso: string): string {
   });
 }
 
-export function JobDetailManager({ initialJob }: { initialJob: Job }) {
+function renderModuleConfig(
+  mod: JobModule,
+  moduleType: ModuleType | undefined,
+) {
+  if (!mod.config_json) {
+    return <p className="text-sm text-muted-foreground">No configuration</p>;
+  }
+
+  let parsed: Record<string, unknown>;
+  try {
+    parsed = JSON.parse(mod.config_json);
+  } catch {
+    return (
+      <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">
+        {mod.config_json}
+      </pre>
+    );
+  }
+
+  const isTransform = moduleType?.category === "transform";
+  const sqlValue = parsed["sql"];
+
+  return (
+    <div className="space-y-3">
+      {isTransform && typeof sqlValue === "string" && (
+        <pre className="overflow-x-auto rounded bg-muted p-3 text-xs">
+          <code>{sqlValue}</code>
+        </pre>
+      )}
+      {Object.entries(parsed)
+        .filter(([key]) => !(isTransform && key === "sql"))
+        .map(([key, value]) => (
+          <div key={key} className="flex gap-2 text-sm">
+            <span className="shrink-0 font-medium text-muted-foreground">
+              {key}:
+            </span>
+            <span className="break-all">
+              {typeof value === "string" ? value : JSON.stringify(value)}
+            </span>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+export function JobDetailManager({
+  initialJob,
+  publishedVersionDetail,
+  moduleTypeMap,
+}: {
+  initialJob: Job;
+  publishedVersionDetail: JobVersionDetail | null;
+  moduleTypeMap: Record<string, ModuleType>;
+}) {
   const { pushToast } = useToast();
   const router = useRouter();
   const [job, setJob] = useState(initialJob);
@@ -137,6 +201,72 @@ export function JobDetailManager({ initialJob }: { initialJob: Job }) {
             {job.created_at ? formatDate(job.created_at) : "-"}
           </p>
         </div>
+      </div>
+
+      {/* Configuration */}
+      <div className="rounded-lg border p-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Configuration</h2>
+          {publishedVersionDetail && (
+            <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400">
+              v{publishedVersionDetail.version.version} · published
+            </span>
+          )}
+        </div>
+
+        {!publishedVersionDetail ? (
+          <div className="mt-3">
+            <p className="text-sm text-muted-foreground">
+              No published version.
+            </p>
+            <Button variant="outline" size="sm" className="mt-2" asChild>
+              <Link href={`/jobs/${job.id}/versions`}>Manage Versions</Link>
+            </Button>
+          </div>
+        ) : publishedVersionDetail.modules.length === 0 ? (
+          <p className="mt-3 text-sm text-muted-foreground">
+            No modules configured.
+          </p>
+        ) : (
+          <div className="mt-3 space-y-4">
+            {publishedVersionDetail.modules.map((mod) => {
+              const mt = moduleTypeMap[mod.module_type_id];
+              return (
+                <div
+                  key={mod.id}
+                  className="rounded-md border bg-muted/30 p-3"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-sm">{mod.name}</span>
+                    {mt && (
+                      <>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                            categoryStyles[mt.category] ??
+                            "bg-secondary text-secondary-foreground"
+                          }`}
+                        >
+                          {mt.category}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {mt.name}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {mod.connection_id && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Connection: <span className="font-mono">{mod.connection_id}</span>
+                    </p>
+                  )}
+                  <div className="mt-2">
+                    {renderModuleConfig(mod, mt)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Run Job */}
