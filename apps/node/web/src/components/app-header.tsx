@@ -19,6 +19,7 @@ const mainNavItems: NavItem[] = [
   { href: "/jobs", label: "Jobs" },
   { href: "/job-runs", label: "Job Runs" },
   { href: "/datasets", label: "Datasets" },
+  { href: "/connections", label: "Connections" },
 ];
 
 export function AppHeader({
@@ -128,7 +129,7 @@ export function AppHeader({
         </div>
         <div className="flex items-center gap-4">
           <Link
-            href="/connections"
+            href="/members"
             className="rounded-md px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
             title="Settings"
           >
