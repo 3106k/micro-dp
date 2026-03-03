@@ -92,7 +92,12 @@ export default async function DatasetsPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Datasets</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Datasets</h1>
+        <Button variant="outline" asChild>
+          <Link href="/datasets/upload">Upload</Link>
+        </Button>
+      </div>
 
       <form method="GET" className="rounded-lg border p-4">
         <div className="grid gap-4 md:grid-cols-4">

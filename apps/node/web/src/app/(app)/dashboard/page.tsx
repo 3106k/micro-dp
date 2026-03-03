@@ -37,7 +37,7 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
-            <Link href="/uploads">Upload CSV</Link>
+            <Link href="/datasets/upload">Upload CSV</Link>
           </Button>
           <Button asChild>
             <Link href="/jobs/new">Create Job</Link>
