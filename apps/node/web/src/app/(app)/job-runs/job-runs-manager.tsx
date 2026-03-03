@@ -138,7 +138,7 @@ export function JobRunsManager({ initialRuns }: { initialRuns: JobRun[] }) {
                     {run.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground">
+                <td className="px-4 py-3 text-muted-foreground" suppressHydrationWarning>
                   {run.started_at ? formatDateTime(run.started_at) : "-"}
                 </td>
               </tr>

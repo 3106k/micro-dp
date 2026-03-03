@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ function formatDate(iso: string): string {
 
 export function JobDetailManager({ initialJob }: { initialJob: Job }) {
   const { pushToast } = useToast();
+  const router = useRouter();
   const [job, setJob] = useState(initialJob);
   const [name, setName] = useState(initialJob.name);
   const [slug, setSlug] = useState(initialJob.slug);
@@ -39,6 +41,7 @@ export function JobDetailManager({ initialJob }: { initialJob: Job }) {
   );
   const [isActive, setIsActive] = useState(initialJob.is_active);
   const [loading, setLoading] = useState(false);
+  const [running, setRunning] = useState(false);
 
   async function handleUpdate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -67,6 +70,30 @@ export function JobDetailManager({ initialJob }: { initialJob: Job }) {
       });
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRun() {
+    setRunning(true);
+    try {
+      const res = await fetch("/api/job-runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: job.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to create run");
+      }
+      pushToast({ variant: "success", message: "Run created" });
+      router.push("/job-runs");
+    } catch (err) {
+      pushToast({
+        variant: "error",
+        message: err instanceof Error ? err.message : "Request failed",
+      });
+    } finally {
+      setRunning(false);
     }
   }
 
@@ -109,6 +136,19 @@ export function JobDetailManager({ initialJob }: { initialJob: Job }) {
           <p className="text-sm">
             {job.created_at ? formatDate(job.created_at) : "-"}
           </p>
+        </div>
+      </div>
+
+      {/* Run Job */}
+      <div className="rounded-lg border p-4">
+        <h2 className="text-lg font-semibold">Run Job</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Create a new run for this job using the latest published version.
+        </p>
+        <div className="mt-4">
+          <Button onClick={handleRun} disabled={running}>
+            {running ? "Starting..." : "Run Now"}
+          </Button>
         </div>
       </div>
 
