@@ -11,6 +11,7 @@ import (
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/connector"
+	"github.com/user/micro-dp/internal/connector/fetchers"
 	"github.com/user/micro-dp/internal/connector/testers"
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/notification"
@@ -142,8 +143,9 @@ func main() {
 		jwtSecret,
 	)
 
-	// Register real connection testers
+	// Register real connection testers and schema fetchers
 	connectorRegistry.RegisterTester("source-google-sheets", testers.NewGoogleSheetsTester())
+	connectorRegistry.RegisterFetcher("source-google-sheets", fetchers.NewGoogleSheetsFetcher())
 	datasetService := usecase.NewDatasetService(datasetRepo, minioClient)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
@@ -184,6 +186,7 @@ func main() {
 		datasetRepo, minioClient, jobService, moduleTypeRepo,
 		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
 	)
+	importJobService := usecase.NewImportJobService(jobService, moduleTypeRepo, jobVersionRepo, jobModuleRepo)
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
@@ -206,6 +209,7 @@ func main() {
 	adminPlanH := handler.NewAdminPlanHandler(planService)
 	billingH := handler.NewBillingHandler(billingService)
 	transformH := handler.NewTransformHandler(transformService)
+	importJobH := handler.NewImportJobHandler(importJobService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -291,6 +295,7 @@ func main() {
 	mux.Handle("PUT /api/v1/connections/{id}", protected(connectionH.Update))
 	mux.Handle("DELETE /api/v1/connections/{id}", protected(connectionH.Delete))
 	mux.Handle("POST /api/v1/connections/test", protected(connectionH.Test))
+	mux.Handle("GET /api/v1/connections/{connection_id}/schemas", protected(connectionH.ListSchemas))
 
 	// Datasets
 	mux.Handle("GET /api/v1/datasets", protected(datasetH.List))
@@ -305,6 +310,9 @@ func main() {
 	mux.Handle("POST /api/v1/transform/validate", protected(transformH.Validate))
 	mux.Handle("POST /api/v1/transform/preview", protected(transformH.Preview))
 	mux.Handle("POST /api/v1/transform/jobs", protected(transformH.CreateJob))
+
+	// Import
+	mux.Handle("POST /api/v1/import/jobs", protected(importJobH.CreateJob))
 
 	// Members (tenant-scoped)
 	mux.Handle("GET /api/v1/tenants/current/members", protected(memberH.List))
