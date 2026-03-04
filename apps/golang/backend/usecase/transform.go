@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	_ "github.com/marcboeker/go-duckdb"
@@ -81,48 +79,38 @@ type CreateTransformJobResult struct {
 	JobRun  *domain.JobRun
 }
 
-func (s *TransformService) setupDuckDB(ctx context.Context, tenantID string, datasetIDs []string) (*sql.DB, string, error) {
+func (s *TransformService) setupDuckDB(ctx context.Context, tenantID string, datasetIDs []string) (*sql.DB, error) {
 	datasets := make([]*domain.Dataset, 0, len(datasetIDs))
 	for _, id := range datasetIDs {
 		ds, err := s.datasets.FindByID(ctx, tenantID, id)
 		if err != nil {
-			return nil, "", fmt.Errorf("dataset %s: %w", id, err)
+			return nil, fmt.Errorf("dataset %s: %w", id, err)
 		}
 		datasets = append(datasets, ds)
 	}
 
-	tmpDir, err := os.MkdirTemp("", "micro-dp-transform-*")
-	if err != nil {
-		return nil, "", fmt.Errorf("create temp dir: %w", err)
-	}
-
-	// Download parquet files
-	for i, ds := range datasets {
-		localPath := filepath.Join(tmpDir, fmt.Sprintf("ds_%d.parquet", i))
-		if err := s.minio.DownloadToFile(ctx, ds.StoragePath, localPath); err != nil {
-			os.RemoveAll(tmpDir)
-			return nil, "", fmt.Errorf("download dataset %s: %w", ds.Name, err)
-		}
-	}
-
 	duckDB, err := sql.Open("duckdb", "")
 	if err != nil {
-		os.RemoveAll(tmpDir)
-		return nil, "", fmt.Errorf("open duckdb: %w", err)
+		return nil, fmt.Errorf("open duckdb: %w", err)
 	}
 
-	// Register each dataset as a VIEW
-	for i, ds := range datasets {
-		localPath := filepath.Join(tmpDir, fmt.Sprintf("ds_%d.parquet", i))
-		viewSQL := fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM read_parquet('%s')", quoteIdentifier(ds.Name), localPath)
+	s3Cfg := s.minio.S3Config()
+	if err := storage.ConfigureDuckDBHTTPFS(ctx, duckDB, s3Cfg); err != nil {
+		duckDB.Close()
+		return nil, fmt.Errorf("configure httpfs: %w", err)
+	}
+
+	// Register each dataset as a VIEW reading directly from S3
+	for _, ds := range datasets {
+		uri := storage.S3ParquetURI(s3Cfg.Bucket, ds.StoragePath)
+		viewSQL := fmt.Sprintf("CREATE VIEW %s AS SELECT * FROM read_parquet('%s')", quoteIdentifier(ds.Name), uri)
 		if _, err := duckDB.ExecContext(ctx, viewSQL); err != nil {
 			duckDB.Close()
-			os.RemoveAll(tmpDir)
-			return nil, "", fmt.Errorf("create view %s: %w", ds.Name, err)
+			return nil, fmt.Errorf("create view %s: %w", ds.Name, err)
 		}
 	}
 
-	return duckDB, tmpDir, nil
+	return duckDB, nil
 }
 
 func (s *TransformService) ValidateSQL(ctx context.Context, sqlStr string, datasetIDs []string) (*ValidateResult, error) {
@@ -141,12 +129,11 @@ func (s *TransformService) ValidateSQL(ctx context.Context, sqlStr string, datas
 	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	duckDB, tmpDir, err := s.setupDuckDB(timeoutCtx, tenantID, datasetIDs)
+	duckDB, err := s.setupDuckDB(timeoutCtx, tenantID, datasetIDs)
 	if err != nil {
 		return &ValidateResult{Valid: false, Error: err.Error()}, nil
 	}
 	defer duckDB.Close()
-	defer os.RemoveAll(tmpDir)
 
 	// EXPLAIN to check syntax
 	if _, err := duckDB.ExecContext(timeoutCtx, fmt.Sprintf("EXPLAIN %s", sqlStr)); err != nil {
@@ -183,12 +170,11 @@ func (s *TransformService) PreviewSQL(ctx context.Context, sqlStr string, datase
 	timeoutCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
-	duckDB, tmpDir, err := s.setupDuckDB(timeoutCtx, tenantID, datasetIDs)
+	duckDB, err := s.setupDuckDB(timeoutCtx, tenantID, datasetIDs)
 	if err != nil {
 		return nil, fmt.Errorf("setup duckdb: %w", err)
 	}
 	defer duckDB.Close()
-	defer os.RemoveAll(tmpDir)
 
 	query := fmt.Sprintf("SELECT * FROM (%s) AS _q LIMIT %d", sqlStr, limit)
 	rows, err := duckDB.QueryContext(timeoutCtx, query)
