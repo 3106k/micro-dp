@@ -7,19 +7,6 @@
   "x-credential-provider": "google",
   "spec": {
     "type": "object",
-    "properties": {
-      "spreadsheet_id": {
-        "type": "string",
-        "title": "Spreadsheet ID",
-        "description": "The ID from the spreadsheet URL (e.g. https://docs.google.com/spreadsheets/d/{ID}/edit)",
-        "x-order": 1
-      },
-      "sheet_name": {
-        "type": "string",
-        "title": "Sheet Name",
-        "description": "Specific sheet tab name. If empty, the first sheet is used.",
-        "x-order": 2
-      }
-    }
+    "properties": {}
   }
 }

@@ -11,6 +11,7 @@ import (
 
 type ImportJobService struct {
 	jobs        *JobService
+	jobRuns     *JobRunService
 	moduleTypes domain.ModuleTypeRepository
 	versions    domain.JobVersionRepository
 	modules     domain.JobModuleRepository
@@ -18,12 +19,14 @@ type ImportJobService struct {
 
 func NewImportJobService(
 	jobs *JobService,
+	jobRuns *JobRunService,
 	moduleTypes domain.ModuleTypeRepository,
 	versions domain.JobVersionRepository,
 	modules domain.JobModuleRepository,
 ) *ImportJobService {
 	return &ImportJobService{
 		jobs:        jobs,
+		jobRuns:     jobRuns,
 		moduleTypes: moduleTypes,
 		versions:    versions,
 		modules:     modules,
@@ -38,11 +41,13 @@ type CreateImportJobInput struct {
 	SpreadsheetID string
 	SheetName     string
 	Range         string
+	Execution     string
 }
 
 type CreateImportJobResult struct {
 	Job     *domain.Job
 	Version *domain.JobVersion
+	JobRun  *domain.JobRun
 }
 
 func (s *ImportJobService) CreateImportJob(ctx context.Context, input CreateImportJobInput) (*CreateImportJobResult, error) {
@@ -119,8 +124,29 @@ func (s *ImportJobService) CreateImportJob(ctx context.Context, input CreateImpo
 		return nil, fmt.Errorf("create module: %w", err)
 	}
 
-	return &CreateImportJobResult{
+	out := &CreateImportJobResult{
 		Job:     job,
 		Version: version,
-	}, nil
+	}
+
+	execution := input.Execution
+	if execution == "" {
+		execution = "save_only"
+	}
+
+	if execution == "immediate" {
+		// Auto-publish the version
+		if _, err := s.jobs.PublishVersion(ctx, job.ID, version.ID); err != nil {
+			return nil, fmt.Errorf("publish version: %w", err)
+		}
+
+		// Create job run (JobRunService builds RunSnapshot and sets status=queued)
+		jr, err := s.jobRuns.Create(ctx, job.ID, &version.ID)
+		if err != nil {
+			return nil, fmt.Errorf("create job run: %w", err)
+		}
+		out.JobRun = jr
+	}
+
+	return out, nil
 }

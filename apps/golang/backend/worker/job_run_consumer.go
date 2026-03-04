@@ -17,6 +17,9 @@ type JobRunConsumer struct {
 	queue           domain.JobRunQueue
 	jobRuns         domain.JobRunRepository
 	transformWriter *TransformWriter
+	sheetsWriter    *SheetsImportWriter
+	credentials     *usecase.CredentialService
+	connections     domain.ConnectionRepository
 	metrics         *observability.JobRunMetrics
 	metering        *usecase.MeteringService
 }
@@ -25,6 +28,9 @@ func NewJobRunConsumer(
 	queue domain.JobRunQueue,
 	jobRuns domain.JobRunRepository,
 	transformWriter *TransformWriter,
+	sheetsWriter *SheetsImportWriter,
+	credentials *usecase.CredentialService,
+	connections domain.ConnectionRepository,
 	metrics *observability.JobRunMetrics,
 	metering *usecase.MeteringService,
 ) *JobRunConsumer {
@@ -32,6 +38,9 @@ func NewJobRunConsumer(
 		queue:           queue,
 		jobRuns:         jobRuns,
 		transformWriter: transformWriter,
+		sheetsWriter:    sheetsWriter,
+		credentials:     credentials,
+		connections:     connections,
 		metrics:         metrics,
 		metering:        metering,
 	}
@@ -113,6 +122,8 @@ func (c *JobRunConsumer) processMessage(ctx context.Context, msg *domain.JobRunM
 	switch snapshot.JobKind {
 	case domain.JobKindTransform:
 		execErr = c.executeTransform(ctx, msg, &snapshot)
+	case domain.JobKindImport:
+		execErr = c.executeImport(ctx, msg, &snapshot)
 	default:
 		execErr = fmt.Errorf("executor not implemented for kind: %s", snapshot.JobKind)
 	}
@@ -187,6 +198,70 @@ func (c *JobRunConsumer) failJobRun(ctx context.Context, msg *domain.JobRunMessa
 		log.Printf("job_run_consumer: update failed error job_run_id=%s: %v", msg.JobRunID, err)
 	}
 	c.enqueueDLQ(ctx, msg, errMsg)
+}
+
+func (c *JobRunConsumer) executeImport(ctx context.Context, msg *domain.JobRunMessage, snapshot *domain.RunSnapshot) error {
+	// Find source module in snapshot
+	var sourceModule *domain.RunSnapshotModule
+	for i := range snapshot.Modules {
+		if snapshot.Modules[i].Category == domain.ModuleTypeCategorySource {
+			sourceModule = &snapshot.Modules[i]
+			break
+		}
+	}
+	if sourceModule == nil {
+		return fmt.Errorf("no source module found in snapshot")
+	}
+
+	// Parse config_json
+	var config struct {
+		SpreadsheetID string `json:"spreadsheet_id"`
+		SheetName     string `json:"sheet_name"`
+		Range         string `json:"range"`
+	}
+	if err := json.Unmarshal([]byte(sourceModule.ConfigJSON), &config); err != nil {
+		return fmt.Errorf("parse import config: %w", err)
+	}
+	if config.SpreadsheetID == "" {
+		return fmt.Errorf("import config missing spreadsheet_id")
+	}
+
+	// Resolve connection → credential → access token
+	if sourceModule.ConnectionID == nil {
+		return fmt.Errorf("source module has no connection_id")
+	}
+	conn, err := c.connections.FindByID(ctx, msg.TenantID, *sourceModule.ConnectionID)
+	if err != nil {
+		return fmt.Errorf("find connection: %w", err)
+	}
+	if conn.CredentialID == nil {
+		return fmt.Errorf("connection has no credential_id")
+	}
+	accessToken, err := c.credentials.GetValidAccessToken(ctx, msg.TenantID, *conn.CredentialID)
+	if err != nil {
+		return fmt.Errorf("get access token: %w", err)
+	}
+
+	importMsg := &SheetsImportMessage{
+		JobRunID:      msg.JobRunID,
+		TenantID:      msg.TenantID,
+		SpreadsheetID: config.SpreadsheetID,
+		SheetName:     config.SheetName,
+		Range:         config.Range,
+		AccessToken:   accessToken,
+		JobID:         snapshot.JobID,
+		VersionID:     snapshot.VersionID,
+	}
+
+	result, err := c.sheetsWriter.Execute(ctx, importMsg)
+	if err != nil {
+		return err
+	}
+
+	log.Printf("job_run_consumer: import completed job_run_id=%s rows=%d output=%s",
+		msg.JobRunID, result.RowCount, result.OutputKey)
+
+	return nil
 }
 
 func (c *JobRunConsumer) enqueueDLQ(ctx context.Context, msg *domain.JobRunMessage, reason string) {

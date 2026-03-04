@@ -1528,6 +1528,8 @@ export interface components {
             title: string;
             items: components["schemas"]["SchemaItem"][];
         };
+        /** @enum {string} */
+        ImportExecution: "save_only" | "immediate";
         CreateImportJobRequest: {
             name: string;
             slug: string;
@@ -1536,10 +1538,12 @@ export interface components {
             spreadsheet_id: string;
             sheet_name?: string;
             range?: string;
+            execution?: components["schemas"]["ImportExecution"];
         };
         CreateImportJobResponse: {
             job: components["schemas"]["Job"];
             version: components["schemas"]["JobVersion"];
+            job_run?: components["schemas"]["JobRun"];
         };
     };
     responses: {
