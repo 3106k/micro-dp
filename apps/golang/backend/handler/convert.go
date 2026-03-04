@@ -135,7 +135,49 @@ func toOpenAPIDataset(d *domain.Dataset) openapi.Dataset {
 	out.LastUpdatedAt = d.LastUpdatedAt
 	out.CreatedAt = &d.CreatedAt
 	out.UpdatedAt = &d.UpdatedAt
+
+	if cols, err := d.ParseColumns(); err == nil && len(cols) > 0 {
+		apiCols := make([]openapi.DatasetColumn, len(cols))
+		for i, c := range cols {
+			apiCols[i] = toOpenAPIDatasetColumn(&c)
+		}
+		out.Columns = &apiCols
+	}
 	return out
+}
+
+func toOpenAPIDatasetColumn(c *domain.DatasetColumnMeta) openapi.DatasetColumn {
+	col := openapi.DatasetColumn{
+		Name: c.Name,
+		Type: c.Type,
+	}
+	if c.Nullable {
+		col.Nullable = &c.Nullable
+	}
+	if c.Description != "" {
+		col.Description = &c.Description
+	}
+	if c.SemanticType != "" {
+		st := openapi.DatasetColumnSemanticType(c.SemanticType)
+		col.SemanticType = &st
+	}
+	if len(c.Tags) > 0 {
+		col.Tags = &c.Tags
+	}
+	if len(c.SampleValues) > 0 {
+		col.SampleValues = &c.SampleValues
+	}
+	if c.Statistics != nil {
+		col.Statistics = &openapi.ColumnStatistics{
+			Min:           c.Statistics.Min,
+			Max:           c.Statistics.Max,
+			DistinctCount: &c.Statistics.DistinctCount,
+		}
+		if c.Statistics.NullRate > 0 {
+			col.Statistics.NullRate = &c.Statistics.NullRate
+		}
+	}
+	return col
 }
 
 func toOpenAPIUpload(u *domain.Upload, files []domain.UploadFile) openapi.Upload {

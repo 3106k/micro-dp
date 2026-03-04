@@ -865,6 +865,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/datasets/{id}/columns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update dataset column metadata */
+        patch: operations["updateDatasetColumns"];
+        trace?: never;
+    };
     "/api/v1/uploads/presign": {
         parameters: {
             query?: never;
@@ -1354,7 +1371,9 @@ export interface components {
             tenant_id: string;
             name: string;
             source_type: components["schemas"]["DatasetSourceType"];
+            /** @deprecated */
             schema_json?: string;
+            columns?: components["schemas"]["DatasetColumn"][];
             /** Format: int64 */
             row_count?: number;
             storage_path: string;
@@ -1370,6 +1389,31 @@ export interface components {
         DatasetColumn: {
             name: string;
             type: string;
+            nullable?: boolean;
+            description?: string;
+            semantic_type?: components["schemas"]["DatasetColumnSemanticType"];
+            tags?: string[];
+            sample_values?: unknown[];
+            statistics?: components["schemas"]["ColumnStatistics"];
+        };
+        /** @enum {string} */
+        DatasetColumnSemanticType: "dimension" | "measure" | "timestamp" | "identifier";
+        ColumnStatistics: {
+            min?: string;
+            max?: string;
+            /** Format: double */
+            null_rate?: number;
+            /** Format: int64 */
+            distinct_count?: number;
+        };
+        UpdateDatasetColumnsRequest: {
+            columns: components["schemas"]["UpdateDatasetColumnRequest"][];
+        };
+        UpdateDatasetColumnRequest: {
+            name: string;
+            description?: string;
+            semantic_type?: components["schemas"]["DatasetColumnSemanticType"];
+            tags?: string[];
         };
         DatasetRowsResponse: {
             columns: components["schemas"]["DatasetColumn"][];
@@ -3303,6 +3347,37 @@ export interface operations {
                     "application/json": components["schemas"]["DatasetRowsResponse"];
                 };
             };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    updateDatasetColumns: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateDatasetColumnsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated dataset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Dataset"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
             401: components["responses"]["ErrorResponse"];
             404: components["responses"]["ErrorResponse"];
         };

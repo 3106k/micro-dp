@@ -26,6 +26,14 @@ const (
 	CreateModuleTypeRequestCategoryTransform   CreateModuleTypeRequestCategory = "transform"
 )
 
+// Defines values for DatasetColumnSemanticType.
+const (
+	Dimension  DatasetColumnSemanticType = "dimension"
+	Identifier DatasetColumnSemanticType = "identifier"
+	Measure    DatasetColumnSemanticType = "measure"
+	Timestamp  DatasetColumnSemanticType = "timestamp"
+)
+
 // Defines values for DatasetSourceType.
 const (
 	DatasetSourceTypeImport    DatasetSourceType = "import"
@@ -186,6 +194,14 @@ type CollectEventsRequest struct {
 type CollectEventsResponse struct {
 	Accepted int `json:"accepted"`
 	Errors   int `json:"errors"`
+}
+
+// ColumnStatistics defines model for ColumnStatistics.
+type ColumnStatistics struct {
+	DistinctCount *int64   `json:"distinct_count,omitempty"`
+	Max           *string  `json:"max,omitempty"`
+	Min           *string  `json:"min,omitempty"`
+	NullRate      *float64 `json:"null_rate,omitempty"`
 }
 
 // Connection defines model for Connection.
@@ -402,23 +418,34 @@ type Credential struct {
 
 // Dataset defines model for Dataset.
 type Dataset struct {
-	CreatedAt     *time.Time        `json:"created_at,omitempty"`
-	Id            string            `json:"id"`
-	LastUpdatedAt *time.Time        `json:"last_updated_at,omitempty"`
-	Name          string            `json:"name"`
-	RowCount      *int64            `json:"row_count,omitempty"`
-	SchemaJson    *string           `json:"schema_json,omitempty"`
-	SourceType    DatasetSourceType `json:"source_type"`
-	StoragePath   string            `json:"storage_path"`
-	TenantId      string            `json:"tenant_id"`
-	UpdatedAt     *time.Time        `json:"updated_at,omitempty"`
+	Columns       *[]DatasetColumn `json:"columns,omitempty"`
+	CreatedAt     *time.Time       `json:"created_at,omitempty"`
+	Id            string           `json:"id"`
+	LastUpdatedAt *time.Time       `json:"last_updated_at,omitempty"`
+	Name          string           `json:"name"`
+	RowCount      *int64           `json:"row_count,omitempty"`
+	// Deprecated:
+	SchemaJson  *string           `json:"schema_json,omitempty"`
+	SourceType  DatasetSourceType `json:"source_type"`
+	StoragePath string            `json:"storage_path"`
+	TenantId    string            `json:"tenant_id"`
+	UpdatedAt   *time.Time        `json:"updated_at,omitempty"`
 }
 
 // DatasetColumn defines model for DatasetColumn.
 type DatasetColumn struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Description  *string                    `json:"description,omitempty"`
+	Name         string                     `json:"name"`
+	Nullable     *bool                      `json:"nullable,omitempty"`
+	SampleValues *[]interface{}             `json:"sample_values,omitempty"`
+	SemanticType *DatasetColumnSemanticType `json:"semantic_type,omitempty"`
+	Statistics   *ColumnStatistics          `json:"statistics,omitempty"`
+	Tags         *[]string                  `json:"tags,omitempty"`
+	Type         string                     `json:"type"`
 }
+
+// DatasetColumnSemanticType defines model for DatasetColumnSemanticType.
+type DatasetColumnSemanticType string
 
 // DatasetRowsResponse defines model for DatasetRowsResponse.
 type DatasetRowsResponse struct {
@@ -775,6 +802,19 @@ type UpdateConnectionRequest struct {
 	Type         string  `json:"type"`
 }
 
+// UpdateDatasetColumnRequest defines model for UpdateDatasetColumnRequest.
+type UpdateDatasetColumnRequest struct {
+	Description  *string                    `json:"description,omitempty"`
+	Name         string                     `json:"name"`
+	SemanticType *DatasetColumnSemanticType `json:"semantic_type,omitempty"`
+	Tags         *[]string                  `json:"tags,omitempty"`
+}
+
+// UpdateDatasetColumnsRequest defines model for UpdateDatasetColumnsRequest.
+type UpdateDatasetColumnsRequest struct {
+	Columns []UpdateDatasetColumnRequest `json:"columns"`
+}
+
 // UpdateJobRequest defines model for UpdateJobRequest.
 type UpdateJobRequest struct {
 	Description *string `json:"description,omitempty"`
@@ -972,6 +1012,11 @@ type ListDatasetsParams struct {
 
 // GetDatasetParams defines parameters for GetDataset.
 type GetDatasetParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// UpdateDatasetColumnsParams defines parameters for UpdateDatasetColumns.
+type UpdateDatasetColumnsParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -1214,6 +1259,9 @@ type TestConnectionJSONRequestBody = TestConnectionRequest
 
 // UpdateConnectionJSONRequestBody defines body for UpdateConnection for application/json ContentType.
 type UpdateConnectionJSONRequestBody = UpdateConnectionRequest
+
+// UpdateDatasetColumnsJSONRequestBody defines body for UpdateDatasetColumns for application/json ContentType.
+type UpdateDatasetColumnsJSONRequestBody = UpdateDatasetColumnsRequest
 
 // IngestEventJSONRequestBody defines body for IngestEvent for application/json ContentType.
 type IngestEventJSONRequestBody = IngestEventRequest
