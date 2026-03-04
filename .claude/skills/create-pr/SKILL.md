@@ -93,3 +93,33 @@ EOF
 ```
 
 作成された PR の URL を報告する。
+
+### 6. Project Board Status 更新
+
+PR に `Closes #N` が含まれている場合、対象 issue の Status を **Review** に更新する:
+
+```bash
+# 1. item_id を取得
+gh project item-list 2 --owner 3106k --format json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for item in data.get('items', []):
+    if item.get('content', {}).get('number') == <issue_number>:
+        print(item['id'])
+"
+
+# 2. Status → Review に更新
+gh api graphql -f query='
+mutation {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: "PVT_kwHOAC1ux84BQwnR"
+    itemId: "<item_id>"
+    fieldId: "PVTSSF_lAHOAC1ux84BQwnRzg-yVxk"
+    value: { singleSelectOptionId: "f99654d4" }
+  }) {
+    projectV2Item { id }
+  }
+}'
+```
+
+更新結果を報告する。
