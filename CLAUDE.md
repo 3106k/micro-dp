@@ -572,3 +572,37 @@ Playwright で `browser_take_screenshot` を使用した場合、確認完了後
 3. `spec` に JSON Schema を定義 (x-* 拡張でフォームヒント)
 4. `go build ./...` で起動時自動ロード確認
 5. `connections.type` に定義 ID を指定して使用
+
+## GitHub Project Board
+
+プロジェクト: https://github.com/users/3106k/projects/2 (SSOT — 進行管理の単一の真実源)
+
+### Status
+
+| Status | 定義 |
+|--------|------|
+| Todo | 未準備 |
+| Ready | 依存解決済みで着手可能 |
+| In Progress | 実装中 |
+| Review | PR 作成済み・レビュー待ち |
+| Done | merge 完了 + Issue close |
+| Blocked | 外部要因 / 依存待ち |
+
+### フィールド (必須)
+
+| フィールド | 値 | 用途 |
+|-----------|-----|------|
+| Priority | P0 / P1 / P2 | P0=今スプリント必達, P1=次に着手, P2=後続 |
+| Area | API / Web / Worker / E2E | 主要な変更先 |
+| DependsOn | `#N` | ブロック元 issue 番号 |
+
+### 運用ルール
+
+- **着手順**: In Progress の issue から着手。空なら Ready の Priority 高い順
+- **WIP 制限**: In Progress は最大 2 件 (API 系 1 + 非 API 系 1)。3 件目を入れる前に 1 件を Review か Blocked へ
+- **1 PR = 1 Issue**: PR 本文に `Closes #N` 必須
+- **OpenAPI 変更**: spec 更新を先行し `make openapi-check` 通過が Ready → In Progress の前提
+- **完了条件**: 実装 + 生成/テスト + PR merge + Issue close で Done
+- **緊急割り込み**: P0 で In Progress に割り込み可。理由を issue コメントに 1 行残す
+
+詳細な操作方法・field ID は `/project` スキルを参照。

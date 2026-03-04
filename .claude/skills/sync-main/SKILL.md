@@ -1,7 +1,6 @@
 ---
 name: sync-main
 description: Fetch and merge origin/main into the current branch
-disable-model-invocation: true
 allowed-tools: Bash, Read
 ---
 
