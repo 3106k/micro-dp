@@ -40,6 +40,12 @@ const (
 	HealthResponseStatusOk       HealthResponseStatus = "ok"
 )
 
+// Defines values for ImportExecution.
+const (
+	ImportExecutionImmediate ImportExecution = "immediate"
+	ImportExecutionSaveOnly  ImportExecution = "save_only"
+)
+
 // Defines values for IngestEventResponseStatus.
 const (
 	IngestEventResponseStatusAccepted IngestEventResponseStatus = "accepted"
@@ -119,9 +125,9 @@ const (
 
 // Defines values for TransformExecution.
 const (
-	Immediate TransformExecution = "immediate"
-	SaveOnly  TransformExecution = "save_only"
-	Scheduled TransformExecution = "scheduled"
+	TransformExecutionImmediate TransformExecution = "immediate"
+	TransformExecutionSaveOnly  TransformExecution = "save_only"
+	TransformExecutionScheduled TransformExecution = "scheduled"
 )
 
 // Defines values for UploadStatus.
@@ -243,18 +249,20 @@ type CreateEdgeInput struct {
 
 // CreateImportJobRequest defines model for CreateImportJobRequest.
 type CreateImportJobRequest struct {
-	ConnectionId  string  `json:"connection_id"`
-	Description   *string `json:"description,omitempty"`
-	Name          string  `json:"name"`
-	Range         *string `json:"range,omitempty"`
-	SheetName     *string `json:"sheet_name,omitempty"`
-	Slug          string  `json:"slug"`
-	SpreadsheetId string  `json:"spreadsheet_id"`
+	ConnectionId  string           `json:"connection_id"`
+	Description   *string          `json:"description,omitempty"`
+	Execution     *ImportExecution `json:"execution,omitempty"`
+	Name          string           `json:"name"`
+	Range         *string          `json:"range,omitempty"`
+	SheetName     *string          `json:"sheet_name,omitempty"`
+	Slug          string           `json:"slug"`
+	SpreadsheetId string           `json:"spreadsheet_id"`
 }
 
 // CreateImportJobResponse defines model for CreateImportJobResponse.
 type CreateImportJobResponse struct {
 	Job     Job        `json:"job"`
+	JobRun  *JobRun    `json:"job_run,omitempty"`
 	Version JobVersion `json:"version"`
 }
 
@@ -417,6 +425,9 @@ type HealthResponse struct {
 
 // HealthResponseStatus defines model for HealthResponse.Status.
 type HealthResponseStatus string
+
+// ImportExecution defines model for ImportExecution.
+type ImportExecution string
 
 // IngestEventRequest defines model for IngestEventRequest.
 type IngestEventRequest struct {

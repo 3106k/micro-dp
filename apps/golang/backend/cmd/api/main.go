@@ -186,7 +186,7 @@ func main() {
 		datasetRepo, minioClient, jobService, moduleTypeRepo,
 		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
 	)
-	importJobService := usecase.NewImportJobService(jobService, moduleTypeRepo, jobVersionRepo, jobModuleRepo)
+	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo)
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
