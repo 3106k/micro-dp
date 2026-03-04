@@ -13,6 +13,21 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for ChartPeriod.
+const (
+	Custom     ChartPeriod = "custom"
+	Last30Days ChartPeriod = "last_30_days"
+	Last7Days  ChartPeriod = "last_7_days"
+	Last90Days ChartPeriod = "last_90_days"
+)
+
+// Defines values for ChartType.
+const (
+	Bar  ChartType = "bar"
+	Line ChartType = "line"
+	Pie  ChartType = "pie"
+)
+
 // Defines values for ConnectorKind.
 const (
 	ConnectorKindDestination ConnectorKind = "destination"
@@ -111,6 +126,13 @@ const (
 	View  SchemaItemType = "view"
 )
 
+// Defines values for TemplateRunStatus.
+const (
+	Failed  TemplateRunStatus = "failed"
+	Skipped TemplateRunStatus = "skipped"
+	Success TemplateRunStatus = "success"
+)
+
 // Defines values for TenantInvitationStatus.
 const (
 	TenantInvitationStatusAccepted TenantInvitationStatus = "accepted"
@@ -175,6 +197,40 @@ type BillingSubscriptionResponse struct {
 type BillingWebhookResponse struct {
 	Received bool `json:"received"`
 }
+
+// Chart defines model for Chart.
+type Chart struct {
+	ChartType  ChartType `json:"chart_type"`
+	ConfigJson *string   `json:"config_json,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	DatasetId  string    `json:"dataset_id"`
+	Dimension  string    `json:"dimension"`
+	Id         string    `json:"id"`
+	Measure    string    `json:"measure"`
+	Name       string    `json:"name"`
+	TenantId   string    `json:"tenant_id"`
+	UpdatedAt  time.Time `json:"updated_at"`
+}
+
+// ChartDataResponse defines model for ChartDataResponse.
+type ChartDataResponse struct {
+	ChartId  string         `json:"chart_id"`
+	Datasets []ChartDataset `json:"datasets"`
+	Labels   []string       `json:"labels"`
+	Period   ChartPeriod    `json:"period"`
+}
+
+// ChartDataset defines model for ChartDataset.
+type ChartDataset struct {
+	Data  []float32 `json:"data"`
+	Label string    `json:"label"`
+}
+
+// ChartPeriod defines model for ChartPeriod.
+type ChartPeriod string
+
+// ChartType defines model for ChartType.
+type ChartType string
 
 // ColumnStatistics defines model for ColumnStatistics.
 type ColumnStatistics struct {
@@ -248,6 +304,16 @@ type CreateBillingPortalSessionResponse struct {
 	Url string `json:"url"`
 }
 
+// CreateChartRequest defines model for CreateChartRequest.
+type CreateChartRequest struct {
+	ChartType  ChartType `json:"chart_type"`
+	ConfigJson *string   `json:"config_json,omitempty"`
+	DatasetId  string    `json:"dataset_id"`
+	Dimension  string    `json:"dimension"`
+	Measure    string    `json:"measure"`
+	Name       string    `json:"name"`
+}
+
 // CreateConnectionRequest defines model for CreateConnectionRequest.
 type CreateConnectionRequest struct {
 	ConfigJson   *string `json:"config_json,omitempty"`
@@ -255,6 +321,18 @@ type CreateConnectionRequest struct {
 	Name         string  `json:"name"`
 	SecretRef    *string `json:"secret_ref,omitempty"`
 	Type         string  `json:"type"`
+}
+
+// CreateDashboardRequest defines model for CreateDashboardRequest.
+type CreateDashboardRequest struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
+}
+
+// CreateDashboardWidgetRequest defines model for CreateDashboardWidgetRequest.
+type CreateDashboardWidgetRequest struct {
+	ChartId  string `json:"chart_id"`
+	Position int    `json:"position"`
 }
 
 // CreateEdgeInput defines model for CreateEdgeInput.
@@ -343,6 +421,11 @@ type CreatePlanRequest struct {
 	Name             string `json:"name"`
 }
 
+// CreateTemplateRunRequest defines model for CreateTemplateRunRequest.
+type CreateTemplateRunRequest struct {
+	TemplateType string `json:"template_type"`
+}
+
 // CreateTransformJobRequest defines model for CreateTransformJobRequest.
 type CreateTransformJobRequest struct {
 	DatasetIds  []string            `json:"dataset_ids"`
@@ -382,6 +465,25 @@ type Credential struct {
 	TenantId      string     `json:"tenant_id"`
 	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
 	UserId        string     `json:"user_id"`
+}
+
+// Dashboard defines model for Dashboard.
+type Dashboard struct {
+	CreatedAt   time.Time `json:"created_at"`
+	Description *string   `json:"description,omitempty"`
+	Id          string    `json:"id"`
+	Name        string    `json:"name"`
+	TenantId    string    `json:"tenant_id"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// DashboardWidget defines model for DashboardWidget.
+type DashboardWidget struct {
+	ChartId     string    `json:"chart_id"`
+	CreatedAt   time.Time `json:"created_at"`
+	DashboardId string    `json:"dashboard_id"`
+	Id          string    `json:"id"`
+	Position    int       `json:"position"`
 }
 
 // Dataset defines model for Dataset.
@@ -669,6 +771,20 @@ type SchemaItem struct {
 // SchemaItemType defines model for SchemaItem.Type.
 type SchemaItemType string
 
+// TemplateRun defines model for TemplateRun.
+type TemplateRun struct {
+	CreatedAt    time.Time         `json:"created_at"`
+	DashboardId  *string           `json:"dashboard_id,omitempty"`
+	Id           string            `json:"id"`
+	SkipReason   *string           `json:"skip_reason,omitempty"`
+	Status       TemplateRunStatus `json:"status"`
+	TemplateType string            `json:"template_type"`
+	TenantId     string            `json:"tenant_id"`
+}
+
+// TemplateRunStatus defines model for TemplateRunStatus.
+type TemplateRunStatus string
+
 // Tenant defines model for Tenant.
 type Tenant struct {
 	Id       string `json:"id"`
@@ -761,6 +877,16 @@ type TransformValidateResponse struct {
 	Valid   bool             `json:"valid"`
 }
 
+// UpdateChartRequest defines model for UpdateChartRequest.
+type UpdateChartRequest struct {
+	ChartType  ChartType `json:"chart_type"`
+	ConfigJson *string   `json:"config_json,omitempty"`
+	DatasetId  string    `json:"dataset_id"`
+	Dimension  string    `json:"dimension"`
+	Measure    string    `json:"measure"`
+	Name       string    `json:"name"`
+}
+
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
 type UpdateConnectionRequest struct {
 	ConfigJson   *string `json:"config_json,omitempty"`
@@ -768,6 +894,12 @@ type UpdateConnectionRequest struct {
 	Name         string  `json:"name"`
 	SecretRef    *string `json:"secret_ref,omitempty"`
 	Type         string  `json:"type"`
+}
+
+// UpdateDashboardRequest defines model for UpdateDashboardRequest.
+type UpdateDashboardRequest struct {
+	Description *string `json:"description,omitempty"`
+	Name        string  `json:"name"`
 }
 
 // UpdateDatasetColumnRequest defines model for UpdateDatasetColumnRequest.
@@ -882,6 +1014,39 @@ type GetBillingSubscriptionParams struct {
 // BillingWebhookJSONBody defines parameters for BillingWebhook.
 type BillingWebhookJSONBody map[string]interface{}
 
+// ListChartsParams defines parameters for ListCharts.
+type ListChartsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateChartParams defines parameters for CreateChart.
+type CreateChartParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// DeleteChartParams defines parameters for DeleteChart.
+type DeleteChartParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetChartParams defines parameters for GetChart.
+type GetChartParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// UpdateChartParams defines parameters for UpdateChart.
+type UpdateChartParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetChartDataParams defines parameters for GetChartData.
+type GetChartDataParams struct {
+	Period    *ChartPeriod        `form:"period,omitempty" json:"period,omitempty"`
+	StartDate *openapi_types.Date `form:"start_date,omitempty" json:"start_date,omitempty"`
+	EndDate   *openapi_types.Date `form:"end_date,omitempty" json:"end_date,omitempty"`
+	XTenantID XTenantID           `json:"X-Tenant-ID"`
+}
+
 // ListConnectionsParams defines parameters for ListConnections.
 type ListConnectionsParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -948,6 +1113,46 @@ type StartGoogleCredentialOAuthParams struct {
 
 // DeleteCredentialParams defines parameters for DeleteCredential.
 type DeleteCredentialParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListDashboardsParams defines parameters for ListDashboards.
+type ListDashboardsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateDashboardParams defines parameters for CreateDashboard.
+type CreateDashboardParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListDashboardWidgetsParams defines parameters for ListDashboardWidgets.
+type ListDashboardWidgetsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateDashboardWidgetParams defines parameters for CreateDashboardWidget.
+type CreateDashboardWidgetParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// DeleteDashboardWidgetParams defines parameters for DeleteDashboardWidget.
+type DeleteDashboardWidgetParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// DeleteDashboardParams defines parameters for DeleteDashboard.
+type DeleteDashboardParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetDashboardParams defines parameters for GetDashboard.
+type GetDashboardParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// UpdateDashboardParams defines parameters for UpdateDashboard.
+type UpdateDashboardParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -1098,6 +1303,21 @@ type GetTenantPlanParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// ListTemplateRunsParams defines parameters for ListTemplateRuns.
+type ListTemplateRunsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateTemplateRunParams defines parameters for CreateTemplateRun.
+type CreateTemplateRunParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GetTemplateRunParams defines parameters for GetTemplateRun.
+type GetTemplateRunParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // CreateInvitationParams defines parameters for CreateInvitation.
 type CreateInvitationParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -1178,6 +1398,12 @@ type CreateBillingPortalSessionJSONRequestBody = CreateBillingPortalSessionReque
 // BillingWebhookJSONRequestBody defines body for BillingWebhook for application/json ContentType.
 type BillingWebhookJSONRequestBody BillingWebhookJSONBody
 
+// CreateChartJSONRequestBody defines body for CreateChart for application/json ContentType.
+type CreateChartJSONRequestBody = CreateChartRequest
+
+// UpdateChartJSONRequestBody defines body for UpdateChart for application/json ContentType.
+type UpdateChartJSONRequestBody = UpdateChartRequest
+
 // CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
 type CreateConnectionJSONRequestBody = CreateConnectionRequest
 
@@ -1186,6 +1412,15 @@ type TestConnectionJSONRequestBody = TestConnectionRequest
 
 // UpdateConnectionJSONRequestBody defines body for UpdateConnection for application/json ContentType.
 type UpdateConnectionJSONRequestBody = UpdateConnectionRequest
+
+// CreateDashboardJSONRequestBody defines body for CreateDashboard for application/json ContentType.
+type CreateDashboardJSONRequestBody = CreateDashboardRequest
+
+// CreateDashboardWidgetJSONRequestBody defines body for CreateDashboardWidget for application/json ContentType.
+type CreateDashboardWidgetJSONRequestBody = CreateDashboardWidgetRequest
+
+// UpdateDashboardJSONRequestBody defines body for UpdateDashboard for application/json ContentType.
+type UpdateDashboardJSONRequestBody = UpdateDashboardRequest
 
 // UpdateDatasetColumnsJSONRequestBody defines body for UpdateDatasetColumns for application/json ContentType.
 type UpdateDatasetColumnsJSONRequestBody = UpdateDatasetColumnsRequest
@@ -1213,6 +1448,9 @@ type CreateModuleTypeJSONRequestBody = CreateModuleTypeRequest
 
 // CreateModuleTypeSchemaJSONRequestBody defines body for CreateModuleTypeSchema for application/json ContentType.
 type CreateModuleTypeSchemaJSONRequestBody = CreateModuleTypeSchemaRequest
+
+// CreateTemplateRunJSONRequestBody defines body for CreateTemplateRun for application/json ContentType.
+type CreateTemplateRunJSONRequestBody = CreateTemplateRunRequest
 
 // CreateInvitationJSONRequestBody defines body for CreateInvitation for application/json ContentType.
 type CreateInvitationJSONRequestBody = CreateInvitationRequest
