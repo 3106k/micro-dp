@@ -605,4 +605,12 @@ Playwright で `browser_take_screenshot` を使用した場合、確認完了後
 - **完了条件**: 実装 + 生成/テスト + PR merge + Issue close で Done
 - **緊急割り込み**: P0 で In Progress に割り込み可。理由を issue コメントに 1 行残す
 
+### Status 更新の実行タイミング
+
+issue に着手・PR 作成・マージ時は、**必ず `/project` スキルで Status を更新すること**:
+
+- **issue 着手時**: `/project update <issue#> status "In progress"` を実行
+- **PR 作成時**: `/create-pr` が自動で Status → Review に更新する
+- **マージ後**: Status → Done に更新し、ブロックしていた issue の Blocked を解除
+
 詳細な操作方法・field ID は `/project` スキルを参照。

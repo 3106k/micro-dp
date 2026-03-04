@@ -82,3 +82,33 @@ EOF
 ```
 
 投稿した旨を報告する。
+
+### 6. Project Board Status 更新
+
+実装プランが承認され着手する場合、issue の Status を **In Progress** に更新する:
+
+```bash
+# 1. item_id を取得
+gh project item-list 2 --owner 3106k --format json | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+for item in data.get('items', []):
+    if item.get('content', {}).get('number') == <issue_number>:
+        print(item['id'])
+"
+
+# 2. Status → In Progress に更新
+gh api graphql -f query='
+mutation {
+  updateProjectV2ItemFieldValue(input: {
+    projectId: "PVT_kwHOAC1ux84BQwnR"
+    itemId: "<item_id>"
+    fieldId: "PVTSSF_lAHOAC1ux84BQwnRzg-yVxk"
+    value: { singleSelectOptionId: "47fc9ee4" }
+  }) {
+    projectV2Item { id }
+  }
+}'
+```
+
+更新前に WIP 制限 (In Progress 最大 2 件) を確認し、超える場合はユーザーに警告する。
