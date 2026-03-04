@@ -118,6 +118,14 @@ func main() {
 	go jobRunPoller.Run(ctx)
 	go jobRunConsumer.Run(ctx)
 
+	// Aggregation consumer (raw → events/visits)
+	tenantRepo := db.NewTenantRepo(sqlDB)
+	aggregationWriter := worker.NewAggregationWriter(minioClient)
+	aggregationMetrics := observability.NewAggregationMetrics()
+	aggregationConsumer := worker.NewAggregationConsumer(tenantRepo, aggregationWriter, aggregationMetrics, 1*time.Hour)
+
+	go aggregationConsumer.Run(ctx)
+
 	// Health check server
 	healthH := handler.NewHealthHandler(sqlDB)
 	mux := http.NewServeMux()

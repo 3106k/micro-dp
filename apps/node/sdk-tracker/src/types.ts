@@ -11,6 +11,23 @@ export interface TrackerConfig {
   retryMaxAttempts?: number;
   retryBaseDelayMs?: number;
   headers?: Record<string, string>;
+  /** Write key for external (non-cookie) auth via collect API */
+  writeKey?: string;
+  /** Collect context data automatically (UA, referrer, screen, etc.) */
+  collectContext?: boolean;
+}
+
+export interface EventContext {
+  user_agent?: string;
+  referrer?: string;
+  screen_width?: number;
+  screen_height?: number;
+  viewport_width?: number;
+  viewport_height?: number;
+  timezone?: string;
+  page_url?: string;
+  page_title?: string;
+  language?: string;
 }
 
 export interface TrackOptions {
@@ -31,6 +48,7 @@ export interface TrackerEvent {
   properties: Record<string, unknown>;
   event_time: string;
   sent_at: string;
+  context?: EventContext;
 }
 
 export interface FlushOptions {
