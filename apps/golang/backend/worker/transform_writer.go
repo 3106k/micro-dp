@@ -3,7 +3,6 @@ package worker
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -76,7 +75,7 @@ func (w *TransformWriter) Execute(ctx context.Context, msg *domain.TransformJobM
 	}
 
 	// Get schema
-	schemaJSON, err := extractTransformSchema(ctx, duckDB)
+	schemaJSON, err := ExtractEnrichedSchema(ctx, duckDB, "_result")
 	if err != nil {
 		return nil, fmt.Errorf("extract schema: %w", err)
 	}
@@ -132,33 +131,3 @@ func (w *TransformWriter) Execute(ctx context.Context, msg *domain.TransformJobM
 	}, nil
 }
 
-func extractTransformSchema(ctx context.Context, db *sql.DB) (string, error) {
-	rows, err := db.QueryContext(ctx, "DESCRIBE _result")
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	type column struct {
-		Name string `json:"column_name"`
-		Type string `json:"column_type"`
-	}
-	var columns []column
-	for rows.Next() {
-		var name, colType string
-		var null, key, def, extra sql.NullString
-		if err := rows.Scan(&name, &colType, &null, &key, &def, &extra); err != nil {
-			return "", err
-		}
-		columns = append(columns, column{Name: name, Type: colType})
-	}
-	if err := rows.Err(); err != nil {
-		return "", err
-	}
-
-	data, err := json.Marshal(columns)
-	if err != nil {
-		return "", err
-	}
-	return string(data), nil
-}

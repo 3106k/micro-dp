@@ -301,6 +301,7 @@ func main() {
 	mux.Handle("GET /api/v1/datasets", protected(datasetH.List))
 	mux.Handle("GET /api/v1/datasets/{id}", protected(datasetH.Get))
 	mux.Handle("GET /api/v1/datasets/{id}/rows", protected(datasetH.GetRows))
+	mux.Handle("PATCH /api/v1/datasets/{id}/columns", protected(datasetH.UpdateColumns))
 
 	// Uploads
 	mux.Handle("POST /api/v1/uploads/presign", protected(uploadH.Presign))

@@ -4,6 +4,7 @@ import { backendFetch } from "@/lib/api/server";
 import { getAuthContext } from "@/lib/auth/get-auth-context";
 import type { components } from "@/lib/api/generated";
 import { DatasetRowsPreview } from "./dataset-rows-preview";
+import { DatasetSchemaTable } from "./dataset-schema-table";
 
 type Dataset = components["schemas"]["Dataset"];
 
@@ -101,12 +102,19 @@ export default async function DatasetDetailPage({
             </div>
           </div>
 
-          <div className="rounded-lg border p-4">
-            <h2 className="mb-2 text-lg font-semibold">Schema JSON</h2>
-            <pre className="overflow-auto rounded bg-muted p-3 text-xs">
-              {prettyJSON(dataset.schema_json)}
-            </pre>
-          </div>
+          {dataset.columns && dataset.columns.length > 0 ? (
+            <DatasetSchemaTable
+              datasetId={dataset.id}
+              columns={dataset.columns}
+            />
+          ) : (
+            <div className="rounded-lg border p-4">
+              <h2 className="mb-2 text-lg font-semibold">Schema JSON</h2>
+              <pre className="overflow-auto rounded bg-muted p-3 text-xs">
+                {prettyJSON(dataset.schema_json)}
+              </pre>
+            </div>
+          )}
 
           <DatasetRowsPreview datasetId={dataset.id} />
         </div>

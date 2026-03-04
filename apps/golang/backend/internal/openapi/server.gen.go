@@ -110,6 +110,9 @@ type ServerInterface interface {
 	// Get dataset
 	// (GET /api/v1/datasets/{id})
 	GetDataset(w http.ResponseWriter, r *http.Request, id string, params GetDatasetParams)
+	// Update dataset column metadata
+	// (PATCH /api/v1/datasets/{id}/columns)
+	UpdateDatasetColumns(w http.ResponseWriter, r *http.Request, id string, params UpdateDatasetColumnsParams)
 	// Get dataset rows preview
 	// (GET /api/v1/datasets/{id}/rows)
 	GetDatasetRows(w http.ResponseWriter, r *http.Request, id string, params GetDatasetRowsParams)
@@ -1531,6 +1534,65 @@ func (siw *ServerInterfaceWrapper) GetDataset(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetDataset(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDatasetColumns operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDatasetColumns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateDatasetColumnsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDatasetColumns(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3708,6 +3770,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/credentials/{id}", wrapper.DeleteCredential)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets", wrapper.ListDatasets)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}", wrapper.GetDataset)
+	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/datasets/{id}/columns", wrapper.UpdateDatasetColumns)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}/rows", wrapper.GetDatasetRows)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/events", wrapper.IngestEvent)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/events/summary", wrapper.GetEventsSummary)
@@ -4958,6 +5021,52 @@ func (response GetDataset401JSONResponse) VisitGetDatasetResponse(w http.Respons
 type GetDataset404JSONResponse ErrorResponse
 
 func (response GetDataset404JSONResponse) VisitGetDatasetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDatasetColumnsRequestObject struct {
+	Id     string `json:"id"`
+	Params UpdateDatasetColumnsParams
+	Body   *UpdateDatasetColumnsJSONRequestBody
+}
+
+type UpdateDatasetColumnsResponseObject interface {
+	VisitUpdateDatasetColumnsResponse(w http.ResponseWriter) error
+}
+
+type UpdateDatasetColumns200JSONResponse Dataset
+
+func (response UpdateDatasetColumns200JSONResponse) VisitUpdateDatasetColumnsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDatasetColumns400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response UpdateDatasetColumns400JSONResponse) VisitUpdateDatasetColumnsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDatasetColumns401JSONResponse ErrorResponse
+
+func (response UpdateDatasetColumns401JSONResponse) VisitUpdateDatasetColumnsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDatasetColumns404JSONResponse ErrorResponse
+
+func (response UpdateDatasetColumns404JSONResponse) VisitUpdateDatasetColumnsResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
@@ -6458,6 +6567,9 @@ type StrictServerInterface interface {
 	// Get dataset
 	// (GET /api/v1/datasets/{id})
 	GetDataset(ctx context.Context, request GetDatasetRequestObject) (GetDatasetResponseObject, error)
+	// Update dataset column metadata
+	// (PATCH /api/v1/datasets/{id}/columns)
+	UpdateDatasetColumns(ctx context.Context, request UpdateDatasetColumnsRequestObject) (UpdateDatasetColumnsResponseObject, error)
 	// Get dataset rows preview
 	// (GET /api/v1/datasets/{id}/rows)
 	GetDatasetRows(ctx context.Context, request GetDatasetRowsRequestObject) (GetDatasetRowsResponseObject, error)
@@ -7479,6 +7591,40 @@ func (sh *strictHandler) GetDataset(w http.ResponseWriter, r *http.Request, id s
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetDatasetResponseObject); ok {
 		if err := validResponse.VisitGetDatasetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateDatasetColumns operation middleware
+func (sh *strictHandler) UpdateDatasetColumns(w http.ResponseWriter, r *http.Request, id string, params UpdateDatasetColumnsParams) {
+	var request UpdateDatasetColumnsRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body UpdateDatasetColumnsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateDatasetColumns(ctx, request.(UpdateDatasetColumnsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateDatasetColumns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateDatasetColumnsResponseObject); ok {
+		if err := validResponse.VisitUpdateDatasetColumnsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

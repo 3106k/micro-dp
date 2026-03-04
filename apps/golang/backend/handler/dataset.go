@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -132,4 +133,56 @@ func (h *DatasetHandler) GetRows(w http.ResponseWriter, r *http.Request) {
 		Limit:     limit,
 		Offset:    offset,
 	})
+}
+
+func (h *DatasetHandler) UpdateColumns(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing id")
+		return
+	}
+
+	var req openapi.UpdateDatasetColumnsRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	inputs := make([]usecase.UpdateColumnInput, len(req.Columns))
+	for i, c := range req.Columns {
+		inputs[i] = usecase.UpdateColumnInput{
+			Name:        c.Name,
+			Description: ptrStr(c.Description),
+		}
+		if c.SemanticType != nil {
+			inputs[i].SemanticType = string(*c.SemanticType)
+		}
+		if c.Tags != nil {
+			inputs[i].Tags = *c.Tags
+		}
+	}
+
+	d, err := h.datasets.UpdateColumns(r.Context(), id, inputs)
+	if err != nil {
+		if errors.Is(err, domain.ErrDatasetNotFound) {
+			writeError(w, http.StatusNotFound, "dataset not found")
+			return
+		}
+		if errors.Is(err, domain.ErrColumnNotFound) {
+			writeError(w, http.StatusBadRequest, err.Error())
+			return
+		}
+		log.Printf("update columns error: %v", err)
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, toOpenAPIDataset(d))
+}
+
+func ptrStr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
