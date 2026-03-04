@@ -11,12 +11,14 @@ import { ConnectorSchemaForm } from "./connector-schema-form";
 
 type Connection = components["schemas"]["Connection"];
 type ConnectorDefinition = components["schemas"]["ConnectorDefinition"];
+type Credential = components["schemas"]["Credential"];
 
 type FormState = {
   name: string;
   type: string;
   configValues: Record<string, unknown>;
   secret_ref: string;
+  credential_id: string;
 };
 
 const emptyForm: FormState = {
@@ -24,14 +26,17 @@ const emptyForm: FormState = {
   type: "",
   configValues: {},
   secret_ref: "",
+  credential_id: "",
 };
 
 export function ConnectionsManager({
   initialConnections,
   initialConnectors,
+  initialCredentials,
 }: {
   initialConnections: Connection[];
   initialConnectors: ConnectorDefinition[];
+  initialCredentials: Credential[];
 }) {
   const { pushToast } = useToast();
   const [connections, setConnections] = useState(initialConnections);
@@ -42,6 +47,7 @@ export function ConnectionsManager({
   // Spec fetched for the currently selected connector type
   const [spec, setSpec] = useState<Record<string, unknown> | null>(null);
   const [specLoading, setSpecLoading] = useState(false);
+  const [credentialProvider, setCredentialProvider] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
 
   const isEditing = useMemo(() => editingId !== null, [editingId]);
@@ -49,6 +55,7 @@ export function ConnectionsManager({
   const fetchSpec = useCallback(async (connectorId: string) => {
     setSpecLoading(true);
     setSpec(null);
+    setCredentialProvider(null);
     try {
       const res = await fetch(`/api/connectors/${encodeURIComponent(connectorId)}`);
       if (!res.ok) {
@@ -57,6 +64,7 @@ export function ConnectionsManager({
       }
       const data = await res.json();
       setSpec(data.spec ?? null);
+      setCredentialProvider(data.credential_provider ?? null);
       // Apply default values from spec
       const properties = (data.spec?.properties ?? {}) as Record<
         string,
@@ -88,8 +96,9 @@ export function ConnectionsManager({
   }
 
   function handleTypeChange(connectorId: string) {
-    setForm((prev) => ({ ...prev, type: connectorId, configValues: {} }));
+    setForm((prev) => ({ ...prev, type: connectorId, configValues: {}, credential_id: "" }));
     setSpec(null);
+    setCredentialProvider(null);
     if (connectorId) {
       fetchSpec(connectorId);
     }
@@ -104,6 +113,7 @@ export function ConnectionsManager({
         type: form.type,
         config_json: JSON.stringify(form.configValues),
         secret_ref: form.secret_ref || undefined,
+        credential_id: form.credential_id || undefined,
       };
 
       const res = await fetch(
@@ -147,6 +157,7 @@ export function ConnectionsManager({
         body: JSON.stringify({
           type: form.type,
           config_json: JSON.stringify(form.configValues),
+          credential_id: form.credential_id || undefined,
         }),
       });
       const data = await res.json();
@@ -185,6 +196,7 @@ export function ConnectionsManager({
       type: connection.type,
       configValues,
       secret_ref: connection.secret_ref ?? "",
+      credential_id: connection.credential_id ?? "",
     });
     fetchSpec(connection.type);
   }
@@ -263,6 +275,36 @@ export function ConnectionsManager({
               setForm((prev) => ({ ...prev, configValues }))
             }
           />
+        ) : null}
+
+        {credentialProvider ? (
+          <div className="space-y-2">
+            <Label htmlFor="credential_id">Credential</Label>
+            {initialCredentials.filter((c) => c.provider === credentialProvider).length > 0 ? (
+              <select
+                id="credential_id"
+                value={form.credential_id}
+                onChange={(e) => setForm((prev) => ({ ...prev, credential_id: e.target.value }))}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="">Select credential...</option>
+                {initialCredentials
+                  .filter((c) => c.provider === credentialProvider)
+                  .map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.provider_label || c.provider} ({c.id.slice(0, 8)})
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                No {credentialProvider} credential linked.{" "}
+                <a href="/integrations" className="underline">
+                  Connect in Integrations
+                </a>
+              </p>
+            )}
+          </div>
         ) : null}
 
         <div className="space-y-2">

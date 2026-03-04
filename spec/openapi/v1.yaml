@@ -19,6 +19,7 @@ tags:
   - name: module_types
   - name: connectors
   - name: connections
+  - name: credentials
   - name: datasets
   - name: uploads
   - name: members
@@ -1418,6 +1419,88 @@ paths:
         "422":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Credentials ----
+  /api/v1/credentials:
+    get:
+      tags: [credentials]
+      summary: List credentials
+      operationId: listCredentials
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Credential"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/credentials/{id}:
+    delete:
+      tags: [credentials]
+      summary: Delete credential
+      operationId: deleteCredential
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/credentials/google/start:
+    get:
+      tags: [credentials]
+      summary: Start Google credential OAuth flow
+      operationId: startGoogleCredentialOAuth
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "302":
+          description: Redirect to Google OAuth
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/credentials/google/callback:
+    get:
+      tags: [credentials]
+      summary: Google credential OAuth callback
+      operationId: googleCredentialCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to post-OAuth page
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Datasets ----
   /api/v1/datasets:
     get:
@@ -2244,6 +2327,8 @@ components:
           type: string
         secret_ref:
           type: string
+        credential_id:
+          type: string
         created_at:
           type: string
           format: date-time
@@ -2262,6 +2347,8 @@ components:
           type: string
         secret_ref:
           type: string
+        credential_id:
+          type: string
     UpdateConnectionRequest:
       type: object
       required: [name, type]
@@ -2274,6 +2361,8 @@ components:
           type: string
         secret_ref:
           type: string
+        credential_id:
+          type: string
     TestConnectionRequest:
       type: object
       required: [type, config_json]
@@ -2281,6 +2370,8 @@ components:
         type:
           type: string
         config_json:
+          type: string
+        credential_id:
           type: string
     TestConnectionResponse:
       type: object
@@ -2290,6 +2381,8 @@ components:
           type: string
           enum: [ok, failed]
         message:
+          type: string
+        code:
           type: string
 
     # ---- Connector schemas ----
@@ -2324,8 +2417,34 @@ components:
           type: string
         description:
           type: string
+        credential_provider:
+          type: string
         spec:
           type: object
+
+    # ---- Credential schemas ----
+    Credential:
+      type: object
+      required: [id, user_id, tenant_id, provider]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        tenant_id:
+          type: string
+        provider:
+          type: string
+        provider_label:
+          type: string
+        scopes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     # ---- Dataset schemas ----
     Dataset:
