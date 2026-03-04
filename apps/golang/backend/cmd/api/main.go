@@ -11,6 +11,8 @@ import (
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/connector"
+	"github.com/user/micro-dp/internal/connector/fetchers"
+	"github.com/user/micro-dp/internal/connector/testers"
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/notification"
 	"github.com/user/micro-dp/internal/observability"
@@ -85,6 +87,7 @@ func main() {
 	billingSubscriptionRepo := db.NewBillingSubscriptionRepo(sqlDB)
 	stripeWebhookEventRepo := db.NewStripeWebhookEventRepo(sqlDB)
 	billingAuditLogRepo := db.NewBillingAuditLogRepo(sqlDB)
+	credentialRepo := db.NewCredentialRepo(sqlDB)
 	invitationRepo := db.NewInvitationRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
@@ -125,10 +128,24 @@ func main() {
 			PostFailureRedirect: os.Getenv("GOOGLE_OAUTH_POST_FAILURE_REDIRECT_URI"),
 		},
 	)
-	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
+	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeRepo)
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo, connectorRegistry)
+	credentialService := usecase.NewCredentialService(
+		credentialRepo,
+		usecase.GoogleCredentialOAuthConfig{
+			ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+			ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+			RedirectURL:     os.Getenv("GOOGLE_OAUTH_CREDENTIAL_REDIRECT_URI"),
+			PostRedirectURL: os.Getenv("GOOGLE_OAUTH_CREDENTIAL_POST_REDIRECT_URI"),
+		},
+		jwtSecret,
+	)
+
+	// Register real connection testers and schema fetchers
+	connectorRegistry.RegisterTester("source-google-sheets", testers.NewGoogleSheetsTester())
+	connectorRegistry.RegisterFetcher("source-google-sheets", fetchers.NewGoogleSheetsFetcher())
 	datasetService := usecase.NewDatasetService(datasetRepo, minioClient)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
@@ -169,6 +186,7 @@ func main() {
 		datasetRepo, minioClient, jobService, moduleTypeRepo,
 		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
 	)
+	importJobService := usecase.NewImportJobService(jobService, moduleTypeRepo, jobVersionRepo, jobModuleRepo)
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
@@ -176,7 +194,8 @@ func main() {
 	jobRunH := handler.NewJobRunHandler(jobRunService)
 	jobH := handler.NewJobHandler(jobService)
 	moduleTypeH := handler.NewModuleTypeHandler(moduleTypeService)
-	connectionH := handler.NewConnectionHandler(connectionService, connectorRegistry)
+	connectionH := handler.NewConnectionHandler(connectionService, credentialService, connectorRegistry)
+	credentialH := handler.NewCredentialHandler(credentialService)
 	connectorH := handler.NewConnectorHandler(connectorRegistry)
 	datasetH := handler.NewDatasetHandler(datasetService)
 	trackerTenantID := os.Getenv("TRACKER_TENANT_ID")
@@ -190,6 +209,7 @@ func main() {
 	adminPlanH := handler.NewAdminPlanHandler(planService)
 	billingH := handler.NewBillingHandler(billingService)
 	transformH := handler.NewTransformHandler(transformService)
+	importJobH := handler.NewImportJobHandler(importJobService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -262,6 +282,12 @@ func main() {
 	mux.Handle("GET /api/v1/connectors", protected(connectorH.List))
 	mux.Handle("GET /api/v1/connectors/{id}", protected(connectorH.Get))
 
+	// Credentials
+	mux.Handle("GET /api/v1/credentials", protected(credentialH.List))
+	mux.Handle("DELETE /api/v1/credentials/{id}", protected(credentialH.Delete))
+	mux.Handle("GET /api/v1/credentials/google/start", protected(credentialH.GoogleStart))
+	mux.HandleFunc("GET /api/v1/credentials/google/callback", credentialH.GoogleCallback)
+
 	// Connections
 	mux.Handle("POST /api/v1/connections", protected(connectionH.Create))
 	mux.Handle("GET /api/v1/connections", protected(connectionH.List))
@@ -269,6 +295,7 @@ func main() {
 	mux.Handle("PUT /api/v1/connections/{id}", protected(connectionH.Update))
 	mux.Handle("DELETE /api/v1/connections/{id}", protected(connectionH.Delete))
 	mux.Handle("POST /api/v1/connections/test", protected(connectionH.Test))
+	mux.Handle("GET /api/v1/connections/{connection_id}/schemas", protected(connectionH.ListSchemas))
 
 	// Datasets
 	mux.Handle("GET /api/v1/datasets", protected(datasetH.List))
@@ -283,6 +310,9 @@ func main() {
 	mux.Handle("POST /api/v1/transform/validate", protected(transformH.Validate))
 	mux.Handle("POST /api/v1/transform/preview", protected(transformH.Preview))
 	mux.Handle("POST /api/v1/transform/jobs", protected(transformH.CreateJob))
+
+	// Import
+	mux.Handle("POST /api/v1/import/jobs", protected(importJobH.CreateJob))
 
 	// Members (tenant-scoped)
 	mux.Handle("GET /api/v1/tenants/current/members", protected(memberH.List))

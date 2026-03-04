@@ -328,6 +328,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/import/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create import job */
+        post: operations["createImportJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plans": {
         parameters: {
             query?: never;
@@ -706,6 +723,91 @@ export interface paths {
         put?: never;
         /** Test connection */
         post: operations["testConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/{connection_id}/schemas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get connection schemas */
+        get: operations["listConnectionSchemas"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credentials": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List credentials */
+        get: operations["listCredentials"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credentials/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete credential */
+        delete: operations["deleteCredential"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credentials/google/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Start Google credential OAuth flow */
+        get: operations["startGoogleCredentialOAuth"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/credentials/google/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Google credential OAuth callback */
+        get: operations["googleCredentialCallback"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1116,6 +1218,7 @@ export interface components {
             type: string;
             config_json?: string;
             secret_ref?: string;
+            credential_id?: string;
             /** Format: date-time */
             created_at?: string;
             /** Format: date-time */
@@ -1126,21 +1229,25 @@ export interface components {
             type: string;
             config_json?: string;
             secret_ref?: string;
+            credential_id?: string;
         };
         UpdateConnectionRequest: {
             name: string;
             type: string;
             config_json?: string;
             secret_ref?: string;
+            credential_id?: string;
         };
         TestConnectionRequest: {
             type: string;
             config_json: string;
+            credential_id?: string;
         };
         TestConnectionResponse: {
             /** @enum {string} */
             status: "ok" | "failed";
             message?: string;
+            code?: string;
         };
         /** @enum {string} */
         ConnectorKind: "source" | "destination";
@@ -1157,7 +1264,20 @@ export interface components {
             kind: components["schemas"]["ConnectorKind"];
             icon?: string;
             description?: string;
+            credential_provider?: string;
             spec: Record<string, never>;
+        };
+        Credential: {
+            id: string;
+            user_id: string;
+            tenant_id: string;
+            provider: string;
+            provider_label?: string;
+            scopes?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
         };
         Dataset: {
             id: string;
@@ -1395,6 +1515,31 @@ export interface components {
             job: components["schemas"]["Job"];
             version: components["schemas"]["JobVersion"];
             job_run?: components["schemas"]["JobRun"];
+        };
+        SchemaItem: {
+            name: string;
+            /** @enum {string} */
+            type: "sheet" | "table" | "view";
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        ConnectionSchemasResponse: {
+            title: string;
+            items: components["schemas"]["SchemaItem"][];
+        };
+        CreateImportJobRequest: {
+            name: string;
+            slug: string;
+            description?: string;
+            connection_id: string;
+            spreadsheet_id: string;
+            sheet_name?: string;
+            range?: string;
+        };
+        CreateImportJobResponse: {
+            job: components["schemas"]["Job"];
+            version: components["schemas"]["JobVersion"];
         };
     };
     responses: {
@@ -1924,6 +2069,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateTransformJobResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            409: components["responses"]["ErrorResponse"];
+        };
+    };
+    createImportJob: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateImportJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Created import job */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateImportJobResponse"];
                 };
             };
             400: components["responses"]["ErrorResponse"];
@@ -2811,6 +2985,128 @@ export interface operations {
             400: components["responses"]["ErrorResponse"];
             401: components["responses"]["ErrorResponse"];
             422: components["responses"]["ErrorResponse"];
+        };
+    };
+    listConnectionSchemas: {
+        parameters: {
+            query?: {
+                /** @description Spreadsheet ID to fetch schemas for (used when connection has no embedded spreadsheet_id) */
+                spreadsheet_id?: string;
+            };
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionSchemasResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    listCredentials: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of credentials */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["Credential"][];
+                    };
+                };
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    deleteCredential: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
+        };
+    };
+    startGoogleCredentialOAuth: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to Google OAuth */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["ErrorResponse"];
+        };
+    };
+    googleCredentialCallback: {
+        parameters: {
+            query: {
+                code: string;
+                state: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Redirect to post-OAuth page */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["ErrorResponse"];
         };
     };
     listDatasets: {

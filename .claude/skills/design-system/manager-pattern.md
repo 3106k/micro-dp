@@ -162,7 +162,7 @@ const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
 | `connections-manager.tsx` | Connection 一覧 + 作成 + テスト |
 | `members-manager.tsx` | メンバー一覧 + 招待 + ロール変更 |
 | `tenants-manager.tsx` | テナント一覧 + 作成 (Admin) |
-| `uploads-manager.tsx` | ファイルアップロード + 一覧 |
+| `uploads-manager.tsx` | ファイルアップロード + 一覧 (`(app)/datasets/upload/`) |
 | `job-runs-manager.tsx` | Job Run 一覧 |
 | `versions-manager.tsx` | Job Version 一覧 + 作成 + Publish |
 | `job-detail-manager.tsx` | Job 詳細 + 編集 |

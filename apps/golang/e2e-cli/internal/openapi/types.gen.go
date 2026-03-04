@@ -90,6 +90,13 @@ const (
 	Transform   ModuleTypeCategory = "transform"
 )
 
+// Defines values for SchemaItemType.
+const (
+	Sheet SchemaItemType = "sheet"
+	Table SchemaItemType = "table"
+	View  SchemaItemType = "view"
+)
+
 // Defines values for TenantInvitationStatus.
 const (
 	TenantInvitationStatusAccepted TenantInvitationStatus = "accepted"
@@ -157,14 +164,21 @@ type BillingWebhookResponse struct {
 
 // Connection defines model for Connection.
 type Connection struct {
-	ConfigJson *string    `json:"config_json,omitempty"`
-	CreatedAt  *time.Time `json:"created_at,omitempty"`
-	Id         string     `json:"id"`
-	Name       string     `json:"name"`
-	SecretRef  *string    `json:"secret_ref,omitempty"`
-	TenantId   string     `json:"tenant_id"`
-	Type       string     `json:"type"`
-	UpdatedAt  *time.Time `json:"updated_at,omitempty"`
+	ConfigJson   *string    `json:"config_json,omitempty"`
+	CreatedAt    *time.Time `json:"created_at,omitempty"`
+	CredentialId *string    `json:"credential_id,omitempty"`
+	Id           string     `json:"id"`
+	Name         string     `json:"name"`
+	SecretRef    *string    `json:"secret_ref,omitempty"`
+	TenantId     string     `json:"tenant_id"`
+	Type         string     `json:"type"`
+	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
+}
+
+// ConnectionSchemasResponse defines model for ConnectionSchemasResponse.
+type ConnectionSchemasResponse struct {
+	Items []SchemaItem `json:"items"`
+	Title string       `json:"title"`
 }
 
 // ConnectorDefinition defines model for ConnectorDefinition.
@@ -178,12 +192,13 @@ type ConnectorDefinition struct {
 
 // ConnectorDefinitionDetail defines model for ConnectorDefinitionDetail.
 type ConnectorDefinitionDetail struct {
-	Description *string                `json:"description,omitempty"`
-	Icon        *string                `json:"icon,omitempty"`
-	Id          string                 `json:"id"`
-	Kind        ConnectorKind          `json:"kind"`
-	Name        string                 `json:"name"`
-	Spec        map[string]interface{} `json:"spec"`
+	CredentialProvider *string                `json:"credential_provider,omitempty"`
+	Description        *string                `json:"description,omitempty"`
+	Icon               *string                `json:"icon,omitempty"`
+	Id                 string                 `json:"id"`
+	Kind               ConnectorKind          `json:"kind"`
+	Name               string                 `json:"name"`
+	Spec               map[string]interface{} `json:"spec"`
 }
 
 // ConnectorKind defines model for ConnectorKind.
@@ -213,16 +228,34 @@ type CreateBillingPortalSessionResponse struct {
 
 // CreateConnectionRequest defines model for CreateConnectionRequest.
 type CreateConnectionRequest struct {
-	ConfigJson *string `json:"config_json,omitempty"`
-	Name       string  `json:"name"`
-	SecretRef  *string `json:"secret_ref,omitempty"`
-	Type       string  `json:"type"`
+	ConfigJson   *string `json:"config_json,omitempty"`
+	CredentialId *string `json:"credential_id,omitempty"`
+	Name         string  `json:"name"`
+	SecretRef    *string `json:"secret_ref,omitempty"`
+	Type         string  `json:"type"`
 }
 
 // CreateEdgeInput defines model for CreateEdgeInput.
 type CreateEdgeInput struct {
 	SourceModuleIndex int `json:"source_module_index"`
 	TargetModuleIndex int `json:"target_module_index"`
+}
+
+// CreateImportJobRequest defines model for CreateImportJobRequest.
+type CreateImportJobRequest struct {
+	ConnectionId  string  `json:"connection_id"`
+	Description   *string `json:"description,omitempty"`
+	Name          string  `json:"name"`
+	Range         *string `json:"range,omitempty"`
+	SheetName     *string `json:"sheet_name,omitempty"`
+	Slug          string  `json:"slug"`
+	SpreadsheetId string  `json:"spreadsheet_id"`
+}
+
+// CreateImportJobResponse defines model for CreateImportJobResponse.
+type CreateImportJobResponse struct {
+	Job     Job        `json:"job"`
+	Version JobVersion `json:"version"`
 }
 
 // CreateInvitationRequest defines model for CreateInvitationRequest.
@@ -313,6 +346,18 @@ type CreateUploadPresignRequest struct {
 type CreateUploadPresignResponse struct {
 	Files    []UploadFilePresigned `json:"files"`
 	UploadId string                `json:"upload_id"`
+}
+
+// Credential defines model for Credential.
+type Credential struct {
+	CreatedAt     *time.Time `json:"created_at,omitempty"`
+	Id            string     `json:"id"`
+	Provider      string     `json:"provider"`
+	ProviderLabel *string    `json:"provider_label,omitempty"`
+	Scopes        *string    `json:"scopes,omitempty"`
+	TenantId      string     `json:"tenant_id"`
+	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
+	UserId        string     `json:"user_id"`
 }
 
 // Dataset defines model for Dataset.
@@ -576,6 +621,16 @@ type RegisterResponse struct {
 	UserId   string `json:"user_id"`
 }
 
+// SchemaItem defines model for SchemaItem.
+type SchemaItem struct {
+	Metadata *map[string]interface{} `json:"metadata,omitempty"`
+	Name     string                  `json:"name"`
+	Type     SchemaItemType          `json:"type"`
+}
+
+// SchemaItemType defines model for SchemaItem.Type.
+type SchemaItemType string
+
 // Tenant defines model for Tenant.
 type Tenant struct {
 	Id       string `json:"id"`
@@ -623,12 +678,14 @@ type TenantRole string
 
 // TestConnectionRequest defines model for TestConnectionRequest.
 type TestConnectionRequest struct {
-	ConfigJson string `json:"config_json"`
-	Type       string `json:"type"`
+	ConfigJson   string  `json:"config_json"`
+	CredentialId *string `json:"credential_id,omitempty"`
+	Type         string  `json:"type"`
 }
 
 // TestConnectionResponse defines model for TestConnectionResponse.
 type TestConnectionResponse struct {
+	Code    *string                      `json:"code,omitempty"`
 	Message *string                      `json:"message,omitempty"`
 	Status  TestConnectionResponseStatus `json:"status"`
 }
@@ -668,10 +725,11 @@ type TransformValidateResponse struct {
 
 // UpdateConnectionRequest defines model for UpdateConnectionRequest.
 type UpdateConnectionRequest struct {
-	ConfigJson *string `json:"config_json,omitempty"`
-	Name       string  `json:"name"`
-	SecretRef  *string `json:"secret_ref,omitempty"`
-	Type       string  `json:"type"`
+	ConfigJson   *string `json:"config_json,omitempty"`
+	CredentialId *string `json:"credential_id,omitempty"`
+	Name         string  `json:"name"`
+	SecretRef    *string `json:"secret_ref,omitempty"`
+	Type         string  `json:"type"`
 }
 
 // UpdateJobRequest defines model for UpdateJobRequest.
@@ -788,6 +846,13 @@ type TestConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// ListConnectionSchemasParams defines parameters for ListConnectionSchemas.
+type ListConnectionSchemasParams struct {
+	// SpreadsheetId Spreadsheet ID to fetch schemas for (used when connection has no embedded spreadsheet_id)
+	SpreadsheetId *string   `form:"spreadsheet_id,omitempty" json:"spreadsheet_id,omitempty"`
+	XTenantID     XTenantID `json:"X-Tenant-ID"`
+}
+
 // DeleteConnectionParams defines parameters for DeleteConnection.
 type DeleteConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -811,6 +876,27 @@ type ListConnectorsParams struct {
 
 // GetConnectorParams defines parameters for GetConnector.
 type GetConnectorParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// ListCredentialsParams defines parameters for ListCredentials.
+type ListCredentialsParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// GoogleCredentialCallbackParams defines parameters for GoogleCredentialCallback.
+type GoogleCredentialCallbackParams struct {
+	Code  string `form:"code" json:"code"`
+	State string `form:"state" json:"state"`
+}
+
+// StartGoogleCredentialOAuthParams defines parameters for StartGoogleCredentialOAuth.
+type StartGoogleCredentialOAuthParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// DeleteCredentialParams defines parameters for DeleteCredential.
+type DeleteCredentialParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -842,6 +928,11 @@ type IngestEventParams struct {
 
 // GetEventsSummaryParams defines parameters for GetEventsSummary.
 type GetEventsSummaryParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateImportJobParams defines parameters for CreateImportJob.
+type CreateImportJobParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -1042,6 +1133,9 @@ type UpdateConnectionJSONRequestBody = UpdateConnectionRequest
 
 // IngestEventJSONRequestBody defines body for IngestEvent for application/json ContentType.
 type IngestEventJSONRequestBody = IngestEventRequest
+
+// CreateImportJobJSONRequestBody defines body for CreateImportJob for application/json ContentType.
+type CreateImportJobJSONRequestBody = CreateImportJobRequest
 
 // CreateJobRunJSONRequestBody defines body for CreateJobRun for application/json ContentType.
 type CreateJobRunJSONRequestBody = CreateJobRunRequest

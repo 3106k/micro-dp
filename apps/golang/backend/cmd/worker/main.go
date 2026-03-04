@@ -89,6 +89,17 @@ func main() {
 
 	go transformConsumer.Run(ctx)
 
+	// Job Run poller + consumer (generic job execution)
+	jobRunQueue := queue.NewJobRunQueue(valkeyClient)
+	jobRunMetrics := observability.NewJobRunMetrics()
+	jobRunPoller := worker.NewJobRunPoller(jobRunRepo, jobRunQueue, jobRunMetrics, 5*time.Second)
+	jobRunConsumer := worker.NewJobRunConsumer(
+		jobRunQueue, jobRunRepo, transformWriter, jobRunMetrics, meteringService,
+	)
+
+	go jobRunPoller.Run(ctx)
+	go jobRunConsumer.Run(ctx)
+
 	// Health check server
 	healthH := handler.NewHealthHandler(sqlDB)
 	mux := http.NewServeMux()

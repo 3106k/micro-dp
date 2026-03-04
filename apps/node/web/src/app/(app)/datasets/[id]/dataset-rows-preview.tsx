@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import type { components } from "@/lib/api/generated";
 
 type DatasetRowsResponse = components["schemas"]["DatasetRowsResponse"];
@@ -98,23 +99,25 @@ export function DatasetRowsPreview({ datasetId }: { datasetId: string }) {
               {totalRows.toLocaleString()} rows total
             </span>
             <div className="flex items-center gap-2">
-              <button
-                className="rounded border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
+              <Button
+                size="sm"
+                variant="outline"
                 disabled={offset === 0}
                 onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
               >
                 Previous
-              </button>
+              </Button>
               <span className="text-xs">
                 Page {currentPage} / {totalPages}
               </span>
-              <button
-                className="rounded border px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
+              <Button
+                size="sm"
+                variant="outline"
                 disabled={offset + PAGE_SIZE >= totalRows}
                 onClick={() => setOffset(offset + PAGE_SIZE)}
               >
                 Next
-              </button>
+              </Button>
             </div>
           </div>
         </>

@@ -3,6 +3,14 @@
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast-provider";
@@ -11,6 +19,14 @@ import type { components } from "@/lib/api/generated";
 
 type TenantMember = components["schemas"]["TenantMember"];
 type TenantRole = components["schemas"]["TenantRole"];
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export function MembersManager({
   initialMembers,
@@ -24,6 +40,7 @@ export function MembersManager({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<TenantRole>("member");
   const [loading, setLoading] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
 
   const currentMember = members.find((m) => m.user_id === currentUserId);
   const canManage =
@@ -95,13 +112,6 @@ export function MembersManager({
 
   async function handleRemove(userId: string) {
     const isSelf = userId === currentUserId;
-    const confirmed = window.confirm(
-      isSelf
-        ? "Are you sure you want to leave this tenant?"
-        : "Are you sure you want to remove this member?"
-    );
-    if (!confirmed) return;
-
     setLoading(true);
     try {
       const res = await fetch(`/api/members/${userId}`, {
@@ -127,6 +137,7 @@ export function MembersManager({
       });
     } finally {
       setLoading(false);
+      setRemoveTarget(null);
     }
   }
 
@@ -155,7 +166,7 @@ export function MembersManager({
               <Label htmlFor="invite-role">Role</Label>
               <select
                 id="invite-role"
-                className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as TenantRole)}
               >
@@ -222,7 +233,7 @@ export function MembersManager({
                   <td className="px-4 py-3">
                     {canChangeRole ? (
                       <select
-                        className="h-8 rounded-md border bg-background px-2 text-sm"
+                        className="h-8 rounded-md border border-input bg-background px-2 text-sm"
                         value={member.role}
                         onChange={(e) =>
                           handleRoleChange(
@@ -249,14 +260,14 @@ export function MembersManager({
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(member.joined_at).toLocaleDateString()}
+                    {formatDate(member.joined_at)}
                   </td>
                   <td className="px-4 py-3">
                     {canRemove && (
                       <Button
                         size="sm"
                         variant="destructive"
-                        onClick={() => handleRemove(member.user_id)}
+                        onClick={() => setRemoveTarget(member.user_id)}
                         disabled={loading}
                       >
                         {isSelf ? "Leave" : "Remove"}
@@ -279,6 +290,42 @@ export function MembersManager({
           </tbody>
         </table>
       </div>
+
+      <Dialog
+        open={removeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRemoveTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {removeTarget === currentUserId
+                ? "Leave tenant?"
+                : "Remove member?"}
+            </DialogTitle>
+            <DialogDescription>
+              {removeTarget === currentUserId
+                ? "Are you sure you want to leave this tenant? You will lose access immediately."
+                : "Are you sure you want to remove this member? They will lose access immediately."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRemoveTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={loading}
+              onClick={() => {
+                if (removeTarget) handleRemove(removeTarget);
+              }}
+            >
+              {removeTarget === currentUserId ? "Leave" : "Remove"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

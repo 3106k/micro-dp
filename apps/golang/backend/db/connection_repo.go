@@ -18,9 +18,9 @@ func NewConnectionRepo(db DBTX) *ConnectionRepo {
 
 func (r *ConnectionRepo) Create(ctx context.Context, c *domain.Connection) error {
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO connections (id, tenant_id, name, type, config_json, secret_ref, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
-		c.ID, c.TenantID, c.Name, c.Type, c.ConfigJSON, c.SecretRef,
+		`INSERT INTO connections (id, tenant_id, name, type, config_json, secret_ref, credential_id, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+		c.ID, c.TenantID, c.Name, c.Type, c.ConfigJSON, c.SecretRef, c.CredentialID,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
@@ -33,11 +33,11 @@ func (r *ConnectionRepo) Create(ctx context.Context, c *domain.Connection) error
 
 func (r *ConnectionRepo) FindByID(ctx context.Context, tenantID, id string) (*domain.Connection, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, tenant_id, name, type, config_json, secret_ref, created_at, updated_at
+		`SELECT id, tenant_id, name, type, config_json, secret_ref, credential_id, created_at, updated_at
 		 FROM connections WHERE tenant_id = ? AND id = ?`, tenantID, id,
 	)
 	var c domain.Connection
-	if err := row.Scan(&c.ID, &c.TenantID, &c.Name, &c.Type, &c.ConfigJSON, &c.SecretRef, &c.CreatedAt, &c.UpdatedAt); err != nil {
+	if err := row.Scan(&c.ID, &c.TenantID, &c.Name, &c.Type, &c.ConfigJSON, &c.SecretRef, &c.CredentialID, &c.CreatedAt, &c.UpdatedAt); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, domain.ErrConnectionNotFound
 		}
@@ -48,7 +48,7 @@ func (r *ConnectionRepo) FindByID(ctx context.Context, tenantID, id string) (*do
 
 func (r *ConnectionRepo) ListByTenant(ctx context.Context, tenantID string) ([]domain.Connection, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, tenant_id, name, type, config_json, secret_ref, created_at, updated_at
+		`SELECT id, tenant_id, name, type, config_json, secret_ref, credential_id, created_at, updated_at
 		 FROM connections WHERE tenant_id = ?
 		 ORDER BY name`, tenantID,
 	)
@@ -60,7 +60,7 @@ func (r *ConnectionRepo) ListByTenant(ctx context.Context, tenantID string) ([]d
 	var connections []domain.Connection
 	for rows.Next() {
 		var c domain.Connection
-		if err := rows.Scan(&c.ID, &c.TenantID, &c.Name, &c.Type, &c.ConfigJSON, &c.SecretRef, &c.CreatedAt, &c.UpdatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.TenantID, &c.Name, &c.Type, &c.ConfigJSON, &c.SecretRef, &c.CredentialID, &c.CreatedAt, &c.UpdatedAt); err != nil {
 			return nil, err
 		}
 		connections = append(connections, c)
@@ -70,9 +70,9 @@ func (r *ConnectionRepo) ListByTenant(ctx context.Context, tenantID string) ([]d
 
 func (r *ConnectionRepo) Update(ctx context.Context, c *domain.Connection) error {
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE connections SET name = ?, type = ?, config_json = ?, secret_ref = ?, updated_at = datetime('now')
+		`UPDATE connections SET name = ?, type = ?, config_json = ?, secret_ref = ?, credential_id = ?, updated_at = datetime('now')
 		 WHERE tenant_id = ? AND id = ?`,
-		c.Name, c.Type, c.ConfigJSON, c.SecretRef, c.TenantID, c.ID,
+		c.Name, c.Type, c.ConfigJSON, c.SecretRef, c.CredentialID, c.TenantID, c.ID,
 	)
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed") {

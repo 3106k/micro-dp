@@ -18,7 +18,7 @@ func NewConnectionService(connections domain.ConnectionRepository, registry *con
 	return &ConnectionService{connections: connections, registry: registry}
 }
 
-func (s *ConnectionService) Create(ctx context.Context, name, connType, configJSON string, secretRef *string) (*domain.Connection, error) {
+func (s *ConnectionService) Create(ctx context.Context, name, connType, configJSON string, secretRef, credentialID *string) (*domain.Connection, error) {
 	tenantID, ok := domain.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("tenant id not found in context")
@@ -29,12 +29,13 @@ func (s *ConnectionService) Create(ctx context.Context, name, connType, configJS
 	}
 
 	c := &domain.Connection{
-		ID:         uuid.New().String(),
-		TenantID:   tenantID,
-		Name:       name,
-		Type:       connType,
-		ConfigJSON: configJSON,
-		SecretRef:  secretRef,
+		ID:           uuid.New().String(),
+		TenantID:     tenantID,
+		Name:         name,
+		Type:         connType,
+		ConfigJSON:   configJSON,
+		SecretRef:    secretRef,
+		CredentialID: credentialID,
 	}
 
 	if err := s.connections.Create(ctx, c); err != nil {
@@ -60,7 +61,7 @@ func (s *ConnectionService) List(ctx context.Context) ([]domain.Connection, erro
 	return s.connections.ListByTenant(ctx, tenantID)
 }
 
-func (s *ConnectionService) Update(ctx context.Context, id, name, connType, configJSON string, secretRef *string) (*domain.Connection, error) {
+func (s *ConnectionService) Update(ctx context.Context, id, name, connType, configJSON string, secretRef, credentialID *string) (*domain.Connection, error) {
 	tenantID, ok := domain.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, fmt.Errorf("tenant id not found in context")
@@ -79,6 +80,7 @@ func (s *ConnectionService) Update(ctx context.Context, id, name, connType, conf
 	c.Type = connType
 	c.ConfigJSON = configJSON
 	c.SecretRef = secretRef
+	c.CredentialID = credentialID
 
 	if err := s.connections.Update(ctx, c); err != nil {
 		return nil, err

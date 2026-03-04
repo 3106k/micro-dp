@@ -24,6 +24,18 @@
 5. **英語統一**: UI テキスト・エラーメッセージは英語
 6. **Tailwind only**: インラインスタイルやカスタム CSS は使わない
 
+## 変更後の検証 (必須)
+
+UI の変更を行ったら、必ず **UI Review スキル** (`/ui-review`) で検証すること。
+手順は `.claude/skills/ui-review/SKILL.md` を参照。
+
+最低限のチェック:
+1. `browser_navigate` → 変更したページを表示
+2. `browser_snapshot` → 描画確認
+3. `browser_console_messages(level: "error")` → エラーがないこと
+
+フル検証 (新規ページ・大きな変更時): `/ui-review` の全ステップを実行。
+
 ## UIコンポーネント一覧
 
 ```
