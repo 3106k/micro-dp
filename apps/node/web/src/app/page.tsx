@@ -12,12 +12,12 @@ export default function Home() {
         </p>
       </div>
       <div className="flex gap-2">
-        <Link href="/signin">
-          <Button>Sign In</Button>
-        </Link>
-        <Link href="/signup">
-          <Button variant="outline">Sign Up</Button>
-        </Link>
+        <Button asChild>
+          <Link href="/signin">Sign In</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/signup">Sign Up</Link>
+        </Button>
       </div>
     </main>
   );

@@ -127,7 +127,7 @@ func main() {
 			PostFailureRedirect: os.Getenv("GOOGLE_OAUTH_POST_FAILURE_REDIRECT_URI"),
 		},
 	)
-	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo)
+	jobRunService := usecase.NewJobRunService(jobRunRepo, jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeRepo)
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo, connectorRegistry)

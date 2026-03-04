@@ -89,7 +89,7 @@ export function ConnectorSchemaForm({ spec, values, onChange }: Props) {
             type="checkbox"
             checked={currentValue === true}
             onChange={(e) => setValue(key, e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300"
+            className="h-4 w-4 rounded border-input"
           />
           <Label htmlFor={fieldId}>{label}</Label>
           {prop.description ? (

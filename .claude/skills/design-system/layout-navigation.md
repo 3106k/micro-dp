@@ -15,7 +15,7 @@ src/app/
 | 用途 | グループ | ヘッダー | サブナビ |
 |------|---------|---------|---------|
 | メイン機能（Jobs, Datasets, Dashboard） | `(app)` | AppHeader | なし |
-| 設定（Connections, Members, Uploads, Billing） | `(settings)` | AppHeader + "Settings" | SettingsNav |
+| 設定（Connections, Members, Billing） | `(settings)` | AppHeader + "Settings" | SettingsNav |
 | 管理者（Tenants, Plans, Analytics） | `(admin)` | AppHeader + "Admin" | AdminNav |
 | 認証（SignIn, SignUp） | ルート直下 | なし | なし |
 
