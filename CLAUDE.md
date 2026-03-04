@@ -572,3 +572,28 @@ Playwright で `browser_take_screenshot` を使用した場合、確認完了後
 3. `spec` に JSON Schema を定義 (x-* 拡張でフォームヒント)
 4. `go build ./...` で起動時自動ロード確認
 5. `connections.type` に定義 ID を指定して使用
+
+## GitHub Project Board
+
+プロジェクト: https://github.com/users/3106k/projects/2
+
+### カラム (Status)
+
+`Todo` → `Ready` → `In Progress` → `Review` → `Done`。`Blocked` は依存未解決時に使用。
+
+### フィールド
+
+| フィールド | 値 | 用途 |
+|-----------|-----|------|
+| Priority | P0 / P1 / P2 | P0=最優先, P1=次イテレーション, P2=余裕時 |
+| Area | API / Web / Worker / E2E | 主要な変更先 |
+| DependsOn | `#N` | ブロック元 issue 番号 |
+
+### ワークフロー
+
+- **issue 作成時**: Status=Todo, Priority・Area を設定。依存があれば DependsOn 記入
+- **作業開始時**: Status→In Progress, Assignee 設定
+- **PR 作成時**: Status→Review。PR 本文に `Closes #N` を含める
+- **マージ時**: Status→Done。ブロックしていた issue の Blocked を解除
+
+詳細な操作方法・field ID は `/project` スキルを参照。
