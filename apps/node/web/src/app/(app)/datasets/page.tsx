@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import type { components } from "@/lib/api/generated";
 import { backendFetch } from "@/lib/api/server";
-import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
+import { getAuthContext } from "@/lib/auth/get-auth-context";
 
 type Dataset = components["schemas"]["Dataset"];
 type SourceType = components["schemas"]["DatasetSourceType"];
@@ -18,6 +18,14 @@ function toPositiveInt(value: string | undefined, fallback: number): number {
     return fallback;
   }
   return parsed;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export default async function DatasetsPage({
@@ -43,9 +51,7 @@ export default async function DatasetsPage({
   );
   const offset = (page - 1) * limit;
 
-  const jar = await cookies();
-  const token = jar.get(TOKEN_COOKIE)?.value!;
-  const tenantId = jar.get(TENANT_COOKIE)?.value!;
+  const { token, currentTenantId } = await getAuthContext();
 
   const query = new URLSearchParams();
   if (q) query.set("q", q);
@@ -56,7 +62,7 @@ export default async function DatasetsPage({
   const datasetsRes = await backendFetch(`/api/v1/datasets?${query.toString()}`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      "X-Tenant-ID": tenantId,
+      "X-Tenant-ID": currentTenantId,
     },
     cache: "no-store",
   });
@@ -86,31 +92,46 @@ export default async function DatasetsPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Datasets</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-semibold tracking-tight">Datasets</h1>
+        <Button variant="outline" asChild>
+          <Link href="/datasets/upload">Upload</Link>
+        </Button>
+      </div>
 
       <form method="GET" className="rounded-lg border p-4">
-        <div className="grid gap-3 md:grid-cols-4">
-          <Input
-            name="q"
-            defaultValue={q}
-            placeholder="Search by name"
-            className="md:col-span-2"
-          />
-          <select
-            name="source_type"
-            defaultValue={sourceType}
-            className="h-10 rounded-md border bg-background px-3 text-sm"
-          >
-            <option value="">All source types</option>
-            {sourceTypes.map((t) => (
-              <option key={t} value={t}>
-                {t}
-              </option>
-            ))}
-          </select>
-          <Input name="limit" type="number" min={1} max={50} defaultValue={limit} />
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="space-y-2 md:col-span-2">
+            <Label htmlFor="ds-q">Search</Label>
+            <Input
+              id="ds-q"
+              name="q"
+              defaultValue={q}
+              placeholder="Search by name"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ds-source-type">Source Type</Label>
+            <select
+              id="ds-source-type"
+              name="source_type"
+              defaultValue={sourceType}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="">All source types</option>
+              {sourceTypes.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ds-limit">Limit</Label>
+            <Input id="ds-limit" name="limit" type="number" min={1} max={50} defaultValue={limit} />
+          </div>
         </div>
-        <div className="mt-3">
+        <div className="mt-4">
           <Button type="submit">Apply</Button>
         </div>
       </form>
@@ -146,9 +167,7 @@ export default async function DatasetsPage({
                   <td className="px-4 py-3">{d.source_type}</td>
                   <td className="px-4 py-3">{d.row_count ?? "-"}</td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {d.last_updated_at
-                      ? new Date(d.last_updated_at).toLocaleString()
-                      : "-"}
+                    {d.last_updated_at ? formatDate(d.last_updated_at) : "-"}
                   </td>
                 </tr>
               ))}
@@ -156,7 +175,7 @@ export default async function DatasetsPage({
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-4 py-8 text-center text-muted-foreground"
+                    className="px-4 py-8 text-center text-sm text-muted-foreground"
                   >
                     No datasets found.
                   </td>
@@ -169,9 +188,9 @@ export default async function DatasetsPage({
 
       <div className="flex items-center justify-between">
         {hasPrev ? (
-          <Link href={buildPageHref(page - 1)}>
-            <Button variant="outline">Previous</Button>
-          </Link>
+          <Button variant="outline" asChild>
+            <Link href={buildPageHref(page - 1)}>Previous</Link>
+          </Button>
         ) : (
           <Button variant="outline" disabled>
             Previous
@@ -179,9 +198,9 @@ export default async function DatasetsPage({
         )}
         <span className="text-sm text-muted-foreground">Page {page}</span>
         {hasNext ? (
-          <Link href={buildPageHref(page + 1)}>
-            <Button variant="outline">Next</Button>
-          </Link>
+          <Button variant="outline" asChild>
+            <Link href={buildPageHref(page + 1)}>Next</Link>
+          </Button>
         ) : (
           <Button variant="outline" disabled>
             Next

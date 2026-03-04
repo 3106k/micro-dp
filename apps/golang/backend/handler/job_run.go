@@ -34,6 +34,14 @@ func (h *JobRunHandler) Create(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusNotFound, "job not found")
 			return
 		}
+		if errors.Is(err, domain.ErrNoPublishedVersion) {
+			writeError(w, http.StatusUnprocessableEntity, "no published version available")
+			return
+		}
+		if errors.Is(err, domain.ErrJobVersionNotFound) {
+			writeError(w, http.StatusNotFound, "job version not found")
+			return
+		}
 		writeError(w, http.StatusInternalServerError, "internal server error")
 		return
 	}

@@ -74,6 +74,9 @@ type ServerInterface interface {
 	// Test connection
 	// (POST /api/v1/connections/test)
 	TestConnection(w http.ResponseWriter, r *http.Request, params TestConnectionParams)
+	// Get connection schemas
+	// (GET /api/v1/connections/{connection_id}/schemas)
+	ListConnectionSchemas(w http.ResponseWriter, r *http.Request, connectionId string, params ListConnectionSchemasParams)
 	// Delete connection
 	// (DELETE /api/v1/connections/{id})
 	DeleteConnection(w http.ResponseWriter, r *http.Request, id string, params DeleteConnectionParams)
@@ -89,6 +92,18 @@ type ServerInterface interface {
 	// Get connector definition detail
 	// (GET /api/v1/connectors/{id})
 	GetConnector(w http.ResponseWriter, r *http.Request, id string, params GetConnectorParams)
+	// List credentials
+	// (GET /api/v1/credentials)
+	ListCredentials(w http.ResponseWriter, r *http.Request, params ListCredentialsParams)
+	// Google credential OAuth callback
+	// (GET /api/v1/credentials/google/callback)
+	GoogleCredentialCallback(w http.ResponseWriter, r *http.Request, params GoogleCredentialCallbackParams)
+	// Start Google credential OAuth flow
+	// (GET /api/v1/credentials/google/start)
+	StartGoogleCredentialOAuth(w http.ResponseWriter, r *http.Request, params StartGoogleCredentialOAuthParams)
+	// Delete credential
+	// (DELETE /api/v1/credentials/{id})
+	DeleteCredential(w http.ResponseWriter, r *http.Request, id string, params DeleteCredentialParams)
 	// List datasets
 	// (GET /api/v1/datasets)
 	ListDatasets(w http.ResponseWriter, r *http.Request, params ListDatasetsParams)
@@ -104,6 +119,9 @@ type ServerInterface interface {
 	// Event counts summary
 	// (GET /api/v1/events/summary)
 	GetEventsSummary(w http.ResponseWriter, r *http.Request, params GetEventsSummaryParams)
+	// Create import job
+	// (POST /api/v1/import/jobs)
+	CreateImportJob(w http.ResponseWriter, r *http.Request, params CreateImportJobParams)
 	// List job runs
 	// (GET /api/v1/job_runs)
 	ListJobRuns(w http.ResponseWriter, r *http.Request, params ListJobRunsParams)
@@ -812,6 +830,73 @@ func (siw *ServerInterfaceWrapper) TestConnection(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// ListConnectionSchemas operation middleware
+func (siw *ServerInterfaceWrapper) ListConnectionSchemas(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "connection_id" -------------
+	var connectionId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "connection_id", r.PathValue("connection_id"), &connectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "connection_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListConnectionSchemasParams
+
+	// ------------- Optional query parameter "spreadsheet_id" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "spreadsheet_id", r.URL.Query(), &params.SpreadsheetId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "spreadsheet_id", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListConnectionSchemas(w, r, connectionId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteConnection operation middleware
 func (siw *ServerInterfaceWrapper) DeleteConnection(w http.ResponseWriter, r *http.Request) {
 
@@ -1097,6 +1182,214 @@ func (siw *ServerInterfaceWrapper) GetConnector(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetConnector(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCredentials operation middleware
+func (siw *ServerInterfaceWrapper) ListCredentials(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListCredentialsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCredentials(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GoogleCredentialCallback operation middleware
+func (siw *ServerInterfaceWrapper) GoogleCredentialCallback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GoogleCredentialCallbackParams
+
+	// ------------- Required query parameter "code" -------------
+
+	if paramValue := r.URL.Query().Get("code"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "code"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "code", r.URL.Query(), &params.Code)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	if paramValue := r.URL.Query().Get("state"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "state", r.URL.Query(), &params.State)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GoogleCredentialCallback(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartGoogleCredentialOAuth operation middleware
+func (siw *ServerInterfaceWrapper) StartGoogleCredentialOAuth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartGoogleCredentialOAuthParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartGoogleCredentialOAuth(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteCredential operation middleware
+func (siw *ServerInterfaceWrapper) DeleteCredential(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteCredentialParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteCredential(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1413,6 +1706,56 @@ func (siw *ServerInterfaceWrapper) GetEventsSummary(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetEventsSummary(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateImportJob operation middleware
+func (siw *ServerInterfaceWrapper) CreateImportJob(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateImportJobParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateImportJob(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3353,16 +3696,22 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections", wrapper.ListConnections)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/connections", wrapper.CreateConnection)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/connections/test", wrapper.TestConnection)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections/{connection_id}/schemas", wrapper.ListConnectionSchemas)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/connections/{id}", wrapper.DeleteConnection)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections/{id}", wrapper.GetConnection)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/connections/{id}", wrapper.UpdateConnection)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connectors", wrapper.ListConnectors)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connectors/{id}", wrapper.GetConnector)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials", wrapper.ListCredentials)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/google/callback", wrapper.GoogleCredentialCallback)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/google/start", wrapper.StartGoogleCredentialOAuth)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/credentials/{id}", wrapper.DeleteCredential)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets", wrapper.ListDatasets)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}", wrapper.GetDataset)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}/rows", wrapper.GetDatasetRows)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/events", wrapper.IngestEvent)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/events/summary", wrapper.GetEventsSummary)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/import/jobs", wrapper.CreateImportJob)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs", wrapper.ListJobRuns)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/job_runs", wrapper.CreateJobRun)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/job_runs/{id}", wrapper.GetJobRun)
@@ -4194,6 +4543,51 @@ func (response TestConnection422JSONResponse) VisitTestConnectionResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListConnectionSchemasRequestObject struct {
+	ConnectionId string `json:"connection_id"`
+	Params       ListConnectionSchemasParams
+}
+
+type ListConnectionSchemasResponseObject interface {
+	VisitListConnectionSchemasResponse(w http.ResponseWriter) error
+}
+
+type ListConnectionSchemas200JSONResponse ConnectionSchemasResponse
+
+func (response ListConnectionSchemas200JSONResponse) VisitListConnectionSchemasResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListConnectionSchemas400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListConnectionSchemas400JSONResponse) VisitListConnectionSchemasResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListConnectionSchemas401JSONResponse ErrorResponse
+
+func (response ListConnectionSchemas401JSONResponse) VisitListConnectionSchemasResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListConnectionSchemas404JSONResponse ErrorResponse
+
+func (response ListConnectionSchemas404JSONResponse) VisitListConnectionSchemasResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type DeleteConnectionRequestObject struct {
 	Id     string `json:"id"`
 	Params DeleteConnectionParams
@@ -4393,6 +4787,119 @@ func (response GetConnector404JSONResponse) VisitGetConnectorResponse(w http.Res
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListCredentialsRequestObject struct {
+	Params ListCredentialsParams
+}
+
+type ListCredentialsResponseObject interface {
+	VisitListCredentialsResponse(w http.ResponseWriter) error
+}
+
+type ListCredentials200JSONResponse struct {
+	Items []Credential `json:"items"`
+}
+
+func (response ListCredentials200JSONResponse) VisitListCredentialsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListCredentials401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListCredentials401JSONResponse) VisitListCredentialsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GoogleCredentialCallbackRequestObject struct {
+	Params GoogleCredentialCallbackParams
+}
+
+type GoogleCredentialCallbackResponseObject interface {
+	VisitGoogleCredentialCallbackResponse(w http.ResponseWriter) error
+}
+
+type GoogleCredentialCallback302Response struct {
+}
+
+func (response GoogleCredentialCallback302Response) VisitGoogleCredentialCallbackResponse(w http.ResponseWriter) error {
+	w.WriteHeader(302)
+	return nil
+}
+
+type GoogleCredentialCallback400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GoogleCredentialCallback400JSONResponse) VisitGoogleCredentialCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StartGoogleCredentialOAuthRequestObject struct {
+	Params StartGoogleCredentialOAuthParams
+}
+
+type StartGoogleCredentialOAuthResponseObject interface {
+	VisitStartGoogleCredentialOAuthResponse(w http.ResponseWriter) error
+}
+
+type StartGoogleCredentialOAuth302Response struct {
+}
+
+func (response StartGoogleCredentialOAuth302Response) VisitStartGoogleCredentialOAuthResponse(w http.ResponseWriter) error {
+	w.WriteHeader(302)
+	return nil
+}
+
+type StartGoogleCredentialOAuth401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response StartGoogleCredentialOAuth401JSONResponse) VisitStartGoogleCredentialOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteCredentialRequestObject struct {
+	Id     string `json:"id"`
+	Params DeleteCredentialParams
+}
+
+type DeleteCredentialResponseObject interface {
+	VisitDeleteCredentialResponse(w http.ResponseWriter) error
+}
+
+type DeleteCredential204Response struct {
+}
+
+func (response DeleteCredential204Response) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteCredential401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response DeleteCredential401JSONResponse) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteCredential404JSONResponse ErrorResponse
+
+func (response DeleteCredential404JSONResponse) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type ListDatasetsRequestObject struct {
 	Params ListDatasetsParams
 }
@@ -4569,6 +5076,51 @@ type GetEventsSummary401JSONResponse struct{ ErrorResponseJSONResponse }
 func (response GetEventsSummary401JSONResponse) VisitGetEventsSummaryResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateImportJobRequestObject struct {
+	Params CreateImportJobParams
+	Body   *CreateImportJobJSONRequestBody
+}
+
+type CreateImportJobResponseObject interface {
+	VisitCreateImportJobResponse(w http.ResponseWriter) error
+}
+
+type CreateImportJob201JSONResponse CreateImportJobResponse
+
+func (response CreateImportJob201JSONResponse) VisitCreateImportJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateImportJob400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateImportJob400JSONResponse) VisitCreateImportJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateImportJob401JSONResponse ErrorResponse
+
+func (response CreateImportJob401JSONResponse) VisitCreateImportJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateImportJob409JSONResponse ErrorResponse
+
+func (response CreateImportJob409JSONResponse) VisitCreateImportJobResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(409)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -5870,6 +6422,9 @@ type StrictServerInterface interface {
 	// Test connection
 	// (POST /api/v1/connections/test)
 	TestConnection(ctx context.Context, request TestConnectionRequestObject) (TestConnectionResponseObject, error)
+	// Get connection schemas
+	// (GET /api/v1/connections/{connection_id}/schemas)
+	ListConnectionSchemas(ctx context.Context, request ListConnectionSchemasRequestObject) (ListConnectionSchemasResponseObject, error)
 	// Delete connection
 	// (DELETE /api/v1/connections/{id})
 	DeleteConnection(ctx context.Context, request DeleteConnectionRequestObject) (DeleteConnectionResponseObject, error)
@@ -5885,6 +6440,18 @@ type StrictServerInterface interface {
 	// Get connector definition detail
 	// (GET /api/v1/connectors/{id})
 	GetConnector(ctx context.Context, request GetConnectorRequestObject) (GetConnectorResponseObject, error)
+	// List credentials
+	// (GET /api/v1/credentials)
+	ListCredentials(ctx context.Context, request ListCredentialsRequestObject) (ListCredentialsResponseObject, error)
+	// Google credential OAuth callback
+	// (GET /api/v1/credentials/google/callback)
+	GoogleCredentialCallback(ctx context.Context, request GoogleCredentialCallbackRequestObject) (GoogleCredentialCallbackResponseObject, error)
+	// Start Google credential OAuth flow
+	// (GET /api/v1/credentials/google/start)
+	StartGoogleCredentialOAuth(ctx context.Context, request StartGoogleCredentialOAuthRequestObject) (StartGoogleCredentialOAuthResponseObject, error)
+	// Delete credential
+	// (DELETE /api/v1/credentials/{id})
+	DeleteCredential(ctx context.Context, request DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error)
 	// List datasets
 	// (GET /api/v1/datasets)
 	ListDatasets(ctx context.Context, request ListDatasetsRequestObject) (ListDatasetsResponseObject, error)
@@ -5900,6 +6467,9 @@ type StrictServerInterface interface {
 	// Event counts summary
 	// (GET /api/v1/events/summary)
 	GetEventsSummary(ctx context.Context, request GetEventsSummaryRequestObject) (GetEventsSummaryResponseObject, error)
+	// Create import job
+	// (POST /api/v1/import/jobs)
+	CreateImportJob(ctx context.Context, request CreateImportJobRequestObject) (CreateImportJobResponseObject, error)
 	// List job runs
 	// (GET /api/v1/job_runs)
 	ListJobRuns(ctx context.Context, request ListJobRunsRequestObject) (ListJobRunsResponseObject, error)
@@ -6590,6 +7160,33 @@ func (sh *strictHandler) TestConnection(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// ListConnectionSchemas operation middleware
+func (sh *strictHandler) ListConnectionSchemas(w http.ResponseWriter, r *http.Request, connectionId string, params ListConnectionSchemasParams) {
+	var request ListConnectionSchemasRequestObject
+
+	request.ConnectionId = connectionId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListConnectionSchemas(ctx, request.(ListConnectionSchemasRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListConnectionSchemas")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListConnectionSchemasResponseObject); ok {
+		if err := validResponse.VisitListConnectionSchemasResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // DeleteConnection operation middleware
 func (sh *strictHandler) DeleteConnection(w http.ResponseWriter, r *http.Request, id string, params DeleteConnectionParams) {
 	var request DeleteConnectionRequestObject
@@ -6731,6 +7328,111 @@ func (sh *strictHandler) GetConnector(w http.ResponseWriter, r *http.Request, id
 	}
 }
 
+// ListCredentials operation middleware
+func (sh *strictHandler) ListCredentials(w http.ResponseWriter, r *http.Request, params ListCredentialsParams) {
+	var request ListCredentialsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListCredentials(ctx, request.(ListCredentialsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListCredentials")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListCredentialsResponseObject); ok {
+		if err := validResponse.VisitListCredentialsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GoogleCredentialCallback operation middleware
+func (sh *strictHandler) GoogleCredentialCallback(w http.ResponseWriter, r *http.Request, params GoogleCredentialCallbackParams) {
+	var request GoogleCredentialCallbackRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GoogleCredentialCallback(ctx, request.(GoogleCredentialCallbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GoogleCredentialCallback")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GoogleCredentialCallbackResponseObject); ok {
+		if err := validResponse.VisitGoogleCredentialCallbackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartGoogleCredentialOAuth operation middleware
+func (sh *strictHandler) StartGoogleCredentialOAuth(w http.ResponseWriter, r *http.Request, params StartGoogleCredentialOAuthParams) {
+	var request StartGoogleCredentialOAuthRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartGoogleCredentialOAuth(ctx, request.(StartGoogleCredentialOAuthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartGoogleCredentialOAuth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartGoogleCredentialOAuthResponseObject); ok {
+		if err := validResponse.VisitStartGoogleCredentialOAuthResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteCredential operation middleware
+func (sh *strictHandler) DeleteCredential(w http.ResponseWriter, r *http.Request, id string, params DeleteCredentialParams) {
+	var request DeleteCredentialRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteCredential(ctx, request.(DeleteCredentialRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteCredential")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteCredentialResponseObject); ok {
+		if err := validResponse.VisitDeleteCredentialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ListDatasets operation middleware
 func (sh *strictHandler) ListDatasets(w http.ResponseWriter, r *http.Request, params ListDatasetsParams) {
 	var request ListDatasetsRequestObject
@@ -6863,6 +7565,39 @@ func (sh *strictHandler) GetEventsSummary(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetEventsSummaryResponseObject); ok {
 		if err := validResponse.VisitGetEventsSummaryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateImportJob operation middleware
+func (sh *strictHandler) CreateImportJob(w http.ResponseWriter, r *http.Request, params CreateImportJobParams) {
+	var request CreateImportJobRequestObject
+
+	request.Params = params
+
+	var body CreateImportJobJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateImportJob(ctx, request.(CreateImportJobRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateImportJob")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateImportJobResponseObject); ok {
+		if err := validResponse.VisitCreateImportJobResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

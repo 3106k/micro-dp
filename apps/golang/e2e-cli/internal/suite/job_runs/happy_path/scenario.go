@@ -80,6 +80,51 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 		return fmt.Errorf("create job: missing id in response")
 	}
 
+	// POST /api/v1/module_types → 201 (create a module type for the version)
+	var moduleTypeResp openapi.ModuleType
+	mtReq := openapi.CreateModuleTypeRequest{
+		Name:     "E2E Transform",
+		Category: openapi.CreateModuleTypeRequestCategoryTransform,
+	}
+	code, body, err = client.PostJSON(ctx, "/api/v1/module_types", mtReq, &moduleTypeResp)
+	if err != nil {
+		return err
+	}
+	if code != 201 {
+		return fmt.Errorf("create module type: expected 201, got %d body=%s", code, string(body))
+	}
+
+	// POST /api/v1/jobs/{job_id}/versions → 201 (create a version with module)
+	var versionResp openapi.JobVersion
+	versionReq := openapi.CreateJobVersionRequest{
+		Modules: []openapi.CreateJobModuleInput{
+			{
+				ModuleTypeId: moduleTypeResp.Id,
+				Name:         "transform-module",
+			},
+		},
+	}
+	code, body, err = client.PostJSON(ctx, "/api/v1/jobs/"+jobResp.Id+"/versions", versionReq, &versionResp)
+	if err != nil {
+		return err
+	}
+	if code != 201 {
+		return fmt.Errorf("create version: expected 201, got %d body=%s", code, string(body))
+	}
+
+	// POST /api/v1/jobs/{job_id}/versions/{version_id}/publish → 200
+	var publishResp openapi.JobVersion
+	code, body, err = client.PostJSON(ctx, "/api/v1/jobs/"+jobResp.Id+"/versions/"+versionResp.Id+"/publish", struct{}{}, &publishResp)
+	if err != nil {
+		return err
+	}
+	if code != 200 {
+		return fmt.Errorf("publish version: expected 200, got %d body=%s", code, string(body))
+	}
+	if publishResp.Status != openapi.Published {
+		return fmt.Errorf("publish version: expected status 'published', got '%s'", publishResp.Status)
+	}
+
 	// POST /api/v1/job_runs → 201
 	var createResp openapi.JobRun
 	createReq := openapi.CreateJobRunRequest{

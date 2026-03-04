@@ -1,15 +1,12 @@
-import { cookies } from "next/headers";
-
 import type { components } from "@/lib/api/generated";
 import { backendFetch } from "@/lib/api/server";
-import { TOKEN_COOKIE } from "@/lib/auth/constants";
+import { getAuthContext } from "@/lib/auth/get-auth-context";
 import { TenantsManager } from "./tenants-manager";
 
 type Tenant = components["schemas"]["Tenant"];
 
 export default async function AdminTenantsPage() {
-  const jar = await cookies();
-  const token = jar.get(TOKEN_COOKIE)?.value!;
+  const { token } = await getAuthContext();
 
   let initialTenants: Tenant[] = [];
   const tenantsRes = await backendFetch("/api/v1/admin/tenants", {

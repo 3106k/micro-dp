@@ -5,14 +5,21 @@ import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast-provider";
 import type { components } from "@/lib/api/generated";
 
 type Tenant = components["schemas"]["Tenant"];
 
+const statusStyles: Record<string, string> = {
+  active:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  inactive: "bg-muted text-muted-foreground",
+};
+
 export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] }) {
+  const { pushToast } = useToast();
   const [tenants, setTenants] = useState(initialTenants);
   const [newName, setNewName] = useState("");
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   async function refreshTenants() {
@@ -28,7 +35,6 @@ export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] })
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
-    setMessage("");
     try {
       const res = await fetch("/api/admin/tenants", {
         method: "POST",
@@ -41,9 +47,12 @@ export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] })
       }
       setNewName("");
       await refreshTenants();
-      setMessage("Tenant created.");
+      pushToast({ variant: "success", message: "Tenant created" });
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: e instanceof Error ? e.message : "request failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -51,7 +60,6 @@ export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] })
 
   async function toggleActive(tenant: Tenant) {
     setLoading(true);
-    setMessage("");
     try {
       const res = await fetch(`/api/admin/tenants/${tenant.id}`, {
         method: "PATCH",
@@ -63,9 +71,12 @@ export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] })
         throw new Error(err.error ?? "update failed");
       }
       await refreshTenants();
-      setMessage("Tenant updated.");
+      pushToast({ variant: "success", message: "Tenant updated" });
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: e instanceof Error ? e.message : "request failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -85,9 +96,8 @@ export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] })
           />
         </div>
         <Button type="submit" disabled={loading}>
-          Create
+          {loading ? "Creating..." : "Create"}
         </Button>
-        {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
       </form>
 
       <div className="rounded-lg border">
@@ -106,11 +116,13 @@ export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] })
                 <td className="px-4 py-3 font-mono text-xs">{tenant.id.slice(0, 8)}</td>
                 <td className="px-4 py-3">{tenant.name}</td>
                 <td className="px-4 py-3">
-                  {tenant.is_active ? (
-                    <span className="text-green-700">active</span>
-                  ) : (
-                    <span className="text-red-700">inactive</span>
-                  )}
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      statusStyles[tenant.is_active ? "active" : "inactive"]
+                    }`}
+                  >
+                    {tenant.is_active ? "active" : "inactive"}
+                  </span>
                 </td>
                 <td className="px-4 py-3">
                   <Button
@@ -126,7 +138,7 @@ export function TenantsManager({ initialTenants }: { initialTenants: Tenant[] })
             ))}
             {tenants.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                <td colSpan={4} className="px-4 py-6 text-center text-sm text-muted-foreground">
                   No tenants yet.
                 </td>
               </tr>

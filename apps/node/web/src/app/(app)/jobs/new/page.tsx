@@ -1,32 +1,42 @@
-import type { components } from "@/lib/api/generated";
-import { backendFetch } from "@/lib/api/server";
-import { getAuthContext } from "@/lib/auth/get-auth-context";
-import { TransformJobForm } from "./transform-job-form";
+import Link from "next/link";
 
-type Dataset = components["schemas"]["Dataset"];
-
-export default async function NewTransformJobPage() {
-  const { token, currentTenantId } = await getAuthContext();
-
-  let datasets: Dataset[] = [];
-  const datasetsRes = await backendFetch("/api/v1/datasets?limit=100", {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "X-Tenant-ID": currentTenantId,
-    },
-    cache: "no-store",
-  });
-  if (datasetsRes.ok) {
-    const data: { items: Dataset[] } = await datasetsRes.json();
-    datasets = data.items ?? [];
-  }
-
+export default function NewJobPage() {
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Create Transform Job
-      </h1>
-      <TransformJobForm datasets={datasets} />
+      <h1 className="text-2xl font-semibold tracking-tight">Create New Job</h1>
+      <p className="text-muted-foreground">
+        Select the type of job you want to create.
+      </p>
+
+      <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
+        <Link
+          href="/jobs/new/transform"
+          className="group rounded-lg border p-6 hover:border-primary hover:bg-muted/50 transition-colors"
+        >
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold group-hover:text-primary">
+              Transform
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Write SQL to transform existing datasets into new ones.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/jobs/new/import"
+          className="group rounded-lg border p-6 hover:border-primary hover:bg-muted/50 transition-colors"
+        >
+          <div className="space-y-2">
+            <h2 className="text-lg font-semibold group-hover:text-primary">
+              Import
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Import data from external sources like Google Sheets.
+            </p>
+          </div>
+        </Link>
+      </div>
     </div>
   );
 }

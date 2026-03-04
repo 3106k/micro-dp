@@ -3,10 +3,26 @@
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast-provider";
 import type { components } from "@/lib/api/generated";
 
 type JobVersion = components["schemas"]["JobVersion"];
 type JobVersionDetail = components["schemas"]["JobVersionDetail"];
+
+const statusStyles: Record<string, string> = {
+  draft: "bg-secondary text-secondary-foreground",
+  published:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+};
+
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 const defaultCreatePayload = `{
   "modules": [
@@ -25,9 +41,9 @@ export function VersionsManager({
   jobId: string;
   initialVersions: JobVersion[];
 }) {
+  const { pushToast } = useToast();
   const [versions, setVersions] = useState(initialVersions);
   const [createJson, setCreateJson] = useState(defaultCreatePayload);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<JobVersionDetail | null>(null);
 
@@ -43,7 +59,6 @@ export function VersionsManager({
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    setMessage("");
     try {
       const body = JSON.parse(createJson);
       const res = await fetch(`/api/jobs/${jobId}/versions`, {
@@ -56,9 +71,12 @@ export function VersionsManager({
         throw new Error(data.error ?? "failed to create version");
       }
       await refreshVersions();
-      setMessage("Version created.");
+      pushToast({ variant: "success", message: "Version created" });
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: err instanceof Error ? err.message : "request failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -66,7 +84,6 @@ export function VersionsManager({
 
   async function handlePublish(versionId: string) {
     setLoading(true);
-    setMessage("");
     try {
       const res = await fetch(`/api/jobs/${jobId}/versions/${versionId}/publish`, {
         method: "POST",
@@ -76,9 +93,12 @@ export function VersionsManager({
         throw new Error(data.error ?? "failed to publish version");
       }
       await refreshVersions();
-      setMessage("Version published.");
+      pushToast({ variant: "success", message: "Version published" });
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: err instanceof Error ? err.message : "request failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -86,7 +106,6 @@ export function VersionsManager({
 
   async function handleViewDetail(versionId: string) {
     setLoading(true);
-    setMessage("");
     try {
       const res = await fetch(`/api/jobs/${jobId}/versions/${versionId}`);
       const data = await res.json();
@@ -95,7 +114,10 @@ export function VersionsManager({
       }
       setDetail(data);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "request failed");
+      pushToast({
+        variant: "error",
+        message: err instanceof Error ? err.message : "request failed",
+      });
     } finally {
       setLoading(false);
     }
@@ -103,7 +125,7 @@ export function VersionsManager({
 
   return (
     <div className="space-y-8">
-      <form onSubmit={handleCreate} className="space-y-3 rounded-lg border p-4">
+      <form onSubmit={handleCreate} className="space-y-4 rounded-lg border p-4">
         <h2 className="text-lg font-semibold">Create Version</h2>
         <p className="text-xs text-muted-foreground">
           Provide request JSON for modules/edges.
@@ -114,9 +136,8 @@ export function VersionsManager({
           onChange={(e) => setCreateJson(e.target.value)}
         />
         <Button type="submit" disabled={loading}>
-          Create Version
+          {loading ? "Creating..." : "Create Version"}
         </Button>
-        {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
       </form>
 
       <div className="rounded-lg border">
@@ -133,9 +154,17 @@ export function VersionsManager({
             {versions.map((v) => (
               <tr key={v.id} className="border-b last:border-0">
                 <td className="px-4 py-3">{v.version}</td>
-                <td className="px-4 py-3">{v.status}</td>
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      statusStyles[v.status] ?? "bg-secondary text-secondary-foreground"
+                    }`}
+                  >
+                    {v.status}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-muted-foreground">
-                  {v.published_at ? new Date(v.published_at).toLocaleString() : "-"}
+                  {v.published_at ? formatDateTime(v.published_at) : "-"}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
@@ -160,7 +189,7 @@ export function VersionsManager({
             ))}
             {versions.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   No versions yet.
                 </td>
               </tr>

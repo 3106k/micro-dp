@@ -65,10 +65,57 @@ func (r *JobRunRepo) ListByTenant(ctx context.Context, tenantID string) ([]domai
 	return jobRuns, rows.Err()
 }
 
+func (r *JobRunRepo) ListReady(ctx context.Context) ([]domain.JobRun, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT id, tenant_id, job_id, job_version_id, status,
+		        run_snapshot_json, checkpoint_json, progress_json, attempt,
+		        next_run_at, last_error, started_at, finished_at,
+		        created_at, updated_at
+		 FROM job_runs
+		 WHERE status = 'queued' AND (next_run_at IS NULL OR next_run_at <= datetime('now'))
+		 ORDER BY created_at ASC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var jobRuns []domain.JobRun
+	for rows.Next() {
+		var jr domain.JobRun
+		if err := rows.Scan(
+			&jr.ID, &jr.TenantID, &jr.JobID, &jr.JobVersionID, &jr.Status,
+			&jr.RunSnapshotJSON, &jr.CheckpointJSON, &jr.ProgressJSON, &jr.Attempt,
+			&jr.NextRunAt, &jr.LastError, &jr.StartedAt, &jr.FinishedAt,
+			&jr.CreatedAt, &jr.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		jobRuns = append(jobRuns, jr)
+	}
+	return jobRuns, rows.Err()
+}
+
 func (r *JobRunRepo) UpdateStatus(ctx context.Context, tenantID, id, status string) error {
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE job_runs SET status = ?, updated_at = datetime('now') WHERE tenant_id = ? AND id = ?`,
 		status, tenantID, id,
+	)
+	return err
+}
+
+func (r *JobRunRepo) UpdateStarted(ctx context.Context, id string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE job_runs SET status = 'running', started_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`,
+		id,
+	)
+	return err
+}
+
+func (r *JobRunRepo) UpdateFailed(ctx context.Context, id, lastError string) error {
+	_, err := r.db.ExecContext(ctx,
+		`UPDATE job_runs SET status = 'failed', last_error = ?, finished_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`,
+		lastError, id,
 	)
 	return err
 }

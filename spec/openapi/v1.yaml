@@ -19,10 +19,12 @@ tags:
   - name: module_types
   - name: connectors
   - name: connections
+  - name: credentials
   - name: datasets
   - name: uploads
   - name: members
   - name: transform
+  - name: import
 paths:
   /healthz:
     get:
@@ -493,6 +495,36 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CreateTransformJobResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "409":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Import ----
+  /api/v1/import/jobs:
+    post:
+      tags: [import]
+      summary: Create import job
+      operationId: createImportJob
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateImportJobRequest"
+      responses:
+        "201":
+          description: Created import job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateImportJobResponse"
         "400":
           $ref: "#/components/responses/ErrorResponse"
         "401":
@@ -1418,6 +1450,122 @@ paths:
         "422":
           $ref: "#/components/responses/ErrorResponse"
 
+  /api/v1/connections/{connection_id}/schemas:
+    get:
+      tags: [connections]
+      summary: Get connection schemas
+      operationId: listConnectionSchemas
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: connection_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: spreadsheet_id
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Spreadsheet ID to fetch schemas for (used when connection has no embedded spreadsheet_id)
+      responses:
+        "200":
+          description: Schema items
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionSchemasResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Credentials ----
+  /api/v1/credentials:
+    get:
+      tags: [credentials]
+      summary: List credentials
+      operationId: listCredentials
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Credential"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/credentials/{id}:
+    delete:
+      tags: [credentials]
+      summary: Delete credential
+      operationId: deleteCredential
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/credentials/google/start:
+    get:
+      tags: [credentials]
+      summary: Start Google credential OAuth flow
+      operationId: startGoogleCredentialOAuth
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "302":
+          description: Redirect to Google OAuth
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/credentials/google/callback:
+    get:
+      tags: [credentials]
+      summary: Google credential OAuth callback
+      operationId: googleCredentialCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to post-OAuth page
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Datasets ----
   /api/v1/datasets:
     get:
@@ -2244,6 +2392,8 @@ components:
           type: string
         secret_ref:
           type: string
+        credential_id:
+          type: string
         created_at:
           type: string
           format: date-time
@@ -2262,6 +2412,8 @@ components:
           type: string
         secret_ref:
           type: string
+        credential_id:
+          type: string
     UpdateConnectionRequest:
       type: object
       required: [name, type]
@@ -2274,6 +2426,8 @@ components:
           type: string
         secret_ref:
           type: string
+        credential_id:
+          type: string
     TestConnectionRequest:
       type: object
       required: [type, config_json]
@@ -2281,6 +2435,8 @@ components:
         type:
           type: string
         config_json:
+          type: string
+        credential_id:
           type: string
     TestConnectionResponse:
       type: object
@@ -2290,6 +2446,8 @@ components:
           type: string
           enum: [ok, failed]
         message:
+          type: string
+        code:
           type: string
 
     # ---- Connector schemas ----
@@ -2324,8 +2482,34 @@ components:
           type: string
         description:
           type: string
+        credential_provider:
+          type: string
         spec:
           type: object
+
+    # ---- Credential schemas ----
+    Credential:
+      type: object
+      required: [id, user_id, tenant_id, provider]
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        tenant_id:
+          type: string
+        provider:
+          type: string
+        provider_label:
+          type: string
+        scopes:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
 
     # ---- Dataset schemas ----
     Dataset:
@@ -2780,3 +2964,53 @@ components:
           $ref: "#/components/schemas/JobVersion"
         job_run:
           $ref: "#/components/schemas/JobRun"
+    # ---- Connection Schemas ----
+    SchemaItem:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          enum: [sheet, table, view]
+        metadata:
+          type: object
+          additionalProperties: true
+    ConnectionSchemasResponse:
+      type: object
+      required: [title, items]
+      properties:
+        title:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemaItem"
+    # ---- Import Job ----
+    CreateImportJobRequest:
+      type: object
+      required: [name, slug, connection_id, spreadsheet_id]
+      properties:
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        connection_id:
+          type: string
+        spreadsheet_id:
+          type: string
+        sheet_name:
+          type: string
+        range:
+          type: string
+    CreateImportJobResponse:
+      type: object
+      required: [job, version]
+      properties:
+        job:
+          $ref: "#/components/schemas/Job"
+        version:
+          $ref: "#/components/schemas/JobVersion"

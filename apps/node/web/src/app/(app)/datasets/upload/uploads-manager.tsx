@@ -5,6 +5,7 @@ import { Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast-provider";
 import { cn } from "@/lib/utils";
 import type { components } from "@/lib/api/generated";
 
@@ -129,23 +130,21 @@ function fileId(file: File): string {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
-function statusTone(status: UploadItemStatus): string {
-  if (status === "uploaded") {
-    return "text-green-700";
-  }
-  if (status === "failed") {
-    return "text-destructive";
-  }
-  if (status === "uploading" || status === "presigning") {
-    return "text-blue-700";
-  }
-  return "text-muted-foreground";
-}
+const uploadStatusStyles: Record<UploadItemStatus, string> = {
+  pending: "bg-secondary text-secondary-foreground",
+  presigning:
+    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  uploading:
+    "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  uploaded:
+    "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
+  failed: "bg-destructive/10 text-destructive",
+};
 
 export function UploadsManager() {
   const [allowMultiple, setAllowMultiple] = useState(true);
+  const { pushToast } = useToast();
   const [items, setItems] = useState<UploadItem[]>([]);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [lastCompletedUpload, setLastCompletedUpload] = useState<Upload | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -175,7 +174,6 @@ export function UploadsManager() {
     }));
 
     setItems(nextItems);
-    setMessage("");
     setLastCompletedUpload(null);
   }
 
@@ -185,11 +183,10 @@ export function UploadsManager() {
       return;
     }
 
-    setMessage("");
     setLastCompletedUpload(null);
 
     if (items.length > MAX_FILES_PER_REQUEST) {
-      setMessage("1回でアップロードできるファイル数は最大10件です。");
+      pushToast({ variant: "error", message: "1回でアップロードできるファイル数は最大10件です。" });
       return;
     }
 
@@ -211,7 +208,7 @@ export function UploadsManager() {
           return { ...item, status: "failed", progress: 0, error };
         })
       );
-      setMessage("アップロード前の検証でエラーがあります。ファイルを修正してください。");
+      pushToast({ variant: "error", message: "アップロード前の検証でエラーがあります。ファイルを修正してください。" });
       return;
     }
 
@@ -254,7 +251,7 @@ export function UploadsManager() {
             progress: 0,
           }))
         );
-        setMessage(mapped);
+        pushToast({ variant: "error", message: mapped });
         return;
       }
 
@@ -269,7 +266,7 @@ export function UploadsManager() {
             progress: 0,
           }))
         );
-        setMessage(mismatchMessage);
+        pushToast({ variant: "error", message: mismatchMessage });
         return;
       }
 
@@ -304,9 +301,10 @@ export function UploadsManager() {
             error: reason,
           });
         }
-        setMessage(
-          `${failed.length}件のファイルアップロードに失敗しました。ネットワークまたはCORS設定を確認してください。`
-        );
+        pushToast({
+          variant: "error",
+          message: `${failed.length}件のファイルアップロードに失敗しました。ネットワークまたはCORS設定を確認してください。`,
+        });
         return;
       }
 
@@ -318,23 +316,28 @@ export function UploadsManager() {
       );
       if (!completeRes.ok) {
         const err = (await completeRes.json()) as { error?: string };
-        setMessage(
-          formatErrorMessage(
+        pushToast({
+          variant: "error",
+          message: formatErrorMessage(
             err.error ?? `complete failed (${completeRes.status})`
-          )
-        );
+          ),
+        });
         return;
       }
 
       const completed = (await completeRes.json()) as Upload;
       setLastCompletedUpload(completed);
-      setMessage(`アップロード完了: ${items.length}件 (upload_id: ${completed.id})`);
+      pushToast({
+        variant: "success",
+        message: `アップロード完了: ${items.length}件 (upload_id: ${completed.id})`,
+      });
     } catch (error) {
-      setMessage(
-        formatErrorMessage(
+      pushToast({
+        variant: "error",
+        message: formatErrorMessage(
           error instanceof Error ? error.message : "unexpected upload error"
-        )
-      );
+        ),
+      });
     } finally {
       setLoading(false);
     }
@@ -355,12 +358,11 @@ export function UploadsManager() {
           <Label className="flex items-center gap-2 text-sm font-normal">
             <input
               type="checkbox"
-              className="h-4 w-4"
+              className="h-4 w-4 rounded border-input"
               checked={allowMultiple}
               onChange={(event) => {
                 setAllowMultiple(event.target.checked);
                 setItems([]);
-                setMessage("");
                 setLastCompletedUpload(null);
               }}
               disabled={loading}
@@ -425,7 +427,6 @@ export function UploadsManager() {
             disabled={loading}
             onClick={() => {
               setItems([]);
-              setMessage("");
               setLastCompletedUpload(null);
             }}
           >
@@ -433,7 +434,6 @@ export function UploadsManager() {
           </Button>
         </div>
 
-        {message ? <p className="text-sm text-muted-foreground">{message}</p> : null}
         {lastCompletedUpload ? (
           <p className="text-sm text-muted-foreground">
             Complete API status: <span className="font-medium">{lastCompletedUpload.status}</span>
@@ -466,8 +466,12 @@ export function UploadsManager() {
                   </div>
                   <span className="text-xs text-muted-foreground">{item.progress}%</span>
                 </td>
-                <td className={`px-4 py-3 capitalize ${statusTone(item.status)}`}>
-                  {item.status}
+                <td className="px-4 py-3">
+                  <span
+                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${uploadStatusStyles[item.status]}`}
+                  >
+                    {item.status}
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-xs text-destructive">{item.error || "-"}</td>
               </tr>

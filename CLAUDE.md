@@ -525,6 +525,10 @@ emailSender := notification.NewEmailSender(notifCfg)
 notification.LogStartup(notifCfg)
 ```
 
+## Cleanup
+
+Playwright で `browser_take_screenshot` を使用した場合、確認完了後にスクリーンショットファイルを削除すること。リポジトリに残さない。
+
 ## Connector Framework
 
 コネクタ定義をコード埋め込み (static) で管理。source / destination を分離し、JSON Schema + x-* 拡張で spec を SSOT 化。

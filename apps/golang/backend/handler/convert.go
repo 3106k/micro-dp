@@ -274,11 +274,32 @@ func toOpenAPIConnectorDefinitionDetail(d *connector.Definition) openapi.Connect
 	if d.Description != "" {
 		out.Description = &d.Description
 	}
+	if d.CredentialProvider != "" {
+		out.CredentialProvider = &d.CredentialProvider
+	}
 	// Parse spec JSON into map for the response
 	var specMap map[string]interface{}
 	if err := json.Unmarshal(d.Spec, &specMap); err == nil {
 		out.Spec = specMap
 	}
+	return out
+}
+
+func toOpenAPICredential(c *domain.Credential) openapi.Credential {
+	out := openapi.Credential{
+		Id:       c.ID,
+		UserId:   c.UserID,
+		TenantId: c.TenantID,
+		Provider: c.Provider,
+	}
+	if c.ProviderLabel != "" {
+		out.ProviderLabel = &c.ProviderLabel
+	}
+	if c.Scopes != "" {
+		out.Scopes = &c.Scopes
+	}
+	out.CreatedAt = &c.CreatedAt
+	out.UpdatedAt = &c.UpdatedAt
 	return out
 }
 
@@ -293,6 +314,7 @@ func toOpenAPIConnection(c *domain.Connection) openapi.Connection {
 		out.ConfigJson = &c.ConfigJSON
 	}
 	out.SecretRef = c.SecretRef
+	out.CredentialId = c.CredentialID
 	out.CreatedAt = &c.CreatedAt
 	out.UpdatedAt = &c.UpdatedAt
 	return out

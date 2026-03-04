@@ -1,16 +1,15 @@
+import Link from "next/link";
+
 import type { components } from "@/lib/api/generated";
 
 type JobRun = components["schemas"]["JobRun"];
 
 const statusStyles: Record<JobRun["status"], string> = {
-  queued:
-    "bg-secondary text-secondary-foreground",
-  running:
-    "bg-primary/10 text-primary",
+  queued: "bg-secondary text-secondary-foreground",
+  running: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   success:
     "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  failed:
-    "bg-destructive/10 text-destructive",
+  failed: "bg-destructive/10 text-destructive",
   canceled:
     "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
 };
@@ -25,11 +24,23 @@ function StatusBadge({ status }: { status: JobRun["status"] }) {
   );
 }
 
+function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function JobRunsTable({ jobRuns }: { jobRuns: JobRun[] }) {
   if (jobRuns.length === 0) {
     return (
-      <div className="rounded-lg border p-8 text-center text-muted-foreground">
-        No job runs yet.
+      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-12 text-center">
+        <p className="text-sm text-muted-foreground">No job runs yet.</p>
+        <p className="text-xs text-muted-foreground">
+          Create a job and run it to see results here.
+        </p>
       </div>
     );
   }
@@ -49,22 +60,23 @@ export function JobRunsTable({ jobRuns }: { jobRuns: JobRun[] }) {
         <tbody>
           {jobRuns.map((run) => (
             <tr key={run.id} className="border-b last:border-0">
-              <td className="px-4 py-3 font-mono text-xs">
-                {run.id.slice(0, 8)}
+              <td className="px-4 py-3">
+                <Link
+                  href={`/job-runs/${run.id}`}
+                  className="font-mono text-xs text-primary hover:underline"
+                >
+                  {run.id.slice(0, 8)}
+                </Link>
               </td>
               <td className="px-4 py-3">{run.job_id}</td>
               <td className="px-4 py-3">
                 <StatusBadge status={run.status} />
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {run.started_at
-                  ? new Date(run.started_at).toLocaleString()
-                  : "-"}
+                {run.started_at ? formatDateTime(run.started_at) : "-"}
               </td>
               <td className="px-4 py-3 text-muted-foreground">
-                {run.finished_at
-                  ? new Date(run.finished_at).toLocaleString()
-                  : "-"}
+                {run.finished_at ? formatDateTime(run.finished_at) : "-"}
               </td>
             </tr>
           ))}
