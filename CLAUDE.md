@@ -216,6 +216,17 @@ Internal container ports are fixed; only host-side ports change per environment.
 | DELETE | `/api/v1/tenants/current/members/{user_id}` | Remove member |
 | GET | `/api/v1/plan` | Current tenant plan |
 | GET | `/api/v1/usage/summary` | Today's usage summary |
+| POST | `/api/v1/write-keys` | Create write key (owner/admin) |
+| GET | `/api/v1/write-keys` | List write keys |
+| DELETE | `/api/v1/write-keys/{id}` | Delete write key (owner/admin) |
+| POST | `/api/v1/write-keys/{id}/regenerate` | Regenerate write key (owner/admin) |
+
+### Write Key Authenticated (X-Write-Key)
+
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| POST | `/api/v1/collect` | Batch ingest events from external sites |
+| OPTIONS | `/api/v1/collect` | CORS preflight |
 
 ### Authenticated (Bearer only — no X-Tenant-ID)
 
@@ -428,6 +439,114 @@ Browser (SDK) → POST /api/events → Next.js API route (proxy) → POST /api/v
 |----------|---------|-------------|
 | `TRACKER_ENABLED` | `true` | トラッカー有効/無効 |
 | `TRACKER_DEBUG` | `false` | コンソールログ出力 |
+
+### 外部サイト向けモード (Write Key 認証)
+
+cookie ベースのプロキシに加えて、外部サイトから直接 Go API にイベントを送信する経路をサポート。
+
+```
+External Site (CDN SDK) → POST /api/v1/collect (Go API 直接)
+                            ↑ X-Write-Key ヘッダーで認証
+                            ↑ CORS: 全オリジン許可
+                            ↑ context 自動収集 (UA, referrer, page_url 等)
+```
+
+#### Write Key
+
+- 形式: `dk_live_{random32hex}` (例: `dk_live_c884faf531453bb39f35294b999afdf7`)
+- 保存: SHA-256 ハッシュで DB に保存。生キーは発行時のみ返却
+- 認証: `X-Write-Key` ヘッダー → hash lookup → tenant 特定
+- 管理: owner/admin のみ作成・再生成・削除可能
+
+#### CDN ビルド (IIFE)
+
+`apps/node/sdk-tracker/dist/micro-dp.global.js` — `<script>` タグで読み込み、`MicroDP` グローバルから利用。
+
+```html
+<script src="https://your-cdn.com/micro-dp.global.js"></script>
+<script>
+  MicroDP.init({
+    endpoint: "https://your-api.com/api/v1/collect",
+    writeKey: "dk_live_...",
+    collectContext: true
+  });
+  MicroDP.page();
+</script>
+```
+
+#### 自動収集コンテキスト
+
+`collectContext: true` で以下を自動収集し `context` JSON としてイベントに付与:
+
+| Field | Source |
+|-------|--------|
+| `user_agent` | `navigator.userAgent` |
+| `referrer` | `document.referrer` |
+| `screen_width/height` | `screen.width/height` |
+| `viewport_width/height` | `innerWidth/innerHeight` |
+| `timezone` | `Intl.DateTimeFormat().resolvedOptions().timeZone` |
+| `page_url` | `location.href` |
+| `page_title` | `document.title` |
+| `language` | `navigator.language` |
+
+#### 主要ファイル (外部サイト向け)
+
+| ファイル | 役割 |
+|---------|------|
+| `domain/write_key.go` | WriteKey entity, WriteKeyRepository interface |
+| `db/write_key_repo.go` | SQLite 実装 (CRUD + FindByKeyHash) |
+| `usecase/write_key.go` | WriteKeyService (生成・認証・ロールチェック) |
+| `handler/write_key.go` | Write Key CRUD ハンドラー |
+| `handler/collect.go` | バッチ collect ハンドラー |
+| `handler/cors.go` | CORSMiddleware (/api/v1/collect 専用) |
+| `handler/middleware.go` | WriteKeyMiddleware (X-Write-Key → tenant) |
+| `sdk-tracker/src/cdn.ts` | IIFE エントリーポイント |
+| `web/src/app/(settings)/tracking/` | Write Key 管理 UI |
+
+## Aggregation Pipeline
+
+Worker が定期的に raw event Parquet を集計し、events (イベント名×時間) と visits (ユニークページ×時間) の集約 Parquet を生成する。
+
+### アーキテクチャ
+
+```
+Worker (ticker 1h) → for each tenant:
+  MinIO: events/{tenant}/dt={date}/*.parquet (raw)
+    ↓ DuckDB in-memory
+  Aggregate events: GROUP BY tenant_id, event_name, hour → events.parquet
+  Aggregate visits: COUNT(DISTINCT page_url), hour → visits.parquet
+    ↓
+  MinIO: aggregated/events/{tenant}/dt={date}/{timestamp}.parquet
+  MinIO: aggregated/visits/{tenant}/dt={date}/{timestamp}.parquet
+```
+
+### 処理対象
+
+- 起動後 10 秒で初回実行、以降 1 時間ごと
+- 各テナントの当日 + 前日データを集計 (日付境界のデータ欠落を防止)
+
+### MinIO オブジェクトキー
+
+```
+aggregated/events/{tenant_id}/dt={YYYY-MM-DD}/{timestamp}.parquet
+aggregated/visits/{tenant_id}/dt={YYYY-MM-DD}/{timestamp}.parquet
+```
+
+### メトリクス
+
+| Metric | Type | Location | Description |
+|--------|------|----------|-------------|
+| `aggregation_processed_total` | counter | Worker | 集計完了数 |
+| `aggregation_failed_total` | counter | Worker | 集計失敗数 |
+| `aggregation_duration_seconds` | histogram | Worker | 集計処理時間 |
+
+### 主要ファイル
+
+| ファイル | 役割 |
+|---------|------|
+| `worker/aggregation_writer.go` | DuckDB 集計 + Parquet 生成 + MinIO アップロード |
+| `worker/aggregation_consumer.go` | ticker ベース定期実行 (全テナント巡回) |
+| `internal/observability/aggregation_metrics.go` | メトリクス定義 |
 
 ## Contract-First OpenAPI (SSOT)
 
