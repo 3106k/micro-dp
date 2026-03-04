@@ -88,3 +88,20 @@
   2. Push branch
   3. Close related GitHub issue with commit reference
 - Dashboard/Chart initiative tracking project: `https://github.com/users/3106k/projects/2/views/2`
+
+## GitHub Project Operations
+
+- Project #2 (`https://github.com/users/3106k/projects/2/views/2`) is the single source of truth for issue status.
+- Start work from `In progress` first. If empty, pick from `Ready` by `Priority` (`P0` > `P1` > `P2`).
+- Keep `In progress` WIP limit to 2 issues at most.
+- Use status definitions:
+  - `Todo`: not ready yet
+  - `Ready`: dependency-resolved and ready to start
+  - `In progress`: implementation in progress
+  - `Review`: PR opened and waiting for review
+  - `Blocked`: blocked by dependency/external factor
+  - `Done`: merged and issue closed
+- Set `Area` for each issue (`API` / `Web` / `Worker` / `E2E`).
+- Set `DependsOn` when there is an upstream dependency.
+- Move issue to `Review` when PR is opened.
+- Move issue to `Done` only after merge + issue close.
