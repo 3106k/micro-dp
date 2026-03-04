@@ -46,15 +46,20 @@ func (h *ImportJobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	if req.Range != nil {
 		rangeStr = *req.Range
 	}
+	execution := "save_only"
+	if req.Execution != nil {
+		execution = string(*req.Execution)
+	}
 
 	input := usecase.CreateImportJobInput{
-		Name:           req.Name,
-		Slug:           req.Slug,
-		Description:    desc,
-		ConnectionID:   req.ConnectionId,
-		SpreadsheetID:  req.SpreadsheetId,
-		SheetName:      sheetName,
-		Range:          rangeStr,
+		Name:          req.Name,
+		Slug:          req.Slug,
+		Description:   desc,
+		ConnectionID:  req.ConnectionId,
+		SpreadsheetID: req.SpreadsheetId,
+		SheetName:     sheetName,
+		Range:         rangeStr,
+		Execution:     execution,
 	}
 
 	result, err := h.importJob.CreateImportJob(r.Context(), input)
@@ -63,8 +68,14 @@ func (h *ImportJobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, openapi.CreateImportJobResponse{
+	resp := openapi.CreateImportJobResponse{
 		Job:     toOpenAPIJob(result.Job),
 		Version: toOpenAPIJobVersion(result.Version),
-	})
+	}
+	if result.JobRun != nil {
+		jr := toOpenAPIJobRun(result.JobRun)
+		resp.JobRun = &jr
+	}
+
+	writeJSON(w, http.StatusCreated, resp)
 }

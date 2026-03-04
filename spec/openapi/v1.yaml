@@ -1681,6 +1681,40 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
+  /api/v1/datasets/{id}/columns:
+    patch:
+      tags: [datasets]
+      summary: Update dataset column metadata
+      operationId: updateDatasetColumns
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDatasetColumnsRequest"
+      responses:
+        "200":
+          description: Updated dataset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dataset"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Uploads ----
   /api/v1/uploads/presign:
     post:
@@ -2526,6 +2560,11 @@ components:
           $ref: "#/components/schemas/DatasetSourceType"
         schema_json:
           type: string
+          deprecated: true
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/DatasetColumn"
         row_count:
           type: integer
           format: int64
@@ -2551,6 +2590,59 @@ components:
           type: string
         type:
           type: string
+        nullable:
+          type: boolean
+        description:
+          type: string
+        semantic_type:
+          $ref: "#/components/schemas/DatasetColumnSemanticType"
+        tags:
+          type: array
+          items:
+            type: string
+        sample_values:
+          type: array
+          items: {}
+        statistics:
+          $ref: "#/components/schemas/ColumnStatistics"
+    DatasetColumnSemanticType:
+      type: string
+      enum: [dimension, measure, timestamp, identifier]
+    ColumnStatistics:
+      type: object
+      properties:
+        min:
+          type: string
+        max:
+          type: string
+        null_rate:
+          type: number
+          format: double
+        distinct_count:
+          type: integer
+          format: int64
+    UpdateDatasetColumnsRequest:
+      type: object
+      required: [columns]
+      properties:
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/UpdateDatasetColumnRequest"
+    UpdateDatasetColumnRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        semantic_type:
+          $ref: "#/components/schemas/DatasetColumnSemanticType"
+        tags:
+          type: array
+          items:
+            type: string
     DatasetRowsResponse:
       type: object
       required: [columns, rows, total_rows, limit, offset]
@@ -2988,6 +3080,9 @@ components:
           items:
             $ref: "#/components/schemas/SchemaItem"
     # ---- Import Job ----
+    ImportExecution:
+      type: string
+      enum: [save_only, immediate]
     CreateImportJobRequest:
       type: object
       required: [name, slug, connection_id, spreadsheet_id]
@@ -3006,6 +3101,8 @@ components:
           type: string
         range:
           type: string
+        execution:
+          $ref: "#/components/schemas/ImportExecution"
     CreateImportJobResponse:
       type: object
       required: [job, version]
@@ -3014,3 +3111,5 @@ components:
           $ref: "#/components/schemas/Job"
         version:
           $ref: "#/components/schemas/JobVersion"
+        job_run:
+          $ref: "#/components/schemas/JobRun"

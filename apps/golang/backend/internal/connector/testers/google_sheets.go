@@ -2,7 +2,6 @@ package testers
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,11 +9,8 @@ import (
 	"github.com/user/micro-dp/internal/connector"
 )
 
-type googleSheetsConfig struct {
-	SpreadsheetID string `json:"spreadsheet_id"`
-}
-
-// GoogleSheetsTester tests connectivity to a Google Spreadsheet.
+// GoogleSheetsTester tests connectivity by verifying the OAuth credential
+// against the Google Sheets API.
 type GoogleSheetsTester struct{}
 
 func NewGoogleSheetsTester() *GoogleSheetsTester {
@@ -22,18 +18,14 @@ func NewGoogleSheetsTester() *GoogleSheetsTester {
 }
 
 func (t *GoogleSheetsTester) Test(ctx context.Context, configJSON string, accessToken string) *connector.TestResult {
-	var cfg googleSheetsConfig
-	if err := json.Unmarshal([]byte(configJSON), &cfg); err != nil {
-		return &connector.TestResult{OK: false, Code: "invalid_config", Message: "invalid config JSON"}
-	}
-	if cfg.SpreadsheetID == "" {
-		return &connector.TestResult{OK: false, Code: "invalid_config", Message: "spreadsheet_id is required"}
-	}
 	if accessToken == "" {
 		return &connector.TestResult{OK: false, Code: "unauthorized", Message: "no access token available"}
 	}
 
-	url := fmt.Sprintf("https://sheets.googleapis.com/v4/spreadsheets/%s?fields=properties.title", cfg.SpreadsheetID)
+	// Verify the token by calling the Sheets API with a minimal request.
+	// Getting spreadsheet "" returns 404 if the token is valid, 401 if not.
+	// We use a lightweight endpoint that only requires spreadsheets.readonly scope.
+	url := "https://sheets.googleapis.com/v4/spreadsheets/__test_connectivity__?fields=properties.title"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return &connector.TestResult{OK: false, Code: "invalid_config", Message: err.Error()}
@@ -47,15 +39,14 @@ func (t *GoogleSheetsTester) Test(ctx context.Context, configJSON string, access
 	defer resp.Body.Close()
 	io.Copy(io.Discard, resp.Body)
 
-	switch {
-	case resp.StatusCode == http.StatusOK:
+	switch resp.StatusCode {
+	case http.StatusOK, http.StatusNotFound:
+		// 404 = token is valid but spreadsheet doesn't exist (expected)
 		return &connector.TestResult{OK: true, Code: "ok", Message: "connected successfully"}
-	case resp.StatusCode == http.StatusUnauthorized:
+	case http.StatusUnauthorized:
 		return &connector.TestResult{OK: false, Code: "unauthorized", Message: "access token is invalid or expired"}
-	case resp.StatusCode == http.StatusForbidden:
-		return &connector.TestResult{OK: false, Code: "forbidden", Message: "insufficient permissions to access this spreadsheet"}
-	case resp.StatusCode == http.StatusNotFound:
-		return &connector.TestResult{OK: false, Code: "not_found", Message: "spreadsheet not found"}
+	case http.StatusForbidden:
+		return &connector.TestResult{OK: false, Code: "forbidden", Message: "insufficient permissions"}
 	default:
 		return &connector.TestResult{OK: false, Code: "invalid_config", Message: fmt.Sprintf("unexpected status %d", resp.StatusCode)}
 	}
