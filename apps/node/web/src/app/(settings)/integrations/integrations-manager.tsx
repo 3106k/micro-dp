@@ -54,8 +54,22 @@ export function IntegrationsManager({
     }
   }
 
-  function handleConnect() {
-    window.location.href = "/api/credentials/google/start";
+  async function handleConnect() {
+    setLoading(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/credentials/google/start");
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok || !data.url) {
+        setMessage(`Error: ${data.error || "failed to start google oauth"}`);
+        return;
+      }
+      window.location.href = data.url;
+    } catch {
+      setMessage("Error: network error");
+    } finally {
+      setLoading(false);
+    }
   }
 
   const googleCredentials = credentials.filter((c) => c.provider === "google");

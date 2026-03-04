@@ -328,6 +328,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/import/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Create import job */
+        post: operations["createImportJob"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/admin/plans": {
         parameters: {
             query?: never;
@@ -706,6 +723,23 @@ export interface paths {
         put?: never;
         /** Test connection */
         post: operations["testConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/connections/{connection_id}/schemas": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get connection schemas */
+        get: operations["listConnectionSchemas"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1482,6 +1516,31 @@ export interface components {
             version: components["schemas"]["JobVersion"];
             job_run?: components["schemas"]["JobRun"];
         };
+        SchemaItem: {
+            name: string;
+            /** @enum {string} */
+            type: "sheet" | "table" | "view";
+            metadata?: {
+                [key: string]: unknown;
+            };
+        };
+        ConnectionSchemasResponse: {
+            title: string;
+            items: components["schemas"]["SchemaItem"][];
+        };
+        CreateImportJobRequest: {
+            name: string;
+            slug: string;
+            description?: string;
+            connection_id: string;
+            spreadsheet_id: string;
+            sheet_name?: string;
+            range?: string;
+        };
+        CreateImportJobResponse: {
+            job: components["schemas"]["Job"];
+            version: components["schemas"]["JobVersion"];
+        };
     };
     responses: {
         /** @description Error response */
@@ -2010,6 +2069,35 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CreateTransformJobResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            409: components["responses"]["ErrorResponse"];
+        };
+    };
+    createImportJob: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateImportJobRequest"];
+            };
+        };
+        responses: {
+            /** @description Created import job */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateImportJobResponse"];
                 };
             };
             400: components["responses"]["ErrorResponse"];
@@ -2897,6 +2985,36 @@ export interface operations {
             400: components["responses"]["ErrorResponse"];
             401: components["responses"]["ErrorResponse"];
             422: components["responses"]["ErrorResponse"];
+        };
+    };
+    listConnectionSchemas: {
+        parameters: {
+            query?: {
+                /** @description Spreadsheet ID to fetch schemas for (used when connection has no embedded spreadsheet_id) */
+                spreadsheet_id?: string;
+            };
+            header: {
+                "X-Tenant-ID": components["parameters"]["XTenantID"];
+            };
+            path: {
+                connection_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Schema items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionSchemasResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            404: components["responses"]["ErrorResponse"];
         };
     };
     listCredentials: {

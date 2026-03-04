@@ -7,7 +7,6 @@
   "x-credential-provider": "google",
   "spec": {
     "type": "object",
-    "required": ["spreadsheet_id"],
     "properties": {
       "spreadsheet_id": {
         "type": "string",

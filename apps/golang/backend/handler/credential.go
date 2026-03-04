@@ -106,12 +106,6 @@ func (h *CredentialHandler) GoogleCallback(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if !redirectURIMatchesRequest(r, h.credentials.RedirectURL()) {
-		log.Printf("credential_google_callback failed: redirect uri mismatch")
-		writeError(w, http.StatusBadRequest, "invalid redirect uri")
-		return
-	}
-
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 	if code == "" || state == "" {

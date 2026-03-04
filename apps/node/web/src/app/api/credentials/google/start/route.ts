@@ -7,6 +7,10 @@ import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
 
 type ErrorResponse = components["schemas"]["ErrorResponse"];
 
+/**
+ * Proxy credential Google OAuth start. Returns JSON { url } + Set-Cookie
+ * so the browser stores PKCE cookies on localhost:3900 (same origin as callback).
+ */
 export async function GET() {
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
@@ -26,13 +30,24 @@ export async function GET() {
     redirect: "manual",
   });
 
-  if (res.status === 302) {
-    const location = res.headers.get("location");
-    if (location) {
-      return NextResponse.redirect(location);
+  const setCookies =
+    typeof res.headers.getSetCookie === "function"
+      ? res.headers.getSetCookie()
+      : [];
+
+  const location = res.headers.get("location");
+  if (location && res.status >= 300 && res.status < 400) {
+    const out = NextResponse.json({ url: location });
+    for (const c of setCookies) {
+      out.headers.append("set-cookie", c);
     }
+    return out;
   }
 
   const data = await res.json().catch(() => ({ error: "unexpected response" }));
-  return NextResponse.json(data, { status: res.status });
+  const out = NextResponse.json(data, { status: res.status });
+  for (const c of setCookies) {
+    out.headers.append("set-cookie", c);
+  }
+  return out;
 }

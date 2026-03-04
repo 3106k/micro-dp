@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 
@@ -224,5 +225,84 @@ func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
 	// Fallback: schema validation only
 	writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
 		Status: openapi.TestConnectionResponseStatusOk,
+	})
+}
+
+func (h *ConnectionHandler) ListSchemas(w http.ResponseWriter, r *http.Request) {
+	connID := r.PathValue("connection_id")
+	if connID == "" {
+		writeError(w, http.StatusBadRequest, "missing connection_id")
+		return
+	}
+
+	conn, err := h.connections.Get(r.Context(), connID)
+	if err != nil {
+		if errors.Is(err, domain.ErrConnectionNotFound) {
+			writeError(w, http.StatusNotFound, "connection not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	fetcher := h.registry.GetFetcher(conn.Type)
+	if fetcher == nil {
+		writeError(w, http.StatusBadRequest, "schema fetching not supported for this connector type")
+		return
+	}
+
+	// Merge spreadsheet_id query param into configJSON if provided
+	configJSON := conn.ConfigJSON
+	if qsID := r.URL.Query().Get("spreadsheet_id"); qsID != "" {
+		var cfgMap map[string]interface{}
+		if err := json.Unmarshal([]byte(configJSON), &cfgMap); err != nil {
+			cfgMap = map[string]interface{}{}
+		}
+		cfgMap["spreadsheet_id"] = qsID
+		if merged, err := json.Marshal(cfgMap); err == nil {
+			configJSON = string(merged)
+		}
+	}
+
+	accessToken := ""
+	if conn.CredentialID != nil && *conn.CredentialID != "" && h.credentials != nil {
+		tenantID, ok := domain.TenantIDFromContext(r.Context())
+		if !ok {
+			writeError(w, http.StatusUnauthorized, "missing tenant")
+			return
+		}
+		token, err := h.credentials.GetValidAccessToken(r.Context(), tenantID, *conn.CredentialID)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "credential_expired")
+			return
+		}
+		accessToken = token
+	}
+
+	result, err := fetcher.FetchSchema(r.Context(), configJSON, accessToken)
+	if err != nil {
+		if err.Error() == "credential_expired" {
+			writeError(w, http.StatusBadRequest, "credential_expired")
+			return
+		}
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	items := make([]openapi.SchemaItem, len(result.Items))
+	for i, item := range result.Items {
+		items[i] = openapi.SchemaItem{
+			Name: item.Name,
+			Type: openapi.SchemaItemType(item.Type),
+		}
+		if len(item.Metadata) > 0 {
+			m := map[string]interface{}(item.Metadata)
+			items[i].Metadata = &m
+		}
+	}
+
+	writeJSON(w, http.StatusOK, openapi.ConnectionSchemasResponse{
+		Title: result.Title,
+		Items: items,
 	})
 }

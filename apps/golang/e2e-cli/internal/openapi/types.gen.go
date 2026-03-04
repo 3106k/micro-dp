@@ -90,6 +90,13 @@ const (
 	Transform   ModuleTypeCategory = "transform"
 )
 
+// Defines values for SchemaItemType.
+const (
+	Sheet SchemaItemType = "sheet"
+	Table SchemaItemType = "table"
+	View  SchemaItemType = "view"
+)
+
 // Defines values for TenantInvitationStatus.
 const (
 	TenantInvitationStatusAccepted TenantInvitationStatus = "accepted"
@@ -168,6 +175,12 @@ type Connection struct {
 	UpdatedAt    *time.Time `json:"updated_at,omitempty"`
 }
 
+// ConnectionSchemasResponse defines model for ConnectionSchemasResponse.
+type ConnectionSchemasResponse struct {
+	Items []SchemaItem `json:"items"`
+	Title string       `json:"title"`
+}
+
 // ConnectorDefinition defines model for ConnectorDefinition.
 type ConnectorDefinition struct {
 	Description *string       `json:"description,omitempty"`
@@ -226,6 +239,23 @@ type CreateConnectionRequest struct {
 type CreateEdgeInput struct {
 	SourceModuleIndex int `json:"source_module_index"`
 	TargetModuleIndex int `json:"target_module_index"`
+}
+
+// CreateImportJobRequest defines model for CreateImportJobRequest.
+type CreateImportJobRequest struct {
+	ConnectionId  string  `json:"connection_id"`
+	Description   *string `json:"description,omitempty"`
+	Name          string  `json:"name"`
+	Range         *string `json:"range,omitempty"`
+	SheetName     *string `json:"sheet_name,omitempty"`
+	Slug          string  `json:"slug"`
+	SpreadsheetId string  `json:"spreadsheet_id"`
+}
+
+// CreateImportJobResponse defines model for CreateImportJobResponse.
+type CreateImportJobResponse struct {
+	Job     Job        `json:"job"`
+	Version JobVersion `json:"version"`
 }
 
 // CreateInvitationRequest defines model for CreateInvitationRequest.
@@ -591,6 +621,16 @@ type RegisterResponse struct {
 	UserId   string `json:"user_id"`
 }
 
+// SchemaItem defines model for SchemaItem.
+type SchemaItem struct {
+	Metadata *map[string]interface{} `json:"metadata,omitempty"`
+	Name     string                  `json:"name"`
+	Type     SchemaItemType          `json:"type"`
+}
+
+// SchemaItemType defines model for SchemaItem.Type.
+type SchemaItemType string
+
 // Tenant defines model for Tenant.
 type Tenant struct {
 	Id       string `json:"id"`
@@ -806,6 +846,13 @@ type TestConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// ListConnectionSchemasParams defines parameters for ListConnectionSchemas.
+type ListConnectionSchemasParams struct {
+	// SpreadsheetId Spreadsheet ID to fetch schemas for (used when connection has no embedded spreadsheet_id)
+	SpreadsheetId *string   `form:"spreadsheet_id,omitempty" json:"spreadsheet_id,omitempty"`
+	XTenantID     XTenantID `json:"X-Tenant-ID"`
+}
+
 // DeleteConnectionParams defines parameters for DeleteConnection.
 type DeleteConnectionParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
@@ -881,6 +928,11 @@ type IngestEventParams struct {
 
 // GetEventsSummaryParams defines parameters for GetEventsSummary.
 type GetEventsSummaryParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateImportJobParams defines parameters for CreateImportJob.
+type CreateImportJobParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
@@ -1081,6 +1133,9 @@ type UpdateConnectionJSONRequestBody = UpdateConnectionRequest
 
 // IngestEventJSONRequestBody defines body for IngestEvent for application/json ContentType.
 type IngestEventJSONRequestBody = IngestEventRequest
+
+// CreateImportJobJSONRequestBody defines body for CreateImportJob for application/json ContentType.
+type CreateImportJobJSONRequestBody = CreateImportJobRequest
 
 // CreateJobRunJSONRequestBody defines body for CreateJobRun for application/json ContentType.
 type CreateJobRunJSONRequestBody = CreateJobRunRequest
