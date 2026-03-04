@@ -16,18 +16,20 @@ var definitionsFS embed.FS
 
 // Definition represents a connector definition loaded from embedded JSON.
 type Definition struct {
-	ID          string          `json:"id"`
-	Name        string          `json:"name"`
-	Kind        string          `json:"kind"`
-	Icon        string          `json:"icon"`
-	Description string          `json:"description"`
-	Spec        json.RawMessage `json:"spec"`
+	ID                 string          `json:"id"`
+	Name               string          `json:"name"`
+	Kind               string          `json:"kind"`
+	Icon               string          `json:"icon"`
+	Description        string          `json:"description"`
+	CredentialProvider string          `json:"x-credential-provider"`
+	Spec               json.RawMessage `json:"spec"`
 }
 
 // Registry holds all connector definitions and their compiled JSON Schemas.
 type Registry struct {
 	defs    map[string]*Definition
 	schemas map[string]*jsonschema.Schema
+	testers map[string]ConnectionTester
 }
 
 var (
@@ -52,6 +54,7 @@ func load() (*Registry, error) {
 	r := &Registry{
 		defs:    make(map[string]*Definition),
 		schemas: make(map[string]*jsonschema.Schema),
+		testers: make(map[string]ConnectionTester),
 	}
 
 	dirs := []string{"definitions/sources", "definitions/destinations"}
@@ -130,6 +133,16 @@ func (r *Registry) List(kind string) []*Definition {
 		}
 	}
 	return out
+}
+
+// RegisterTester registers a ConnectionTester for a given connector ID.
+func (r *Registry) RegisterTester(connectorID string, t ConnectionTester) {
+	r.testers[connectorID] = t
+}
+
+// GetTester returns the ConnectionTester for a connector ID, or nil if not registered.
+func (r *Registry) GetTester(connectorID string) ConnectionTester {
+	return r.testers[connectorID]
 }
 
 // ValidateConfig validates a JSON config string against the connector's spec.

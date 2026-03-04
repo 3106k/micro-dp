@@ -12,11 +12,12 @@ import (
 
 type ConnectionHandler struct {
 	connections *usecase.ConnectionService
+	credentials *usecase.CredentialService
 	registry    *connector.Registry
 }
 
-func NewConnectionHandler(connections *usecase.ConnectionService, registry *connector.Registry) *ConnectionHandler {
-	return &ConnectionHandler{connections: connections, registry: registry}
+func NewConnectionHandler(connections *usecase.ConnectionService, credentials *usecase.CredentialService, registry *connector.Registry) *ConnectionHandler {
+	return &ConnectionHandler{connections: connections, credentials: credentials, registry: registry}
 }
 
 func (h *ConnectionHandler) Create(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +36,7 @@ func (h *ConnectionHandler) Create(w http.ResponseWriter, r *http.Request) {
 		configJSON = *req.ConfigJson
 	}
 
-	c, err := h.connections.Create(r.Context(), req.Name, req.Type, configJSON, req.SecretRef)
+	c, err := h.connections.Create(r.Context(), req.Name, req.Type, configJSON, req.SecretRef, req.CredentialId)
 	if err != nil {
 		if errors.Is(err, domain.ErrConnectorTypeUnknown) {
 			writeError(w, http.StatusBadRequest, "unknown connector type")
@@ -118,7 +119,7 @@ func (h *ConnectionHandler) Update(w http.ResponseWriter, r *http.Request) {
 		configJSON = *req.ConfigJson
 	}
 
-	c, err := h.connections.Update(r.Context(), id, req.Name, req.Type, configJSON, req.SecretRef)
+	c, err := h.connections.Update(r.Context(), id, req.Name, req.Type, configJSON, req.SecretRef, req.CredentialId)
 	if err != nil {
 		if errors.Is(err, domain.ErrConnectionNotFound) {
 			writeError(w, http.StatusNotFound, "connection not found")
@@ -183,7 +184,44 @@ func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Phase 1: stub — always return ok after spec validation passes
+	// If a real tester is registered, use it
+	tester := h.registry.GetTester(req.Type)
+	if tester != nil {
+		accessToken := ""
+		if req.CredentialId != nil && *req.CredentialId != "" && h.credentials != nil {
+			tenantID, ok := domain.TenantIDFromContext(r.Context())
+			if !ok {
+				writeError(w, http.StatusUnauthorized, "missing tenant")
+				return
+			}
+			token, err := h.credentials.GetValidAccessToken(r.Context(), tenantID, *req.CredentialId)
+			if err != nil {
+				code := "unauthorized"
+				msg := "failed to retrieve access token"
+				writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
+					Status:  openapi.TestConnectionResponseStatusFailed,
+					Code:    &code,
+					Message: &msg,
+				})
+				return
+			}
+			accessToken = token
+		}
+
+		result := tester.Test(r.Context(), req.ConfigJson, accessToken)
+		status := openapi.TestConnectionResponseStatusOk
+		if !result.OK {
+			status = openapi.TestConnectionResponseStatusFailed
+		}
+		writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
+			Status:  status,
+			Code:    &result.Code,
+			Message: &result.Message,
+		})
+		return
+	}
+
+	// Fallback: schema validation only
 	writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
 		Status: openapi.TestConnectionResponseStatusOk,
 	})

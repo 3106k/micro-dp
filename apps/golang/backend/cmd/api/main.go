@@ -11,6 +11,7 @@ import (
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/connector"
+	"github.com/user/micro-dp/internal/connector/testers"
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/notification"
 	"github.com/user/micro-dp/internal/observability"
@@ -85,6 +86,7 @@ func main() {
 	billingSubscriptionRepo := db.NewBillingSubscriptionRepo(sqlDB)
 	stripeWebhookEventRepo := db.NewStripeWebhookEventRepo(sqlDB)
 	billingAuditLogRepo := db.NewBillingAuditLogRepo(sqlDB)
+	credentialRepo := db.NewCredentialRepo(sqlDB)
 	invitationRepo := db.NewInvitationRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
@@ -129,6 +131,19 @@ func main() {
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo, connectorRegistry)
+	credentialService := usecase.NewCredentialService(
+		credentialRepo,
+		usecase.GoogleCredentialOAuthConfig{
+			ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+			ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+			RedirectURL:     os.Getenv("GOOGLE_OAUTH_CREDENTIAL_REDIRECT_URI"),
+			PostRedirectURL: os.Getenv("GOOGLE_OAUTH_CREDENTIAL_POST_REDIRECT_URI"),
+		},
+		jwtSecret,
+	)
+
+	// Register real connection testers
+	connectorRegistry.RegisterTester("source-google-sheets", testers.NewGoogleSheetsTester())
 	datasetService := usecase.NewDatasetService(datasetRepo, minioClient)
 	eventService := usecase.NewEventService(eventQueue)
 	eventMetrics := observability.NewEventMetrics()
@@ -176,7 +191,8 @@ func main() {
 	jobRunH := handler.NewJobRunHandler(jobRunService)
 	jobH := handler.NewJobHandler(jobService)
 	moduleTypeH := handler.NewModuleTypeHandler(moduleTypeService)
-	connectionH := handler.NewConnectionHandler(connectionService, connectorRegistry)
+	connectionH := handler.NewConnectionHandler(connectionService, credentialService, connectorRegistry)
+	credentialH := handler.NewCredentialHandler(credentialService)
 	connectorH := handler.NewConnectorHandler(connectorRegistry)
 	datasetH := handler.NewDatasetHandler(datasetService)
 	trackerTenantID := os.Getenv("TRACKER_TENANT_ID")
@@ -261,6 +277,12 @@ func main() {
 	// Connectors
 	mux.Handle("GET /api/v1/connectors", protected(connectorH.List))
 	mux.Handle("GET /api/v1/connectors/{id}", protected(connectorH.Get))
+
+	// Credentials
+	mux.Handle("GET /api/v1/credentials", protected(credentialH.List))
+	mux.Handle("DELETE /api/v1/credentials/{id}", protected(credentialH.Delete))
+	mux.Handle("GET /api/v1/credentials/google/start", protected(credentialH.GoogleStart))
+	mux.HandleFunc("GET /api/v1/credentials/google/callback", credentialH.GoogleCallback)
 
 	// Connections
 	mux.Handle("POST /api/v1/connections", protected(connectionH.Create))

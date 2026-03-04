@@ -7,6 +7,7 @@ import { ConnectionsManager } from "./connections-manager";
 
 type Connection = components["schemas"]["Connection"];
 type ConnectorDefinition = components["schemas"]["ConnectorDefinition"];
+type Credential = components["schemas"]["Credential"];
 
 export default async function ConnectionsPage() {
   const jar = await cookies();
@@ -18,9 +19,10 @@ export default async function ConnectionsPage() {
     "X-Tenant-ID": tenantId,
   };
 
-  const [connectionsRes, connectorsRes] = await Promise.all([
+  const [connectionsRes, connectorsRes, credentialsRes] = await Promise.all([
     backendFetch("/api/v1/connections", { headers: authHeaders }),
     backendFetch("/api/v1/connectors", { headers: authHeaders }),
+    backendFetch("/api/v1/credentials", { headers: authHeaders }),
   ]);
 
   let initialConnections: Connection[] = [];
@@ -35,12 +37,19 @@ export default async function ConnectionsPage() {
     initialConnectors = data.items ?? [];
   }
 
+  let initialCredentials: Credential[] = [];
+  if (credentialsRes.ok) {
+    const data: { items: Credential[] } = await credentialsRes.json();
+    initialCredentials = data.items ?? [];
+  }
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">Connections</h1>
       <ConnectionsManager
         initialConnections={initialConnections}
         initialConnectors={initialConnectors}
+        initialCredentials={initialCredentials}
       />
     </div>
   );

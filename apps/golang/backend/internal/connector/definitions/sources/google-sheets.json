@@ -1,0 +1,26 @@
+{
+  "id": "source-google-sheets",
+  "name": "Google Sheets",
+  "kind": "source",
+  "icon": "google-sheets",
+  "description": "Read data from Google Spreadsheets",
+  "x-credential-provider": "google",
+  "spec": {
+    "type": "object",
+    "required": ["spreadsheet_id"],
+    "properties": {
+      "spreadsheet_id": {
+        "type": "string",
+        "title": "Spreadsheet ID",
+        "description": "The ID from the spreadsheet URL (e.g. https://docs.google.com/spreadsheets/d/{ID}/edit)",
+        "x-order": 1
+      },
+      "sheet_name": {
+        "type": "string",
+        "title": "Sheet Name",
+        "description": "Specific sheet tab name. If empty, the first sheet is used.",
+        "x-order": 2
+      }
+    }
+  }
+}
