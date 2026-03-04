@@ -2988,6 +2988,9 @@ components:
           items:
             $ref: "#/components/schemas/SchemaItem"
     # ---- Import Job ----
+    ImportExecution:
+      type: string
+      enum: [save_only, immediate]
     CreateImportJobRequest:
       type: object
       required: [name, slug, connection_id, spreadsheet_id]
@@ -3006,6 +3009,8 @@ components:
           type: string
         range:
           type: string
+        execution:
+          $ref: "#/components/schemas/ImportExecution"
     CreateImportJobResponse:
       type: object
       required: [job, version]
@@ -3014,3 +3019,5 @@ components:
           $ref: "#/components/schemas/Job"
         version:
           $ref: "#/components/schemas/JobVersion"
+        job_run:
+          $ref: "#/components/schemas/JobRun"

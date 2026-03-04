@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -89,12 +90,29 @@ func main() {
 
 	go transformConsumer.Run(ctx)
 
+	// Credential + Connection (for import jobs)
+	credentialRepo := db.NewCredentialRepo(sqlDB)
+	connectionRepo := db.NewConnectionRepo(sqlDB)
+	credentialService := usecase.NewCredentialService(
+		credentialRepo,
+		usecase.GoogleCredentialOAuthConfig{
+			ClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+			ClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+		},
+		os.Getenv("JWT_SECRET"),
+	)
+
+	// Sheets import writer
+	sheetsImportWriter := worker.NewSheetsImportWriter(minioClient, datasetRepo)
+
 	// Job Run poller + consumer (generic job execution)
 	jobRunQueue := queue.NewJobRunQueue(valkeyClient)
 	jobRunMetrics := observability.NewJobRunMetrics()
 	jobRunPoller := worker.NewJobRunPoller(jobRunRepo, jobRunQueue, jobRunMetrics, 5*time.Second)
 	jobRunConsumer := worker.NewJobRunConsumer(
-		jobRunQueue, jobRunRepo, transformWriter, jobRunMetrics, meteringService,
+		jobRunQueue, jobRunRepo, transformWriter,
+		sheetsImportWriter, credentialService, connectionRepo,
+		jobRunMetrics, meteringService,
 	)
 
 	go jobRunPoller.Run(ctx)

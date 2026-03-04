@@ -14,8 +14,32 @@ import (
 )
 
 type MinIOClient struct {
-	client *minio.Client
-	bucket string
+	client    *minio.Client
+	bucket    string
+	endpoint  string
+	accessKey string
+	secretKey string
+	secure    bool
+}
+
+type S3Config struct {
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Bucket    string
+	Secure    bool
+	Region    string
+}
+
+func (m *MinIOClient) S3Config() S3Config {
+	return S3Config{
+		Endpoint:  m.endpoint,
+		AccessKey: m.accessKey,
+		SecretKey: m.secretKey,
+		Bucket:    m.bucket,
+		Secure:    m.secure,
+		Region:    "us-east-1",
+	}
 }
 
 func parseEndpoint(raw string) (string, bool, error) {
@@ -62,7 +86,14 @@ func NewMinIOClient() (*MinIOClient, error) {
 		return nil, fmt.Errorf("minio client: %w", err)
 	}
 
-	return &MinIOClient{client: client, bucket: bucket}, nil
+	return &MinIOClient{
+		client:    client,
+		bucket:    bucket,
+		endpoint:  normalizedEndpoint,
+		accessKey: accessKey,
+		secretKey: secretKey,
+		secure:    secure,
+	}, nil
 }
 
 // MinIOPresignClient generates presigned URLs for browser-direct uploads.

@@ -53,6 +53,11 @@ export function ImportJobForm({
   const [sheetName, setSheetName] = useState("");
   const [range, setRange] = useState("");
 
+  // Execution
+  const [execution, setExecution] = useState<"save_only" | "immediate">(
+    "save_only"
+  );
+
   // Submit
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
@@ -129,6 +134,7 @@ export function ImportJobForm({
         description: description || undefined,
         connection_id: connectionId,
         spreadsheet_id: spreadsheetId || undefined,
+        execution,
       };
       if (sheetName) body.sheet_name = sheetName;
       if (range) body.range = range;
@@ -146,8 +152,13 @@ export function ImportJobForm({
         return;
       }
       const created = data as CreateResponse;
-      setMessage("Import job created successfully!");
-      setTimeout(() => router.push(`/jobs/${created.job.id}`), 1500);
+      if (execution === "immediate") {
+        setMessage("Import job created and queued for execution!");
+        setTimeout(() => router.push("/jobs"), 1500);
+      } else {
+        setMessage("Import job created successfully!");
+        setTimeout(() => router.push(`/jobs/${created.job.id}`), 1500);
+      }
     } catch {
       setError("Creation request failed");
     } finally {
@@ -301,6 +312,45 @@ export function ImportJobForm({
           ) : null}
         </div>
       ) : null}
+
+      {/* Execution Timing */}
+      <div className="rounded-lg border p-4 space-y-4">
+        <h2 className="text-lg font-semibold">Execution</h2>
+        <div className="space-y-2">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="radio"
+              name="execution"
+              value="save_only"
+              checked={execution === "save_only"}
+              onChange={() => setExecution("save_only")}
+              className="h-4 w-4"
+            />
+            <div>
+              <span className="font-medium">Save only</span>
+              <p className="text-sm text-muted-foreground">
+                Save the job without running it
+              </p>
+            </div>
+          </label>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="radio"
+              name="execution"
+              value="immediate"
+              checked={execution === "immediate"}
+              onChange={() => setExecution("immediate")}
+              className="h-4 w-4"
+            />
+            <div>
+              <span className="font-medium">Run immediately</span>
+              <p className="text-sm text-muted-foreground">
+                Create and start the job right away
+              </p>
+            </div>
+          </label>
+        </div>
+      </div>
 
       {/* Submit */}
       <div className="flex gap-3">

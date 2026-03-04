@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"time"
 
+	_ "github.com/marcboeker/go-duckdb"
+
 	"github.com/google/uuid"
 	"github.com/user/micro-dp/domain"
 	"github.com/user/micro-dp/storage"
@@ -29,6 +31,7 @@ func NewTransformWriter(minio *storage.MinIOClient, datasets domain.DatasetRepos
 }
 
 func (w *TransformWriter) Execute(ctx context.Context, msg *domain.TransformJobMessage) (*TransformResult, error) {
+	// tmpDir is only needed for output Parquet (COPY TO requires a local path)
 	tmpDir, err := os.MkdirTemp("", "micro-dp-transform-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
@@ -45,14 +48,6 @@ func (w *TransformWriter) Execute(ctx context.Context, msg *domain.TransformJobM
 		datasets = append(datasets, ds)
 	}
 
-	// Download parquet files
-	for i, ds := range datasets {
-		localPath := filepath.Join(tmpDir, fmt.Sprintf("ds_%d.parquet", i))
-		if err := w.minio.DownloadToFile(ctx, ds.StoragePath, localPath); err != nil {
-			return nil, fmt.Errorf("download dataset %s: %w", ds.Name, err)
-		}
-	}
-
 	// Open DuckDB in-memory
 	duckDB, err := sql.Open("duckdb", "")
 	if err != nil {
@@ -60,10 +55,16 @@ func (w *TransformWriter) Execute(ctx context.Context, msg *domain.TransformJobM
 	}
 	defer duckDB.Close()
 
-	// Register each dataset as a VIEW
-	for i, ds := range datasets {
-		localPath := filepath.Join(tmpDir, fmt.Sprintf("ds_%d.parquet", i))
-		viewSQL := fmt.Sprintf(`CREATE VIEW "%s" AS SELECT * FROM read_parquet('%s')`, ds.Name, localPath)
+	// Configure httpfs for direct S3/MinIO reads
+	s3Cfg := w.minio.S3Config()
+	if err := storage.ConfigureDuckDBHTTPFS(ctx, duckDB, s3Cfg); err != nil {
+		return nil, fmt.Errorf("configure httpfs: %w", err)
+	}
+
+	// Register each dataset as a VIEW reading directly from S3
+	for _, ds := range datasets {
+		uri := storage.S3ParquetURI(s3Cfg.Bucket, ds.StoragePath)
+		viewSQL := fmt.Sprintf(`CREATE VIEW "%s" AS SELECT * FROM read_parquet('%s')`, ds.Name, uri)
 		if _, err := duckDB.ExecContext(ctx, viewSQL); err != nil {
 			return nil, fmt.Errorf("create view %s: %w", ds.Name, err)
 		}
