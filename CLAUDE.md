@@ -611,6 +611,6 @@ issue に着手・PR 作成・マージ時は、**必ず `/project` スキルで
 
 - **issue 着手時**: `/project update <issue#> status "In progress"` を実行
 - **PR 作成時**: `/create-pr` が自動で Status → Review に更新する
-- **マージ後**: Status → Done に更新し、ブロックしていた issue の Blocked を解除
+- **マージ後**: `/post-merge` スキルを実行する（Status→Done、ブロック解除、ドキュメント更新判断、次 issue 提案）
 
 詳細な操作方法・field ID は `/project` スキルを参照。
