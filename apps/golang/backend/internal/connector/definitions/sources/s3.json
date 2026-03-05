@@ -4,6 +4,7 @@
   "kind": "source",
   "icon": "s3",
   "description": "Read data from Amazon S3 buckets",
+  "capabilities": [],
   "spec": {
     "type": "object",
     "required": ["bucket", "region", "auth_method"],

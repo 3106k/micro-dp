@@ -1506,6 +1506,8 @@ export interface components {
             kind: components["schemas"]["ConnectorKind"];
             icon?: string;
             description?: string;
+            /** @description Supported capabilities (testable, fetchable, importable) */
+            capabilities: string[];
         };
         ConnectorDefinitionDetail: {
             id: string;
@@ -1514,6 +1516,8 @@ export interface components {
             icon?: string;
             description?: string;
             credential_provider?: string;
+            /** @description Supported capabilities (testable, fetchable, importable) */
+            capabilities: string[];
             spec: Record<string, never>;
         };
         Credential: {

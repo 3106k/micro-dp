@@ -4,6 +4,7 @@
   "kind": "destination",
   "icon": "s3",
   "description": "Write data to Amazon S3 buckets",
+  "capabilities": [],
   "spec": {
     "type": "object",
     "required": ["bucket", "region", "auth_method"],

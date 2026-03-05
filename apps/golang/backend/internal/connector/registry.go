@@ -22,7 +22,18 @@ type Definition struct {
 	Icon               string          `json:"icon"`
 	Description        string          `json:"description"`
 	CredentialProvider string          `json:"x-credential-provider"`
+	Capabilities       []string        `json:"capabilities"`
 	Spec               json.RawMessage `json:"spec"`
+}
+
+// HasCapability returns true if the definition includes the given capability.
+func (d *Definition) HasCapability(cap string) bool {
+	for _, c := range d.Capabilities {
+		if c == cap {
+			return true
+		}
+	}
+	return false
 }
 
 // Registry holds all connector definitions and their compiled JSON Schemas.

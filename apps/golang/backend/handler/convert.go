@@ -290,10 +290,15 @@ func toOpenAPIUsageSummary(s *domain.UsageSummary) openapi.UsageSummaryResponse 
 }
 
 func toOpenAPIConnectorDefinition(d *connector.Definition) openapi.ConnectorDefinition {
+	caps := d.Capabilities
+	if caps == nil {
+		caps = []string{}
+	}
 	out := openapi.ConnectorDefinition{
-		Id:   d.ID,
-		Name: d.Name,
-		Kind: openapi.ConnectorKind(d.Kind),
+		Id:           d.ID,
+		Name:         d.Name,
+		Kind:         openapi.ConnectorKind(d.Kind),
+		Capabilities: caps,
 	}
 	if d.Icon != "" {
 		out.Icon = &d.Icon
@@ -305,10 +310,15 @@ func toOpenAPIConnectorDefinition(d *connector.Definition) openapi.ConnectorDefi
 }
 
 func toOpenAPIConnectorDefinitionDetail(d *connector.Definition) openapi.ConnectorDefinitionDetail {
+	caps := d.Capabilities
+	if caps == nil {
+		caps = []string{}
+	}
 	out := openapi.ConnectorDefinitionDetail{
-		Id:   d.ID,
-		Name: d.Name,
-		Kind: openapi.ConnectorKind(d.Kind),
+		Id:           d.ID,
+		Name:         d.Name,
+		Kind:         openapi.ConnectorKind(d.Kind),
+		Capabilities: caps,
 	}
 	if d.Icon != "" {
 		out.Icon = &d.Icon

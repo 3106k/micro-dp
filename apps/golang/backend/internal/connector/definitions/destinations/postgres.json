@@ -4,6 +4,7 @@
   "kind": "destination",
   "icon": "postgres",
   "description": "Write data to PostgreSQL databases",
+  "capabilities": [],
   "spec": {
     "type": "object",
     "required": ["host", "port", "database", "username", "password"],

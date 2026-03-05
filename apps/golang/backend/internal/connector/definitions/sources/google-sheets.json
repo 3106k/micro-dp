@@ -5,6 +5,7 @@
   "icon": "google-sheets",
   "description": "Read data from Google Spreadsheets",
   "x-credential-provider": "google",
+  "capabilities": ["testable", "fetchable", "importable"],
   "spec": {
     "type": "object",
     "properties": {}
