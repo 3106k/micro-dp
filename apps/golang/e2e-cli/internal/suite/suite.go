@@ -28,6 +28,7 @@ import (
 	plancase "github.com/user/micro-dp/e2e-cli/internal/suite/plan/happy_path"
 	adminmultitenant "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/admin_multi_tenant"
 	tenantisolation "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/isolation"
+	dashboardscase "github.com/user/micro-dp/e2e-cli/internal/suite/dashboards/happy_path"
 	importcase "github.com/user/micro-dp/e2e-cli/internal/suite/import/happy_path"
 	uploadscase "github.com/user/micro-dp/e2e-cli/internal/suite/uploads/happy_path"
 )
@@ -85,6 +86,8 @@ func Build(cfg *config.Config) ([]runner.Scenario, error) {
 				membershappypath.NewScenario(cfg.AuthPassword, cfg.DisplayName),
 				membersauthorization.NewScenario(cfg.AuthPassword, cfg.DisplayName),
 			)
+		case "dashboards":
+			scenarios = append(scenarios, dashboardscase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
 		case "admin":
 			scenarios = append(scenarios,
 				admintenants.NewScenario(cfg.AdminEmail, cfg.AdminPassword, cfg.AuthPassword, cfg.DisplayName),
