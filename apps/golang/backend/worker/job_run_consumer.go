@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/connector"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/usecase"
 )
@@ -17,7 +18,7 @@ type JobRunConsumer struct {
 	queue           domain.JobRunQueue
 	jobRuns         domain.JobRunRepository
 	transformWriter *TransformWriter
-	sheetsWriter    *SheetsImportWriter
+	registry        *connector.Registry
 	credentials     *usecase.CredentialService
 	connections     domain.ConnectionRepository
 	metrics         *observability.JobRunMetrics
@@ -28,7 +29,7 @@ func NewJobRunConsumer(
 	queue domain.JobRunQueue,
 	jobRuns domain.JobRunRepository,
 	transformWriter *TransformWriter,
-	sheetsWriter *SheetsImportWriter,
+	registry *connector.Registry,
 	credentials *usecase.CredentialService,
 	connections domain.ConnectionRepository,
 	metrics *observability.JobRunMetrics,
@@ -38,7 +39,7 @@ func NewJobRunConsumer(
 		queue:           queue,
 		jobRuns:         jobRuns,
 		transformWriter: transformWriter,
-		sheetsWriter:    sheetsWriter,
+		registry:        registry,
 		credentials:     credentials,
 		connections:     connections,
 		metrics:         metrics,
@@ -213,20 +214,13 @@ func (c *JobRunConsumer) executeImport(ctx context.Context, msg *domain.JobRunMe
 		return fmt.Errorf("no source module found in snapshot")
 	}
 
-	// Parse config_json
-	var config struct {
-		SpreadsheetID string `json:"spreadsheet_id"`
-		SheetName     string `json:"sheet_name"`
-		Range         string `json:"range"`
-	}
+	// Parse config_json into generic map
+	var config map[string]any
 	if err := json.Unmarshal([]byte(sourceModule.ConfigJSON), &config); err != nil {
 		return fmt.Errorf("parse import config: %w", err)
 	}
-	if config.SpreadsheetID == "" {
-		return fmt.Errorf("import config missing spreadsheet_id")
-	}
 
-	// Resolve connection → credential → access token
+	// Resolve connection
 	if sourceModule.ConnectionID == nil {
 		return fmt.Errorf("source module has no connection_id")
 	}
@@ -234,26 +228,32 @@ func (c *JobRunConsumer) executeImport(ctx context.Context, msg *domain.JobRunMe
 	if err != nil {
 		return fmt.Errorf("find connection: %w", err)
 	}
-	if conn.CredentialID == nil {
-		return fmt.Errorf("connection has no credential_id")
-	}
-	accessToken, err := c.credentials.GetValidAccessToken(ctx, msg.TenantID, *conn.CredentialID)
-	if err != nil {
-		return fmt.Errorf("get access token: %w", err)
+
+	// Lookup executor by connector type
+	executor := c.registry.GetExecutor(conn.Type)
+	if executor == nil {
+		return fmt.Errorf("no import executor registered for connector: %s", conn.Type)
 	}
 
-	importMsg := &SheetsImportMessage{
-		JobRunID:      msg.JobRunID,
-		TenantID:      msg.TenantID,
-		SpreadsheetID: config.SpreadsheetID,
-		SheetName:     config.SheetName,
-		Range:         config.Range,
-		AccessToken:   accessToken,
-		JobID:         snapshot.JobID,
-		VersionID:     snapshot.VersionID,
+	// Resolve credential → access token (only if connection has a credential)
+	var accessToken string
+	if conn.CredentialID != nil {
+		accessToken, err = c.credentials.GetValidAccessToken(ctx, msg.TenantID, *conn.CredentialID)
+		if err != nil {
+			return fmt.Errorf("get access token: %w", err)
+		}
 	}
 
-	result, err := c.sheetsWriter.Execute(ctx, importMsg)
+	params := &connector.ImportParams{
+		TenantID:    msg.TenantID,
+		JobRunID:    msg.JobRunID,
+		JobID:       snapshot.JobID,
+		VersionID:   snapshot.VersionID,
+		Config:      config,
+		AccessToken: accessToken,
+	}
+
+	result, err := executor.ExecuteImport(ctx, params)
 	if err != nil {
 		return err
 	}

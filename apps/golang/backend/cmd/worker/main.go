@@ -11,6 +11,8 @@ import (
 
 	"github.com/user/micro-dp/db"
 	"github.com/user/micro-dp/handler"
+	"github.com/user/micro-dp/internal/connector"
+	"github.com/user/micro-dp/internal/connector/executors"
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
@@ -102,8 +104,11 @@ func main() {
 		os.Getenv("JWT_SECRET"),
 	)
 
-	// Sheets import writer
+	// Connector registry with import executors
+	connectorRegistry := connector.Global()
 	sheetsImportWriter := worker.NewSheetsImportWriter(minioClient, datasetRepo)
+	connectorRegistry.RegisterExecutor("source-google-sheets",
+		executors.NewGoogleSheetsExecutor(sheetsImportWriter))
 
 	// Job Run poller + consumer (generic job execution)
 	jobRunQueue := queue.NewJobRunQueue(valkeyClient)
@@ -111,7 +116,7 @@ func main() {
 	jobRunPoller := worker.NewJobRunPoller(jobRunRepo, jobRunQueue, jobRunMetrics, 5*time.Second)
 	jobRunConsumer := worker.NewJobRunConsumer(
 		jobRunQueue, jobRunRepo, transformWriter,
-		sheetsImportWriter, credentialService, connectionRepo,
+		connectorRegistry, credentialService, connectionRepo,
 		jobRunMetrics, meteringService,
 	)
 
