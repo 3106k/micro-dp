@@ -27,10 +27,11 @@ type Definition struct {
 
 // Registry holds all connector definitions and their compiled JSON Schemas.
 type Registry struct {
-	defs     map[string]*Definition
-	schemas  map[string]*jsonschema.Schema
-	testers  map[string]ConnectionTester
-	fetchers map[string]SchemaFetcher
+	defs      map[string]*Definition
+	schemas   map[string]*jsonschema.Schema
+	testers   map[string]ConnectionTester
+	fetchers  map[string]SchemaFetcher
+	executors map[string]ImportExecutor
 }
 
 var (
@@ -53,10 +54,11 @@ func Global() *Registry {
 
 func load() (*Registry, error) {
 	r := &Registry{
-		defs:     make(map[string]*Definition),
-		schemas:  make(map[string]*jsonschema.Schema),
-		testers:  make(map[string]ConnectionTester),
-		fetchers: make(map[string]SchemaFetcher),
+		defs:      make(map[string]*Definition),
+		schemas:   make(map[string]*jsonschema.Schema),
+		testers:   make(map[string]ConnectionTester),
+		fetchers:  make(map[string]SchemaFetcher),
+		executors: make(map[string]ImportExecutor),
 	}
 
 	dirs := []string{"definitions/sources", "definitions/destinations"}
@@ -155,6 +157,16 @@ func (r *Registry) RegisterFetcher(connectorID string, f SchemaFetcher) {
 // GetFetcher returns the SchemaFetcher for a connector ID, or nil if not registered.
 func (r *Registry) GetFetcher(connectorID string) SchemaFetcher {
 	return r.fetchers[connectorID]
+}
+
+// RegisterExecutor registers an ImportExecutor for a given connector ID.
+func (r *Registry) RegisterExecutor(connectorID string, e ImportExecutor) {
+	r.executors[connectorID] = e
+}
+
+// GetExecutor returns the ImportExecutor for a connector ID, or nil if not registered.
+func (r *Registry) GetExecutor(connectorID string) ImportExecutor {
+	return r.executors[connectorID]
 }
 
 // ValidateConfig validates a JSON config string against the connector's spec.
