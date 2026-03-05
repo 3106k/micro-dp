@@ -780,15 +780,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/credentials/google/start": {
+    "/api/v1/credentials/{provider}/start": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Start Google credential OAuth flow */
-        get: operations["startGoogleCredentialOAuth"];
+        /** Start credential OAuth flow */
+        get: operations["startCredentialOAuth"];
         put?: never;
         post?: never;
         delete?: never;
@@ -797,15 +797,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/credentials/google/callback": {
+    "/api/v1/credentials/{provider}/callback": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Google credential OAuth callback */
-        get: operations["googleCredentialCallback"];
+        /** Credential OAuth callback */
+        get: operations["credentialOAuthCallback"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3480,18 +3480,20 @@ export interface operations {
             404: components["responses"]["ErrorResponse"];
         };
     };
-    startGoogleCredentialOAuth: {
+    startCredentialOAuth: {
         parameters: {
             query?: never;
             header: {
                 "X-Tenant-ID": components["parameters"]["XTenantID"];
             };
-            path?: never;
+            path: {
+                provider: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Redirect to Google OAuth */
+            /** @description Redirect to OAuth provider */
             302: {
                 headers: {
                     [name: string]: unknown;
@@ -3501,14 +3503,16 @@ export interface operations {
             401: components["responses"]["ErrorResponse"];
         };
     };
-    googleCredentialCallback: {
+    credentialOAuthCallback: {
         parameters: {
             query: {
                 code: string;
                 state: string;
             };
             header?: never;
-            path?: never;
+            path: {
+                provider: string;
+            };
             cookie?: never;
         };
         requestBody?: never;

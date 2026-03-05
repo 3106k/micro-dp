@@ -6,59 +6,64 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/credential"
 )
 
-type GoogleCredentialOAuthConfig struct {
-	ClientID        string
-	ClientSecret    string
-	RedirectURL     string
-	PostRedirectURL string
-}
+// ErrUnsupportedProvider is returned when the requested provider is not registered.
+var ErrUnsupportedProvider = fmt.Errorf("unsupported or unconfigured provider")
 
 type CredentialService struct {
 	credentials domain.CredentialRepository
-	oauthCfg    GoogleCredentialOAuthConfig
+	providers   map[string]credential.OAuthProvider
 	hmacSecret  []byte
 }
 
 func NewCredentialService(
 	credentials domain.CredentialRepository,
-	oauthCfg GoogleCredentialOAuthConfig,
+	providers []credential.OAuthProvider,
 	jwtSecret string,
 ) *CredentialService {
+	m := make(map[string]credential.OAuthProvider, len(providers))
+	for _, p := range providers {
+		m[p.ProviderName()] = p
+	}
 	return &CredentialService{
 		credentials: credentials,
-		oauthCfg:    oauthCfg,
+		providers:   m,
 		hmacSecret:  []byte(jwtSecret),
 	}
 }
 
-func (s *CredentialService) OAuthEnabled() bool {
-	return s.oauthCfg.ClientID != "" &&
-		s.oauthCfg.ClientSecret != "" &&
-		s.oauthCfg.RedirectURL != ""
-}
-
-func (s *CredentialService) RedirectURL() string {
-	return s.oauthCfg.RedirectURL
-}
-
-func (s *CredentialService) PostRedirectURL() string {
-	if s.oauthCfg.PostRedirectURL != "" {
-		return s.oauthCfg.PostRedirectURL
+// GetProvider returns the OAuthProvider for the given name.
+func (s *CredentialService) GetProvider(name string) (credential.OAuthProvider, error) {
+	p, ok := s.providers[name]
+	if !ok {
+		return nil, ErrUnsupportedProvider
 	}
-	return "http://localhost:3000/integrations"
+	return p, nil
+}
+
+// ProviderEnabled returns true if the named provider is registered and configured.
+func (s *CredentialService) ProviderEnabled(name string) bool {
+	p, ok := s.providers[name]
+	return ok && p.OAuthEnabled()
+}
+
+// ProviderPostRedirectURL returns the post-redirect URL for the named provider.
+func (s *CredentialService) ProviderPostRedirectURL(name string) string {
+	p, ok := s.providers[name]
+	if !ok {
+		return "http://localhost:3000/integrations"
+	}
+	return p.PostRedirectURL()
 }
 
 func (s *CredentialService) List(ctx context.Context) ([]domain.Credential, error) {
@@ -82,26 +87,20 @@ func (s *CredentialService) Delete(ctx context.Context, id string) error {
 	return s.credentials.Delete(ctx, tenantID, id)
 }
 
-func (s *CredentialService) BuildGoogleCredentialAuthURL(userID, tenantID, codeChallenge string) (string, error) {
-	if !s.OAuthEnabled() {
+func (s *CredentialService) BuildAuthURL(providerName, userID, tenantID, codeChallenge string) (string, error) {
+	p, ok := s.providers[providerName]
+	if !ok || !p.OAuthEnabled() {
 		return "", ErrOAuthNotConfigured
 	}
 
 	state := s.signState(userID, tenantID)
-
-	cfg := s.googleOAuth2Config()
-	url := cfg.AuthCodeURL(
-		state,
-		oauth2.AccessTypeOffline,
-		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
-		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
-		oauth2.SetAuthURLParam("prompt", "consent"),
-	)
+	url := p.AuthCodeURL(state, codeChallenge)
 	return url, nil
 }
 
-func (s *CredentialService) CompleteGoogleCredentialOAuth(ctx context.Context, code, codeVerifier, state string) error {
-	if !s.OAuthEnabled() {
+func (s *CredentialService) CompleteOAuth(ctx context.Context, providerName, code, codeVerifier, state string) error {
+	p, ok := s.providers[providerName]
+	if !ok || !p.OAuthEnabled() {
 		return ErrOAuthNotConfigured
 	}
 
@@ -110,35 +109,25 @@ func (s *CredentialService) CompleteGoogleCredentialOAuth(ctx context.Context, c
 		return fmt.Errorf("invalid state: %w", err)
 	}
 
-	cfg := s.googleOAuth2Config()
-	oauthToken, err := cfg.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", codeVerifier))
+	oauthToken, err := p.Exchange(ctx, code, codeVerifier)
 	if err != nil {
-		return fmt.Errorf("oauth exchange: %w", err)
+		return err
 	}
 
-	// Extract email from userinfo endpoint for the label
-	label := ""
-	client := cfg.Client(ctx, oauthToken)
-	resp, err := client.Get("https://www.googleapis.com/oauth2/v3/userinfo")
-	if err == nil {
-		defer resp.Body.Close()
-		var userInfo struct {
-			Email string `json:"email"`
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&userInfo); err == nil && userInfo.Email != "" {
-			label = userInfo.Email
-		}
-	}
+	// Fetch label (e.g., email) — best effort
+	label, _ := p.FetchLabel(ctx, oauthToken)
+
+	scopes := strings.Join(p.Scopes(), " ")
 
 	// Upsert: update if exists, create otherwise
-	existing, err := s.credentials.FindByUserAndProvider(ctx, userID, tenantID, googleProvider)
+	existing, err := s.credentials.FindByUserAndProvider(ctx, userID, tenantID, providerName)
 	if err == nil {
 		existing.AccessToken = oauthToken.AccessToken
 		existing.RefreshToken = oauthToken.RefreshToken
 		if !oauthToken.Expiry.IsZero() {
 			existing.TokenExpiry = &oauthToken.Expiry
 		}
-		existing.Scopes = strings.Join(cfg.Scopes, " ")
+		existing.Scopes = scopes
 		if label != "" {
 			existing.ProviderLabel = label
 		}
@@ -146,14 +135,14 @@ func (s *CredentialService) CompleteGoogleCredentialOAuth(ctx context.Context, c
 	}
 
 	cred := &domain.Credential{
-		ID:           uuid.New().String(),
-		UserID:       userID,
-		TenantID:     tenantID,
-		Provider:     googleProvider,
+		ID:            uuid.New().String(),
+		UserID:        userID,
+		TenantID:      tenantID,
+		Provider:      providerName,
 		ProviderLabel: label,
-		AccessToken:  oauthToken.AccessToken,
-		RefreshToken: oauthToken.RefreshToken,
-		Scopes:       strings.Join(cfg.Scopes, " "),
+		AccessToken:   oauthToken.AccessToken,
+		RefreshToken:  oauthToken.RefreshToken,
+		Scopes:        scopes,
 	}
 	if !oauthToken.Expiry.IsZero() {
 		cred.TokenExpiry = &oauthToken.Expiry
@@ -177,13 +166,12 @@ func (s *CredentialService) GetValidAccessToken(ctx context.Context, tenantID, c
 		return cred.AccessToken, nil
 	}
 
-	cfg := s.googleOAuth2Config()
-	token := &oauth2.Token{
-		AccessToken:  cred.AccessToken,
-		RefreshToken: cred.RefreshToken,
-		Expiry:       time.Time{},
+	p, ok := s.providers[cred.Provider]
+	if !ok {
+		return "", fmt.Errorf("no provider registered for %q", cred.Provider)
 	}
-	newToken, err := cfg.TokenSource(ctx, token).Token()
+
+	newToken, err := p.RefreshToken(ctx, cred.RefreshToken)
 	if err != nil {
 		log.Printf("credential_refresh failed cred=%s: %v", credentialID, err)
 		return "", fmt.Errorf("token refresh failed: %w", err)
@@ -201,16 +189,6 @@ func (s *CredentialService) GetValidAccessToken(ctx context.Context, tenantID, c
 	}
 
 	return newToken.AccessToken, nil
-}
-
-func (s *CredentialService) googleOAuth2Config() oauth2.Config {
-	return oauth2.Config{
-		ClientID:     s.oauthCfg.ClientID,
-		ClientSecret: s.oauthCfg.ClientSecret,
-		RedirectURL:  s.oauthCfg.RedirectURL,
-		Endpoint:     google.Endpoint,
-		Scopes:       []string{"https://www.googleapis.com/auth/spreadsheets.readonly"},
-	}
 }
 
 // GeneratePKCE generates a PKCE verifier and challenge pair.

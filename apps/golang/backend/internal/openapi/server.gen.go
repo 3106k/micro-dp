@@ -119,15 +119,15 @@ type ServerInterface interface {
 	// List credentials
 	// (GET /api/v1/credentials)
 	ListCredentials(w http.ResponseWriter, r *http.Request, params ListCredentialsParams)
-	// Google credential OAuth callback
-	// (GET /api/v1/credentials/google/callback)
-	GoogleCredentialCallback(w http.ResponseWriter, r *http.Request, params GoogleCredentialCallbackParams)
-	// Start Google credential OAuth flow
-	// (GET /api/v1/credentials/google/start)
-	StartGoogleCredentialOAuth(w http.ResponseWriter, r *http.Request, params StartGoogleCredentialOAuthParams)
 	// Delete credential
 	// (DELETE /api/v1/credentials/{id})
 	DeleteCredential(w http.ResponseWriter, r *http.Request, id string, params DeleteCredentialParams)
+	// Credential OAuth callback
+	// (GET /api/v1/credentials/{provider}/callback)
+	CredentialOAuthCallback(w http.ResponseWriter, r *http.Request, provider string, params CredentialOAuthCallbackParams)
+	// Start credential OAuth flow
+	// (GET /api/v1/credentials/{provider}/start)
+	StartCredentialOAuth(w http.ResponseWriter, r *http.Request, provider string, params StartCredentialOAuthParams)
 	// List dashboards
 	// (GET /api/v1/dashboards)
 	ListDashboards(w http.ResponseWriter, r *http.Request, params ListDashboardsParams)
@@ -1731,105 +1731,6 @@ func (siw *ServerInterfaceWrapper) ListCredentials(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
-// GoogleCredentialCallback operation middleware
-func (siw *ServerInterfaceWrapper) GoogleCredentialCallback(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params GoogleCredentialCallbackParams
-
-	// ------------- Required query parameter "code" -------------
-
-	if paramValue := r.URL.Query().Get("code"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "code"})
-		return
-	}
-
-	err = runtime.BindQueryParameter("form", true, true, "code", r.URL.Query(), &params.Code)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
-		return
-	}
-
-	// ------------- Required query parameter "state" -------------
-
-	if paramValue := r.URL.Query().Get("state"); paramValue != "" {
-
-	} else {
-		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
-		return
-	}
-
-	err = runtime.BindQueryParameter("form", true, true, "state", r.URL.Query(), &params.State)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GoogleCredentialCallback(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// StartGoogleCredentialOAuth operation middleware
-func (siw *ServerInterfaceWrapper) StartGoogleCredentialOAuth(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params StartGoogleCredentialOAuthParams
-
-	headers := r.Header
-
-	// ------------- Required header parameter "X-Tenant-ID" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
-		var XTenantID XTenantID
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
-			return
-		}
-
-		params.XTenantID = XTenantID
-
-	} else {
-		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
-		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.StartGoogleCredentialOAuth(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // DeleteCredential operation middleware
 func (siw *ServerInterfaceWrapper) DeleteCredential(w http.ResponseWriter, r *http.Request) {
 
@@ -1880,6 +1781,123 @@ func (siw *ServerInterfaceWrapper) DeleteCredential(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DeleteCredential(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CredentialOAuthCallback operation middleware
+func (siw *ServerInterfaceWrapper) CredentialOAuthCallback(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "provider" -------------
+	var provider string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "provider", r.PathValue("provider"), &provider, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "provider", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CredentialOAuthCallbackParams
+
+	// ------------- Required query parameter "code" -------------
+
+	if paramValue := r.URL.Query().Get("code"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "code"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "code", r.URL.Query(), &params.Code)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "state" -------------
+
+	if paramValue := r.URL.Query().Get("state"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "state"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "state", r.URL.Query(), &params.State)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "state", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CredentialOAuthCallback(w, r, provider, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartCredentialOAuth operation middleware
+func (siw *ServerInterfaceWrapper) StartCredentialOAuth(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "provider" -------------
+	var provider string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "provider", r.PathValue("provider"), &provider, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "provider", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StartCredentialOAuthParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartCredentialOAuth(w, r, provider, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -5100,9 +5118,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connectors", wrapper.ListConnectors)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connectors/{id}", wrapper.GetConnector)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials", wrapper.ListCredentials)
-	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/google/callback", wrapper.GoogleCredentialCallback)
-	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/google/start", wrapper.StartGoogleCredentialOAuth)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/credentials/{id}", wrapper.DeleteCredential)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/{provider}/callback", wrapper.CredentialOAuthCallback)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/{provider}/start", wrapper.StartCredentialOAuth)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/dashboards", wrapper.ListDashboards)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/dashboards", wrapper.CreateDashboard)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/dashboards/{dashboard_id}/widgets", wrapper.ListDashboardWidgets)
@@ -6496,56 +6514,6 @@ func (response ListCredentials401JSONResponse) VisitListCredentialsResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
-type GoogleCredentialCallbackRequestObject struct {
-	Params GoogleCredentialCallbackParams
-}
-
-type GoogleCredentialCallbackResponseObject interface {
-	VisitGoogleCredentialCallbackResponse(w http.ResponseWriter) error
-}
-
-type GoogleCredentialCallback302Response struct {
-}
-
-func (response GoogleCredentialCallback302Response) VisitGoogleCredentialCallbackResponse(w http.ResponseWriter) error {
-	w.WriteHeader(302)
-	return nil
-}
-
-type GoogleCredentialCallback400JSONResponse struct{ ErrorResponseJSONResponse }
-
-func (response GoogleCredentialCallback400JSONResponse) VisitGoogleCredentialCallbackResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(400)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
-type StartGoogleCredentialOAuthRequestObject struct {
-	Params StartGoogleCredentialOAuthParams
-}
-
-type StartGoogleCredentialOAuthResponseObject interface {
-	VisitStartGoogleCredentialOAuthResponse(w http.ResponseWriter) error
-}
-
-type StartGoogleCredentialOAuth302Response struct {
-}
-
-func (response StartGoogleCredentialOAuth302Response) VisitStartGoogleCredentialOAuthResponse(w http.ResponseWriter) error {
-	w.WriteHeader(302)
-	return nil
-}
-
-type StartGoogleCredentialOAuth401JSONResponse struct{ ErrorResponseJSONResponse }
-
-func (response StartGoogleCredentialOAuth401JSONResponse) VisitStartGoogleCredentialOAuthResponse(w http.ResponseWriter) error {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(401)
-
-	return json.NewEncoder(w).Encode(response)
-}
-
 type DeleteCredentialRequestObject struct {
 	Id     string `json:"id"`
 	Params DeleteCredentialParams
@@ -6577,6 +6545,58 @@ type DeleteCredential404JSONResponse ErrorResponse
 func (response DeleteCredential404JSONResponse) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CredentialOAuthCallbackRequestObject struct {
+	Provider string `json:"provider"`
+	Params   CredentialOAuthCallbackParams
+}
+
+type CredentialOAuthCallbackResponseObject interface {
+	VisitCredentialOAuthCallbackResponse(w http.ResponseWriter) error
+}
+
+type CredentialOAuthCallback302Response struct {
+}
+
+func (response CredentialOAuthCallback302Response) VisitCredentialOAuthCallbackResponse(w http.ResponseWriter) error {
+	w.WriteHeader(302)
+	return nil
+}
+
+type CredentialOAuthCallback400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CredentialOAuthCallback400JSONResponse) VisitCredentialOAuthCallbackResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type StartCredentialOAuthRequestObject struct {
+	Provider string `json:"provider"`
+	Params   StartCredentialOAuthParams
+}
+
+type StartCredentialOAuthResponseObject interface {
+	VisitStartCredentialOAuthResponse(w http.ResponseWriter) error
+}
+
+type StartCredentialOAuth302Response struct {
+}
+
+func (response StartCredentialOAuth302Response) VisitStartCredentialOAuthResponse(w http.ResponseWriter) error {
+	w.WriteHeader(302)
+	return nil
+}
+
+type StartCredentialOAuth401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response StartCredentialOAuth401JSONResponse) VisitStartCredentialOAuthResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -8757,15 +8777,15 @@ type StrictServerInterface interface {
 	// List credentials
 	// (GET /api/v1/credentials)
 	ListCredentials(ctx context.Context, request ListCredentialsRequestObject) (ListCredentialsResponseObject, error)
-	// Google credential OAuth callback
-	// (GET /api/v1/credentials/google/callback)
-	GoogleCredentialCallback(ctx context.Context, request GoogleCredentialCallbackRequestObject) (GoogleCredentialCallbackResponseObject, error)
-	// Start Google credential OAuth flow
-	// (GET /api/v1/credentials/google/start)
-	StartGoogleCredentialOAuth(ctx context.Context, request StartGoogleCredentialOAuthRequestObject) (StartGoogleCredentialOAuthResponseObject, error)
 	// Delete credential
 	// (DELETE /api/v1/credentials/{id})
 	DeleteCredential(ctx context.Context, request DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error)
+	// Credential OAuth callback
+	// (GET /api/v1/credentials/{provider}/callback)
+	CredentialOAuthCallback(ctx context.Context, request CredentialOAuthCallbackRequestObject) (CredentialOAuthCallbackResponseObject, error)
+	// Start credential OAuth flow
+	// (GET /api/v1/credentials/{provider}/start)
+	StartCredentialOAuth(ctx context.Context, request StartCredentialOAuthRequestObject) (StartCredentialOAuthResponseObject, error)
 	// List dashboards
 	// (GET /api/v1/dashboards)
 	ListDashboards(ctx context.Context, request ListDashboardsRequestObject) (ListDashboardsResponseObject, error)
@@ -9947,58 +9967,6 @@ func (sh *strictHandler) ListCredentials(w http.ResponseWriter, r *http.Request,
 	}
 }
 
-// GoogleCredentialCallback operation middleware
-func (sh *strictHandler) GoogleCredentialCallback(w http.ResponseWriter, r *http.Request, params GoogleCredentialCallbackParams) {
-	var request GoogleCredentialCallbackRequestObject
-
-	request.Params = params
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.GoogleCredentialCallback(ctx, request.(GoogleCredentialCallbackRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "GoogleCredentialCallback")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(GoogleCredentialCallbackResponseObject); ok {
-		if err := validResponse.VisitGoogleCredentialCallbackResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
-// StartGoogleCredentialOAuth operation middleware
-func (sh *strictHandler) StartGoogleCredentialOAuth(w http.ResponseWriter, r *http.Request, params StartGoogleCredentialOAuthParams) {
-	var request StartGoogleCredentialOAuthRequestObject
-
-	request.Params = params
-
-	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
-		return sh.ssi.StartGoogleCredentialOAuth(ctx, request.(StartGoogleCredentialOAuthRequestObject))
-	}
-	for _, middleware := range sh.middlewares {
-		handler = middleware(handler, "StartGoogleCredentialOAuth")
-	}
-
-	response, err := handler(r.Context(), w, r, request)
-
-	if err != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, err)
-	} else if validResponse, ok := response.(StartGoogleCredentialOAuthResponseObject); ok {
-		if err := validResponse.VisitStartGoogleCredentialOAuthResponse(w); err != nil {
-			sh.options.ResponseErrorHandlerFunc(w, r, err)
-		}
-	} else if response != nil {
-		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
-	}
-}
-
 // DeleteCredential operation middleware
 func (sh *strictHandler) DeleteCredential(w http.ResponseWriter, r *http.Request, id string, params DeleteCredentialParams) {
 	var request DeleteCredentialRequestObject
@@ -10019,6 +9987,60 @@ func (sh *strictHandler) DeleteCredential(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DeleteCredentialResponseObject); ok {
 		if err := validResponse.VisitDeleteCredentialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CredentialOAuthCallback operation middleware
+func (sh *strictHandler) CredentialOAuthCallback(w http.ResponseWriter, r *http.Request, provider string, params CredentialOAuthCallbackParams) {
+	var request CredentialOAuthCallbackRequestObject
+
+	request.Provider = provider
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CredentialOAuthCallback(ctx, request.(CredentialOAuthCallbackRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CredentialOAuthCallback")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CredentialOAuthCallbackResponseObject); ok {
+		if err := validResponse.VisitCredentialOAuthCallbackResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartCredentialOAuth operation middleware
+func (sh *strictHandler) StartCredentialOAuth(w http.ResponseWriter, r *http.Request, provider string, params StartCredentialOAuthParams) {
+	var request StartCredentialOAuthRequestObject
+
+	request.Provider = provider
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartCredentialOAuth(ctx, request.(StartCredentialOAuthRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartCredentialOAuth")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartCredentialOAuthResponseObject); ok {
+		if err := validResponse.VisitStartCredentialOAuthResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

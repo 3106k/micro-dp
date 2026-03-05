@@ -63,10 +63,11 @@ func (h *CredentialHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *CredentialHandler) GoogleStart(w http.ResponseWriter, r *http.Request) {
-	if !h.credentials.OAuthEnabled() {
-		log.Printf("credential_google_start failed: oauth not configured")
-		writeError(w, http.StatusInternalServerError, "google credential oauth is not configured")
+func (h *CredentialHandler) OAuthStart(w http.ResponseWriter, r *http.Request) {
+	providerName := r.PathValue("provider")
+	if !h.credentials.ProviderEnabled(providerName) {
+		log.Printf("credential_oauth_start failed: unsupported or unconfigured provider %q", providerName)
+		writeError(w, http.StatusBadRequest, "unsupported or unconfigured provider")
 		return
 	}
 
@@ -87,7 +88,7 @@ func (h *CredentialHandler) GoogleStart(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	authURL, err := h.credentials.BuildGoogleCredentialAuthURL(userID, tenantID, codeChallenge)
+	authURL, err := h.credentials.BuildAuthURL(providerName, userID, tenantID, codeChallenge)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "failed to build oauth url")
 		return
@@ -96,50 +97,51 @@ func (h *CredentialHandler) GoogleStart(w http.ResponseWriter, r *http.Request) 
 	secure := requestSecure(r)
 	http.SetCookie(w, &http.Cookie{Name: credOAuthVerifierCookieName, Value: codeVerifier, Path: "/", HttpOnly: true, SameSite: http.SameSiteLaxMode, Secure: secure, MaxAge: 600})
 
-	log.Printf("credential_google_start success")
+	log.Printf("credential_oauth_start success provider=%s", providerName)
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
-func (h *CredentialHandler) GoogleCallback(w http.ResponseWriter, r *http.Request) {
-	if !h.credentials.OAuthEnabled() {
-		writeError(w, http.StatusInternalServerError, "google credential oauth is not configured")
+func (h *CredentialHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
+	providerName := r.PathValue("provider")
+	if !h.credentials.ProviderEnabled(providerName) {
+		writeError(w, http.StatusBadRequest, "unsupported or unconfigured provider")
 		return
 	}
 
 	code := r.URL.Query().Get("code")
 	state := r.URL.Query().Get("state")
 	if code == "" || state == "" {
-		log.Printf("credential_google_callback failed: missing code/state")
-		h.redirectCredentialFailure(w, r, "missing oauth code or state")
+		log.Printf("credential_oauth_callback failed: missing code/state provider=%s", providerName)
+		h.redirectCredentialFailure(w, r, providerName, "missing oauth code or state")
 		return
 	}
 
 	verifierCookie, err := r.Cookie(credOAuthVerifierCookieName)
 	if err != nil || verifierCookie.Value == "" {
-		log.Printf("credential_google_callback failed: verifier missing")
-		h.redirectCredentialFailure(w, r, "invalid oauth verifier")
+		log.Printf("credential_oauth_callback failed: verifier missing provider=%s", providerName)
+		h.redirectCredentialFailure(w, r, providerName, "invalid oauth verifier")
 		return
 	}
 
-	if err := h.credentials.CompleteGoogleCredentialOAuth(r.Context(), code, verifierCookie.Value, state); err != nil {
-		log.Printf("credential_google_callback failed: %v", err)
-		h.redirectCredentialFailure(w, r, "google credential oauth failed")
+	if err := h.credentials.CompleteOAuth(r.Context(), providerName, code, verifierCookie.Value, state); err != nil {
+		log.Printf("credential_oauth_callback failed: %v provider=%s", err, providerName)
+		h.redirectCredentialFailure(w, r, providerName, "credential oauth failed")
 		return
 	}
 
 	secure := requestSecure(r)
 	clearCredentialOAuthCookies(w, secure)
 
-	log.Printf("credential_google_callback success")
-	redirectURL := h.credentials.PostRedirectURL() + "?linked=true"
+	log.Printf("credential_oauth_callback success provider=%s", providerName)
+	redirectURL := h.credentials.ProviderPostRedirectURL(providerName) + "?linked=true"
 	http.Redirect(w, r, redirectURL, http.StatusFound)
 }
 
-func (h *CredentialHandler) redirectCredentialFailure(w http.ResponseWriter, r *http.Request, reason string) {
+func (h *CredentialHandler) redirectCredentialFailure(w http.ResponseWriter, r *http.Request, providerName, reason string) {
 	secure := requestSecure(r)
 	clearCredentialOAuthCookies(w, secure)
 
-	failureURL := h.credentials.PostRedirectURL()
+	failureURL := h.credentials.ProviderPostRedirectURL(providerName)
 	if parsed, err := url.Parse(failureURL); err == nil {
 		q := parsed.Query()
 		q.Set("error", reason)

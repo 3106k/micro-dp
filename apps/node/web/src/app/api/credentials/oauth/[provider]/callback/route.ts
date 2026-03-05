@@ -5,13 +5,17 @@ import { backendFetch } from "@/lib/api/server";
 import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
 
 /**
- * Proxy Google credential OAuth callback through Next.js so that
+ * Proxy credential OAuth callback through Next.js so that
  * PKCE cookies (set on localhost:3900) are available.
  *
- * Flow: Google → localhost:3900/api/credentials/google/callback?code=...&state=...
+ * Flow: Provider → localhost:3900/api/credentials/oauth/{provider}/callback?code=...&state=...
  *       → this route reads cookies → forwards to Go API → follows redirect
  */
-export async function GET(request: NextRequest) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ provider: string }> }
+) {
+  const { provider } = await params;
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
   const tenantId = jar.get(TENANT_COOKIE)?.value;
@@ -39,7 +43,7 @@ export async function GET(request: NextRequest) {
   }
 
   const res = await backendFetch(
-    `/api/v1/credentials/google/callback?${qs}`,
+    `/api/v1/credentials/${provider}/callback?${qs}`,
     {
       headers,
       redirect: "manual",

@@ -13,6 +13,7 @@ import (
 	"github.com/user/micro-dp/handler"
 	"github.com/user/micro-dp/internal/connector"
 	"github.com/user/micro-dp/internal/connector/executors"
+	"github.com/user/micro-dp/internal/credential"
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/observability"
 	"github.com/user/micro-dp/queue"
@@ -95,12 +96,13 @@ func main() {
 	// Credential + Connection (for import jobs)
 	credentialRepo := db.NewCredentialRepo(sqlDB)
 	connectionRepo := db.NewConnectionRepo(sqlDB)
+	googleCredProvider := credential.NewGoogleProvider(credential.GoogleConfig{
+		ClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+	})
 	credentialService := usecase.NewCredentialService(
 		credentialRepo,
-		usecase.GoogleCredentialOAuthConfig{
-			ClientID:     os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
-			ClientSecret: os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
-		},
+		[]credential.OAuthProvider{googleCredProvider},
 		os.Getenv("JWT_SECRET"),
 	)
 

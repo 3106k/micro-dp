@@ -1156,19 +1156,19 @@ type ListCredentialsParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
-// GoogleCredentialCallbackParams defines parameters for GoogleCredentialCallback.
-type GoogleCredentialCallbackParams struct {
+// DeleteCredentialParams defines parameters for DeleteCredential.
+type DeleteCredentialParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CredentialOAuthCallbackParams defines parameters for CredentialOAuthCallback.
+type CredentialOAuthCallbackParams struct {
 	Code  string `form:"code" json:"code"`
 	State string `form:"state" json:"state"`
 }
 
-// StartGoogleCredentialOAuthParams defines parameters for StartGoogleCredentialOAuth.
-type StartGoogleCredentialOAuthParams struct {
-	XTenantID XTenantID `json:"X-Tenant-ID"`
-}
-
-// DeleteCredentialParams defines parameters for DeleteCredential.
-type DeleteCredentialParams struct {
+// StartCredentialOAuthParams defines parameters for StartCredentialOAuth.
+type StartCredentialOAuthParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
