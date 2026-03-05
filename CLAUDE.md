@@ -220,6 +220,23 @@ Internal container ports are fixed; only host-side ports change per environment.
 | GET | `/api/v1/write-keys` | List write keys |
 | DELETE | `/api/v1/write-keys/{id}` | Delete write key (owner/admin) |
 | POST | `/api/v1/write-keys/{id}/regenerate` | Regenerate write key (owner/admin) |
+| POST | `/api/v1/dashboards` | Create dashboard |
+| GET | `/api/v1/dashboards` | List dashboards |
+| GET | `/api/v1/dashboards/{id}` | Get dashboard |
+| PUT | `/api/v1/dashboards/{id}` | Update dashboard |
+| DELETE | `/api/v1/dashboards/{id}` | Delete dashboard |
+| POST | `/api/v1/dashboards/{dashboard_id}/widgets` | Create widget |
+| GET | `/api/v1/dashboards/{dashboard_id}/widgets` | List widgets |
+| DELETE | `/api/v1/dashboards/{dashboard_id}/widgets/{widget_id}` | Delete widget |
+| POST | `/api/v1/charts` | Create chart |
+| GET | `/api/v1/charts` | List charts |
+| GET | `/api/v1/charts/{id}` | Get chart |
+| PUT | `/api/v1/charts/{id}` | Update chart |
+| DELETE | `/api/v1/charts/{id}` | Delete chart |
+| GET | `/api/v1/charts/{id}/data` | Get chart data |
+| POST | `/api/v1/template_runs` | Create template run |
+| GET | `/api/v1/template_runs` | List template runs |
+| GET | `/api/v1/template_runs/{id}` | Get template run |
 
 ### Write Key Authenticated (X-Write-Key)
 
