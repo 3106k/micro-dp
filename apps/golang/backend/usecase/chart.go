@@ -139,21 +139,25 @@ func (s *ChartService) GetData(ctx context.Context, chartID, period string, star
 		return nil, err
 	}
 
-	// List parquet files from MinIO
-	prefix := dataset.StoragePath
-	if !strings.HasSuffix(prefix, "/") {
-		prefix += "/"
-	}
-	keys, err := s.minio.ListObjectKeys(ctx, prefix)
-	if err != nil {
-		return nil, fmt.Errorf("list parquet files: %w", err)
-	}
-
-	// Filter to .parquet files only
+	// Resolve parquet files from MinIO.
+	// StoragePath may be a single file (e.g. imports/.../xxx.parquet)
+	// or a directory prefix.
 	var parquetKeys []string
-	for _, k := range keys {
-		if strings.HasSuffix(k, ".parquet") {
-			parquetKeys = append(parquetKeys, k)
+	if strings.HasSuffix(dataset.StoragePath, ".parquet") {
+		parquetKeys = []string{dataset.StoragePath}
+	} else {
+		prefix := dataset.StoragePath
+		if !strings.HasSuffix(prefix, "/") {
+			prefix += "/"
+		}
+		keys, err := s.minio.ListObjectKeys(ctx, prefix)
+		if err != nil {
+			return nil, fmt.Errorf("list parquet files: %w", err)
+		}
+		for _, k := range keys {
+			if strings.HasSuffix(k, ".parquet") {
+				parquetKeys = append(parquetKeys, k)
+			}
 		}
 	}
 
@@ -186,45 +190,39 @@ func (s *ChartService) GetData(ctx context.Context, chartID, period string, star
 	dimension := quoteIdent(chart.Dimension)
 	measure := quoteIdent(chart.Measure)
 
+	baseQuery := fmt.Sprintf(
+		`SELECT COALESCE(CAST(%s AS VARCHAR), '') AS label, SUM(CAST(%s AS DOUBLE)) AS value FROM read_parquet('%s', union_by_name=true)`,
+		dimension, measure, glob,
+	)
+	groupOrder := " GROUP BY label ORDER BY label"
+
 	// Build query with optional period filter
 	start, end := periodToDateRange(period, startDate, endDate)
-	var query string
+	var labels []string
+	var data []float32
+
 	if start != nil {
 		endVal := time.Now().UTC()
 		if end != nil {
 			endVal = *end
 		}
-		query = fmt.Sprintf(
-			`SELECT CAST(%s AS VARCHAR) AS label, SUM(CAST(%s AS DOUBLE)) AS value FROM read_parquet('%s', union_by_name=true) WHERE TRY_CAST(%s AS DATE) BETWEEN '%s' AND '%s' GROUP BY label ORDER BY label`,
-			dimension, measure, glob, dimension,
-			start.Format("2006-01-02"), endVal.Format("2006-01-02"),
-		)
-	} else {
-		query = fmt.Sprintf(
-			`SELECT CAST(%s AS VARCHAR) AS label, SUM(CAST(%s AS DOUBLE)) AS value FROM read_parquet('%s', union_by_name=true) GROUP BY label ORDER BY label`,
-			dimension, measure, glob,
-		)
-	}
+		filtered := baseQuery + fmt.Sprintf(
+			` WHERE TRY_CAST(%s AS DATE) BETWEEN '%s' AND '%s'`,
+			dimension, start.Format("2006-01-02"), endVal.Format("2006-01-02"),
+		) + groupOrder
 
-	rows, err := ddb.QueryContext(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("query chart data: %w", err)
-	}
-	defer rows.Close()
-
-	var labels []string
-	var data []float32
-	for rows.Next() {
-		var label string
-		var value float64
-		if err := rows.Scan(&label, &value); err != nil {
-			return nil, fmt.Errorf("scan row: %w", err)
+		labels, data, err = queryChartRows(ctx, ddb, filtered)
+		if err != nil {
+			return nil, err
 		}
-		labels = append(labels, label)
-		data = append(data, float32(value))
 	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("rows iteration: %w", err)
+
+	// If period filter returned no rows (e.g. non-date dimension), fall back to unfiltered query
+	if len(labels) == 0 {
+		labels, data, err = queryChartRows(ctx, ddb, baseQuery+groupOrder)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if labels == nil {
@@ -240,6 +238,30 @@ func (s *ChartService) GetData(ctx context.Context, chartID, period string, star
 			{Label: chart.Measure, Data: data},
 		},
 	}, nil
+}
+
+func queryChartRows(ctx context.Context, db *sql.DB, query string) ([]string, []float32, error) {
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, nil, fmt.Errorf("query chart data: %w", err)
+	}
+	defer rows.Close()
+
+	var labels []string
+	var data []float32
+	for rows.Next() {
+		var label string
+		var value float64
+		if err := rows.Scan(&label, &value); err != nil {
+			return nil, nil, fmt.Errorf("scan row: %w", err)
+		}
+		labels = append(labels, label)
+		data = append(data, float32(value))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, nil, fmt.Errorf("rows iteration: %w", err)
+	}
+	return labels, data, nil
 }
 
 func periodToDateRange(period string, startDate, endDate *time.Time) (start, end *time.Time) {
