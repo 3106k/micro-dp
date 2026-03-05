@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/user/micro-dp/domain"
 	"github.com/user/micro-dp/internal/openapi"
@@ -129,5 +130,66 @@ func (h *ChartHandler) Delete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ChartHandler) GetData(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotImplemented, "not yet implemented")
+	id := r.PathValue("id")
+	if id == "" {
+		writeError(w, http.StatusBadRequest, "missing id")
+		return
+	}
+
+	period := r.URL.Query().Get("period")
+	if period == "" {
+		period = "last_30_days"
+	}
+
+	var startDate, endDate *time.Time
+	if period == "custom" {
+		startStr := r.URL.Query().Get("start_date")
+		endStr := r.URL.Query().Get("end_date")
+		if startStr == "" || endStr == "" {
+			writeError(w, http.StatusBadRequest, "start_date and end_date are required for custom period")
+			return
+		}
+		s, err := time.Parse("2006-01-02", startStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid start_date format (expected YYYY-MM-DD)")
+			return
+		}
+		e, err := time.Parse("2006-01-02", endStr)
+		if err != nil {
+			writeError(w, http.StatusBadRequest, "invalid end_date format (expected YYYY-MM-DD)")
+			return
+		}
+		startDate = &s
+		endDate = &e
+	}
+
+	result, err := h.charts.GetData(r.Context(), id, period, startDate, endDate)
+	if err != nil {
+		if errors.Is(err, domain.ErrChartNotFound) {
+			writeError(w, http.StatusNotFound, "chart not found")
+			return
+		}
+		if errors.Is(err, domain.ErrDatasetNotFound) {
+			writeError(w, http.StatusNotFound, "dataset not found")
+			return
+		}
+		writeError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	datasets := make([]openapi.ChartDataset, len(result.Datasets))
+	for i, ds := range result.Datasets {
+		datasets[i] = openapi.ChartDataset{
+			Label: ds.Label,
+			Data:  ds.Data,
+		}
+	}
+
+	resp := openapi.ChartDataResponse{
+		ChartId:  id,
+		Labels:   result.Labels,
+		Period:   openapi.ChartPeriod(period),
+		Datasets: datasets,
+	}
+	writeJSON(w, http.StatusOK, resp)
 }
