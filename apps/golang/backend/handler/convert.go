@@ -372,6 +372,56 @@ func toOpenAPITenantMember(m *domain.TenantMember) openapi.TenantMember {
 	}
 }
 
+func toOpenAPIDashboard(d *domain.Dashboard) openapi.Dashboard {
+	out := openapi.Dashboard{
+		Id:        d.ID,
+		Name:      d.Name,
+		CreatedAt: d.CreatedAt,
+		UpdatedAt: d.UpdatedAt,
+	}
+	out.Description = d.Description
+	return out
+}
+
+func toOpenAPIWidget(w *domain.DashboardWidget) openapi.DashboardWidget {
+	return openapi.DashboardWidget{
+		Id:          w.ID,
+		DashboardId: w.DashboardID,
+		ChartId:     w.ChartID,
+		Position:    w.Position,
+		CreatedAt:   w.CreatedAt,
+	}
+}
+
+func toOpenAPIChart(c *domain.Chart) openapi.Chart {
+	out := openapi.Chart{
+		Id:        c.ID,
+		TenantId:  c.TenantID,
+		Name:      c.Name,
+		ChartType: openapi.ChartType(c.ChartType),
+		DatasetId: c.DatasetID,
+		Measure:   c.Measure,
+		Dimension: c.Dimension,
+		CreatedAt: c.CreatedAt,
+		UpdatedAt: c.UpdatedAt,
+	}
+	out.ConfigJson = c.ConfigJSON
+	return out
+}
+
+func toOpenAPITemplateRun(tr *domain.TemplateRun) openapi.TemplateRun {
+	out := openapi.TemplateRun{
+		Id:           tr.ID,
+		TenantId:     tr.TenantID,
+		TemplateType: tr.TemplateType,
+		Status:       openapi.TemplateRunStatus(tr.Status),
+		CreatedAt:    tr.CreatedAt,
+	}
+	out.SkipReason = tr.SkipReason
+	out.DashboardId = tr.DashboardID
+	return out
+}
+
 func toOpenAPITenantInvitation(inv *domain.TenantInvitation, includeToken bool) openapi.TenantInvitation {
 	out := openapi.TenantInvitation{
 		Id:        inv.ID,
