@@ -17,7 +17,7 @@ func NewEventService(queue domain.EventQueue) *EventService {
 	return &EventService{queue: queue}
 }
 
-func (s *EventService) Ingest(ctx context.Context, eventID, eventName string, properties map[string]any, eventTime time.Time, contextJSON ...string) error {
+func (s *EventService) Ingest(ctx context.Context, eventID, eventName, sessionID string, properties map[string]any, eventTime time.Time, contextJSON ...string) error {
 	tenantID, ok := domain.TenantIDFromContext(ctx)
 	if !ok {
 		return fmt.Errorf("tenant id not found in context")
@@ -53,6 +53,7 @@ func (s *EventService) Ingest(ctx context.Context, eventID, eventName string, pr
 		EventID:    eventID,
 		TenantID:   tenantID,
 		EventName:  eventName,
+		SessionID:  sessionID,
 		Properties: propsJSON,
 		Context:    ctxJSON,
 		EventTime:  eventTime,

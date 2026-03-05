@@ -80,7 +80,12 @@ func (h *EventHandler) Ingest(w http.ResponseWriter, r *http.Request) {
 		props = *req.Properties
 	}
 
-	err := h.events.Ingest(r.Context(), req.EventId, req.EventName, props, req.EventTime)
+	var sessionID string
+	if req.SessionId != nil {
+		sessionID = *req.SessionId
+	}
+
+	err := h.events.Ingest(r.Context(), req.EventId, req.EventName, sessionID, props, req.EventTime)
 	if err != nil {
 		if errors.Is(err, domain.ErrEventDuplicate) {
 			h.metrics.DuplicateTotal.Add(r.Context(), 1)
@@ -130,8 +135,13 @@ func (h *EventHandler) TrackerIngest(w http.ResponseWriter, r *http.Request) {
 		props = *req.Properties
 	}
 
+	var sessionID string
+	if req.SessionId != nil {
+		sessionID = *req.SessionId
+	}
+
 	ctx := domain.ContextWithTenantID(r.Context(), h.trackerTenantID)
-	err := h.events.Ingest(ctx, req.EventId, req.EventName, props, req.EventTime)
+	err := h.events.Ingest(ctx, req.EventId, req.EventName, sessionID, props, req.EventTime)
 	if err != nil {
 		if errors.Is(err, domain.ErrEventDuplicate) {
 			h.metrics.DuplicateTotal.Add(r.Context(), 1)

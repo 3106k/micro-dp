@@ -11,7 +11,7 @@ interface TrackerEvent {
   tenant_id?: string;
   user_id?: string;
   anonymous_id?: string;
-  session_id: string;
+  session_id?: string;
   event_name: string;
   properties: Record<string, unknown>;
   event_time: string;
@@ -64,6 +64,7 @@ export async function POST(request: NextRequest) {
         body: JSON.stringify({
           event_id: event.event_id,
           event_name: event.event_name,
+          session_id: event.session_id,
           properties: event.properties,
           event_time: event.event_time,
         }),

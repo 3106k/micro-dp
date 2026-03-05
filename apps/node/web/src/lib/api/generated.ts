@@ -1109,6 +1109,7 @@ export interface components {
         IngestEventRequest: {
             event_id: string;
             event_name: string;
+            session_id?: string;
             properties?: {
                 [key: string]: unknown;
             };
@@ -1682,6 +1683,7 @@ export interface components {
         CollectEvent: {
             event_id: string;
             event_name: string;
+            session_id?: string;
             properties?: {
                 [key: string]: unknown;
             };

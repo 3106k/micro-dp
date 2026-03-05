@@ -13,7 +13,8 @@ const DEFAULTS = {
   flushIntervalMs: 5000,
   maxQueueSize: 20,
   retryMaxAttempts: 3,
-  retryBaseDelayMs: 300
+  retryBaseDelayMs: 300,
+  sessionTimeoutMs: 1_800_000 // 30 minutes
 };
 
 class Tracker {
@@ -22,6 +23,8 @@ class Tracker {
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight = false;
   private boundUnloadFlush = () => void this.flush({ useBeacon: true });
+  private sessionId: string = "";
+  private lastActivityAt: number = 0;
 
   init(config: TrackerConfig): void {
     this.config = {
@@ -38,6 +41,9 @@ class Tracker {
         "X-Write-Key": this.config.writeKey
       };
     }
+
+    this.sessionId = this.config.sessionId ?? createId();
+    this.lastActivityAt = Date.now();
 
     this.clearTimer();
 
@@ -105,6 +111,16 @@ class Tracker {
     }
   }
 
+  private getOrRotateSessionId(): string {
+    const now = Date.now();
+    const timeout = this.config.sessionTimeoutMs ?? DEFAULTS.sessionTimeoutMs;
+    if (now - this.lastActivityAt > timeout) {
+      this.sessionId = createId();
+    }
+    this.lastActivityAt = now;
+    return this.sessionId;
+  }
+
   private buildEvent(
     eventName: string,
     properties: Record<string, unknown>,
@@ -117,7 +133,7 @@ class Tracker {
       tenant_id: options.tenantId ?? this.config.tenantId,
       user_id: options.userId ?? this.config.userId,
       anonymous_id: options.anonymousId ?? this.config.anonymousId,
-      session_id: options.sessionId ?? this.config.sessionId ?? createId(),
+      session_id: options.sessionId ?? this.getOrRotateSessionId(),
       event_name: eventName,
       properties,
       event_time: options.eventTime ?? now,

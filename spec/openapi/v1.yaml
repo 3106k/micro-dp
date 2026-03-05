@@ -2177,6 +2177,8 @@ components:
           type: string
         event_name:
           type: string
+        session_id:
+          type: string
         properties:
           type: object
           additionalProperties: true
@@ -3302,6 +3304,8 @@ components:
         event_id:
           type: string
         event_name:
+          type: string
+        session_id:
           type: string
         properties:
           type: object

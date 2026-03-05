@@ -183,6 +183,7 @@ type CollectEvent struct {
 	EventName  string                  `json:"event_name"`
 	EventTime  time.Time               `json:"event_time"`
 	Properties *map[string]interface{} `json:"properties,omitempty"`
+	SessionId  *string                 `json:"session_id,omitempty"`
 }
 
 // CollectEventsRequest defines model for CollectEventsRequest.
@@ -494,6 +495,7 @@ type IngestEventRequest struct {
 	EventName  string                  `json:"event_name"`
 	EventTime  time.Time               `json:"event_time"`
 	Properties *map[string]interface{} `json:"properties,omitempty"`
+	SessionId  *string                 `json:"session_id,omitempty"`
 }
 
 // IngestEventResponse defines model for IngestEventResponse.

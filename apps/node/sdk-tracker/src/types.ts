@@ -15,6 +15,8 @@ export interface TrackerConfig {
   writeKey?: string;
   /** Collect context data automatically (UA, referrer, screen, etc.) */
   collectContext?: boolean;
+  /** Session inactivity timeout in ms (default: 1_800_000 = 30 min) */
+  sessionTimeoutMs?: number;
 }
 
 export interface EventContext {

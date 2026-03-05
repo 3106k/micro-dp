@@ -60,13 +60,16 @@ func (w *AggregationWriter) AggregateEvents(ctx context.Context, tenantID, dateP
 	}
 	defer ddb.Close()
 
-	// Read all raw parquets
+	// Read all raw parquets (union_by_name handles mixed schemas from old/new data)
 	rawGlob := filepath.Join(rawDir, "*.parquet")
 	_, err = ddb.ExecContext(ctx, fmt.Sprintf(
-		`CREATE TABLE raw_events AS SELECT * FROM read_parquet('%s')`, rawGlob))
+		`CREATE TABLE raw_events AS SELECT * FROM read_parquet('%s', union_by_name=true)`, rawGlob))
 	if err != nil {
 		return fmt.Errorf("read raw parquets: %w", err)
 	}
+
+	// Ensure session_id column exists for legacy parquet files without it
+	_, _ = ddb.ExecContext(ctx, `ALTER TABLE raw_events ADD COLUMN session_id VARCHAR DEFAULT ''`)
 
 	// Aggregate events: count by event_name per hour
 	eventsPath := filepath.Join(tmpDir, "events.parquet")
@@ -85,23 +88,78 @@ func (w *AggregationWriter) AggregateEvents(ctx context.Context, tenantID, dateP
 		return fmt.Errorf("aggregate events: %w", err)
 	}
 
-	// Aggregate visits: unique sessions per hour
+	// Aggregate visits: session-based with legacy fallback
 	visitsPath := filepath.Join(tmpDir, "visits.parquet")
 	_, err = ddb.ExecContext(ctx, fmt.Sprintf(`
 		COPY (
-			SELECT
-				tenant_id,
-				date_trunc('hour', event_time) AS hour,
-				count(DISTINCT
-					CASE WHEN context IS NOT NULL AND context != '{}'
-					     THEN json_extract_string(context, '$.page_url')
-					     ELSE event_id
-					END
-				) AS unique_pages,
-				count(*) AS total_events
-			FROM raw_events
-			GROUP BY tenant_id, date_trunc('hour', event_time)
-			ORDER BY hour
+			SELECT * FROM (
+				-- Pass 1: session_id present (new SDK data)
+				SELECT
+					session_id,
+					tenant_id,
+					min(event_time) AS session_start,
+					max(event_time) AS session_end,
+					epoch(max(event_time) - min(event_time)) AS duration_seconds,
+					count(*) AS event_count,
+					count(DISTINCT
+						CASE WHEN context IS NOT NULL AND context != '{}'
+						     THEN json_extract_string(context, '$.page_url')
+						     ELSE NULL
+						END
+					) AS page_count,
+					first(
+						CASE WHEN context IS NOT NULL AND context != '{}'
+						     THEN json_extract_string(context, '$.page_url')
+						     ELSE NULL
+						END
+						ORDER BY event_time ASC
+					) AS landing_page,
+					last(
+						CASE WHEN context IS NOT NULL AND context != '{}'
+						     THEN json_extract_string(context, '$.page_url')
+						     ELSE NULL
+						END
+						ORDER BY event_time ASC
+					) AS exit_page
+				FROM raw_events
+				WHERE session_id IS NOT NULL AND session_id != ''
+				GROUP BY session_id, tenant_id
+
+				UNION ALL
+
+				-- Pass 2: no session_id (legacy data) — hourly pseudo-sessions
+				SELECT
+					concat('legacy-', tenant_id, '-', strftime(date_trunc('hour', event_time), '%%Y%%m%%dT%%H')) AS session_id,
+					tenant_id,
+					min(event_time) AS session_start,
+					max(event_time) AS session_end,
+					epoch(max(event_time) - min(event_time)) AS duration_seconds,
+					count(*) AS event_count,
+					count(DISTINCT
+						CASE WHEN context IS NOT NULL AND context != '{}'
+						     THEN json_extract_string(context, '$.page_url')
+						     ELSE event_id
+						END
+					) AS page_count,
+					first(
+						CASE WHEN context IS NOT NULL AND context != '{}'
+						     THEN json_extract_string(context, '$.page_url')
+						     ELSE NULL
+						END
+						ORDER BY event_time ASC
+					) AS landing_page,
+					last(
+						CASE WHEN context IS NOT NULL AND context != '{}'
+						     THEN json_extract_string(context, '$.page_url')
+						     ELSE NULL
+						END
+						ORDER BY event_time ASC
+					) AS exit_page
+				FROM raw_events
+				WHERE session_id IS NULL OR session_id = ''
+				GROUP BY tenant_id, date_trunc('hour', event_time)
+			)
+			ORDER BY session_start
 		) TO '%s' (FORMAT PARQUET)`, visitsPath))
 	if err != nil {
 		return fmt.Errorf("aggregate visits: %w", err)

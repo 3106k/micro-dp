@@ -56,13 +56,18 @@ func (h *CollectHandler) Collect(w http.ResponseWriter, r *http.Request) {
 			props = *ev.Properties
 		}
 
+		var sessionID string
+		if ev.SessionId != nil {
+			sessionID = *ev.SessionId
+		}
+
 		var ctxJSON string
 		if ev.Context != nil {
 			b, _ := json.Marshal(ev.Context)
 			ctxJSON = string(b)
 		}
 
-		err := h.events.Ingest(r.Context(), ev.EventId, ev.EventName, props, ev.EventTime, ctxJSON)
+		err := h.events.Ingest(r.Context(), ev.EventId, ev.EventName, sessionID, props, ev.EventTime, ctxJSON)
 		if err != nil {
 			if errors.Is(err, domain.ErrEventDuplicate) {
 				h.metrics.DuplicateTotal.Add(r.Context(), 1)

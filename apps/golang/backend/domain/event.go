@@ -12,6 +12,7 @@ type EventQueueMessage struct {
 	EventID    string    `json:"event_id"`
 	TenantID   string    `json:"tenant_id"`
 	EventName  string    `json:"event_name"`
+	SessionID  string    `json:"session_id"`
 	Properties string    `json:"properties"`
 	Context    string    `json:"context"`
 	EventTime  time.Time `json:"event_time"`
