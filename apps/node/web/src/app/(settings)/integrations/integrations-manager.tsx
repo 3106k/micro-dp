@@ -54,14 +54,14 @@ export function IntegrationsManager({
     }
   }
 
-  async function handleConnect() {
+  async function handleConnect(provider: string) {
     setLoading(true);
     setMessage("");
     try {
-      const res = await fetch("/api/credentials/google/start");
+      const res = await fetch(`/api/credentials/oauth/${provider}/start`);
       const data = (await res.json()) as { url?: string; error?: string };
       if (!res.ok || !data.url) {
-        setMessage(`Error: ${data.error || "failed to start google oauth"}`);
+        setMessage(`Error: ${data.error || "failed to start oauth"}`);
         return;
       }
       window.location.href = data.url;
@@ -118,7 +118,7 @@ export function IntegrationsManager({
           </p>
         )}
 
-        <Button onClick={handleConnect} disabled={loading}>
+        <Button onClick={() => handleConnect("google")} disabled={loading}>
           {googleCredentials.length > 0
             ? "Reconnect Google Account"
             : "Connect Google Account"}

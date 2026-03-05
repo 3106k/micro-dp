@@ -13,6 +13,7 @@ import (
 	"github.com/user/micro-dp/internal/connector"
 	"github.com/user/micro-dp/internal/connector/fetchers"
 	"github.com/user/micro-dp/internal/connector/testers"
+	"github.com/user/micro-dp/internal/credential"
 	"github.com/user/micro-dp/internal/featureflag"
 	"github.com/user/micro-dp/internal/notification"
 	"github.com/user/micro-dp/internal/observability"
@@ -138,14 +139,15 @@ func main() {
 	jobService := usecase.NewJobService(jobRepo, jobVersionRepo, jobModuleRepo, jobModuleEdgeRepo, moduleTypeSchemaRepo, txManager)
 	moduleTypeService := usecase.NewModuleTypeService(moduleTypeRepo, moduleTypeSchemaRepo)
 	connectionService := usecase.NewConnectionService(connectionRepo, connectorRegistry)
+	googleCredProvider := credential.NewGoogleProvider(credential.GoogleConfig{
+		ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
+		ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
+		RedirectURL:     os.Getenv("GOOGLE_OAUTH_CREDENTIAL_REDIRECT_URI"),
+		PostRedirectURI: os.Getenv("GOOGLE_OAUTH_CREDENTIAL_POST_REDIRECT_URI"),
+	})
 	credentialService := usecase.NewCredentialService(
 		credentialRepo,
-		usecase.GoogleCredentialOAuthConfig{
-			ClientID:        os.Getenv("GOOGLE_OAUTH_CLIENT_ID"),
-			ClientSecret:    os.Getenv("GOOGLE_OAUTH_CLIENT_SECRET"),
-			RedirectURL:     os.Getenv("GOOGLE_OAUTH_CREDENTIAL_REDIRECT_URI"),
-			PostRedirectURL: os.Getenv("GOOGLE_OAUTH_CREDENTIAL_POST_REDIRECT_URI"),
-		},
+		[]credential.OAuthProvider{googleCredProvider},
 		jwtSecret,
 	)
 
@@ -301,8 +303,8 @@ func main() {
 	// Credentials
 	mux.Handle("GET /api/v1/credentials", protected(credentialH.List))
 	mux.Handle("DELETE /api/v1/credentials/{id}", protected(credentialH.Delete))
-	mux.Handle("GET /api/v1/credentials/google/start", protected(credentialH.GoogleStart))
-	mux.HandleFunc("GET /api/v1/credentials/google/callback", credentialH.GoogleCallback)
+	mux.Handle("GET /api/v1/credentials/{provider}/start", protected(credentialH.OAuthStart))
+	mux.HandleFunc("GET /api/v1/credentials/{provider}/callback", credentialH.OAuthCallback)
 
 	// Connections
 	mux.Handle("POST /api/v1/connections", protected(connectionH.Create))

@@ -8,10 +8,14 @@ import { TENANT_COOKIE, TOKEN_COOKIE } from "@/lib/auth/constants";
 type ErrorResponse = components["schemas"]["ErrorResponse"];
 
 /**
- * Proxy credential Google OAuth start. Returns JSON { url } + Set-Cookie
+ * Proxy credential OAuth start. Returns JSON { url } + Set-Cookie
  * so the browser stores PKCE cookies on localhost:3900 (same origin as callback).
  */
-export async function GET() {
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ provider: string }> }
+) {
+  const { provider } = await params;
   const jar = await cookies();
   const token = jar.get(TOKEN_COOKIE)?.value;
   const tenantId = jar.get(TENANT_COOKIE)?.value;
@@ -22,7 +26,7 @@ export async function GET() {
     );
   }
 
-  const res = await backendFetch("/api/v1/credentials/google/start", {
+  const res = await backendFetch(`/api/v1/credentials/${provider}/start`, {
     headers: {
       Authorization: `Bearer ${token}`,
       "X-Tenant-ID": tenantId,

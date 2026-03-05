@@ -1535,26 +1535,36 @@ paths:
           $ref: "#/components/responses/ErrorResponse"
         "404":
           $ref: "#/components/responses/ErrorResponse"
-  /api/v1/credentials/google/start:
+  /api/v1/credentials/{provider}/start:
     get:
       tags: [credentials]
-      summary: Start Google credential OAuth flow
-      operationId: startGoogleCredentialOAuth
+      summary: Start credential OAuth flow
+      operationId: startCredentialOAuth
       security:
         - bearerAuth: []
       parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
         - $ref: "#/components/parameters/XTenantID"
       responses:
         "302":
-          description: Redirect to Google OAuth
+          description: Redirect to OAuth provider
         "401":
           $ref: "#/components/responses/ErrorResponse"
-  /api/v1/credentials/google/callback:
+  /api/v1/credentials/{provider}/callback:
     get:
       tags: [credentials]
-      summary: Google credential OAuth callback
-      operationId: googleCredentialCallback
+      summary: Credential OAuth callback
+      operationId: credentialOAuthCallback
       parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
         - name: code
           in: query
           required: true
