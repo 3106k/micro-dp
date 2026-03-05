@@ -128,16 +128,19 @@ export function ImportJobForm({
     setMessage("");
     setError("");
     try {
-      const body: Record<string, string | undefined> = {
+      const sourceConfig: Record<string, string> = {};
+      if (spreadsheetId) sourceConfig.spreadsheet_id = spreadsheetId;
+      if (sheetName) sourceConfig.sheet_name = sheetName;
+      if (range) sourceConfig.range = range;
+
+      const body: Record<string, unknown> = {
         name,
         slug,
         description: description || undefined,
         connection_id: connectionId,
-        spreadsheet_id: spreadsheetId || undefined,
+        source_config: sourceConfig,
         execution,
       };
-      if (sheetName) body.sheet_name = sheetName;
-      if (range) body.range = range;
 
       const res = await fetch("/api/import/jobs", {
         method: "POST",
