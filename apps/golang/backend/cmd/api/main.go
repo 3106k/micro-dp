@@ -191,7 +191,7 @@ func main() {
 		datasetRepo, minioClient, jobService, moduleTypeRepo,
 		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
 	)
-	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo)
+	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo, connectionRepo)
 	dashboardService := usecase.NewDashboardService(dashboardRepo, dashboardWidgetRepo, chartRepo)
 	chartService := usecase.NewChartService(chartRepo, datasetRepo)
 	templateRunService := usecase.NewTemplateRunService(templateRunRepo)

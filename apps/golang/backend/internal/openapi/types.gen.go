@@ -343,14 +343,15 @@ type CreateEdgeInput struct {
 
 // CreateImportJobRequest defines model for CreateImportJobRequest.
 type CreateImportJobRequest struct {
-	ConnectionId  string           `json:"connection_id"`
-	Description   *string          `json:"description,omitempty"`
-	Execution     *ImportExecution `json:"execution,omitempty"`
-	Name          string           `json:"name"`
-	Range         *string          `json:"range,omitempty"`
-	SheetName     *string          `json:"sheet_name,omitempty"`
-	Slug          string           `json:"slug"`
-	SpreadsheetId string           `json:"spreadsheet_id"`
+	// ConnectionId ID of the source connection (connector type is derived from connection)
+	ConnectionId string           `json:"connection_id"`
+	Description  *string          `json:"description,omitempty"`
+	Execution    *ImportExecution `json:"execution,omitempty"`
+	Name         string           `json:"name"`
+	Slug         string           `json:"slug"`
+
+	// SourceConfig Connector-specific source configuration (e.g. {spreadsheet_id, sheet_name, range} for Google Sheets)
+	SourceConfig *map[string]interface{} `json:"source_config,omitempty"`
 }
 
 // CreateImportJobResponse defines model for CreateImportJobResponse.

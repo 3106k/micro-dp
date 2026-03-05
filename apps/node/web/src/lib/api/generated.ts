@@ -1739,10 +1739,12 @@ export interface components {
             name: string;
             slug: string;
             description?: string;
+            /** @description ID of the source connection (connector type is derived from connection) */
             connection_id: string;
-            spreadsheet_id: string;
-            sheet_name?: string;
-            range?: string;
+            /** @description Connector-specific source configuration (e.g. {spreadsheet_id, sheet_name, range} for Google Sheets) */
+            source_config?: {
+                [key: string]: unknown;
+            };
             execution?: components["schemas"]["ImportExecution"];
         };
         CreateImportJobResponse: {
