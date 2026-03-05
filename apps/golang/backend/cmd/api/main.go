@@ -99,6 +99,11 @@ func main() {
 	tenantPlanRepo := db.NewTenantPlanRepo(sqlDB)
 	usageRepo := db.NewUsageRepo(sqlDB)
 
+	dashboardRepo := db.NewDashboardRepo(sqlDB)
+	dashboardWidgetRepo := db.NewDashboardWidgetRepo(sqlDB)
+	chartRepo := db.NewChartRepo(sqlDB)
+	templateRunRepo := db.NewTemplateRunRepo(sqlDB)
+
 	// Connector registry
 	connectorRegistry := connector.Global()
 
@@ -189,6 +194,9 @@ func main() {
 	)
 	writeKeyService := usecase.NewWriteKeyService(writeKeyRepo, tenantRepo)
 	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo, connectionRepo)
+	dashboardService := usecase.NewDashboardService(dashboardRepo, dashboardWidgetRepo, chartRepo)
+	chartService := usecase.NewChartService(chartRepo, datasetRepo)
+	templateRunService := usecase.NewTemplateRunService(templateRunRepo)
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)
@@ -214,6 +222,9 @@ func main() {
 	writeKeyH := handler.NewWriteKeyHandler(writeKeyService)
 	collectH := handler.NewCollectHandler(eventService, planService, eventMetrics)
 	importJobH := handler.NewImportJobHandler(importJobService)
+	dashboardH := handler.NewDashboardHandler(dashboardService)
+	chartH := handler.NewChartHandler(chartService)
+	templateRunH := handler.NewTemplateRunHandler(templateRunService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -319,6 +330,29 @@ func main() {
 
 	// Import
 	mux.Handle("POST /api/v1/import/jobs", protected(importJobH.CreateJob))
+
+	// Dashboards
+	mux.Handle("POST /api/v1/dashboards", protected(dashboardH.Create))
+	mux.Handle("GET /api/v1/dashboards", protected(dashboardH.List))
+	mux.Handle("GET /api/v1/dashboards/{id}", protected(dashboardH.Get))
+	mux.Handle("PUT /api/v1/dashboards/{id}", protected(dashboardH.Update))
+	mux.Handle("DELETE /api/v1/dashboards/{id}", protected(dashboardH.Delete))
+	mux.Handle("POST /api/v1/dashboards/{dashboard_id}/widgets", protected(dashboardH.CreateWidget))
+	mux.Handle("GET /api/v1/dashboards/{dashboard_id}/widgets", protected(dashboardH.ListWidgets))
+	mux.Handle("DELETE /api/v1/dashboards/{dashboard_id}/widgets/{widget_id}", protected(dashboardH.DeleteWidget))
+
+	// Charts
+	mux.Handle("POST /api/v1/charts", protected(chartH.Create))
+	mux.Handle("GET /api/v1/charts", protected(chartH.List))
+	mux.Handle("GET /api/v1/charts/{id}", protected(chartH.Get))
+	mux.Handle("PUT /api/v1/charts/{id}", protected(chartH.Update))
+	mux.Handle("DELETE /api/v1/charts/{id}", protected(chartH.Delete))
+	mux.Handle("GET /api/v1/charts/{id}/data", protected(chartH.GetData))
+
+	// Template runs
+	mux.Handle("POST /api/v1/template_runs", protected(templateRunH.Create))
+	mux.Handle("GET /api/v1/template_runs", protected(templateRunH.List))
+	mux.Handle("GET /api/v1/template_runs/{id}", protected(templateRunH.Get))
 
 	// Write Keys (tenant-scoped, owner/admin)
 	mux.Handle("POST /api/v1/write-keys", protected(writeKeyH.Create))
