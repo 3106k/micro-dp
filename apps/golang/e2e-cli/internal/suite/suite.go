@@ -28,6 +28,7 @@ import (
 	plancase "github.com/user/micro-dp/e2e-cli/internal/suite/plan/happy_path"
 	adminmultitenant "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/admin_multi_tenant"
 	tenantisolation "github.com/user/micro-dp/e2e-cli/internal/suite/tenant/isolation"
+	importcase "github.com/user/micro-dp/e2e-cli/internal/suite/import/happy_path"
 	uploadscase "github.com/user/micro-dp/e2e-cli/internal/suite/uploads/happy_path"
 )
 
@@ -66,6 +67,8 @@ func Build(cfg *config.Config) ([]runner.Scenario, error) {
 			scenarios = append(scenarios, jobrunscase.NewScenario("", cfg.AuthPassword, cfg.DisplayName))
 		case "module_types":
 			scenarios = append(scenarios, moduletypescase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
+		case "import":
+			scenarios = append(scenarios, importcase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
 		case "uploads":
 			scenarios = append(scenarios, uploadscase.NewScenario(cfg.AuthPassword, cfg.DisplayName))
 		case "plan":
