@@ -3555,7 +3555,7 @@ components:
       enum: [save_only, immediate]
     CreateImportJobRequest:
       type: object
-      required: [name, slug, connection_id, spreadsheet_id]
+      required: [name, slug, connection_id]
       properties:
         name:
           type: string
@@ -3565,12 +3565,11 @@ components:
           type: string
         connection_id:
           type: string
-        spreadsheet_id:
-          type: string
-        sheet_name:
-          type: string
-        range:
-          type: string
+          description: ID of the source connection (connector type is derived from connection)
+        source_config:
+          type: object
+          additionalProperties: true
+          description: Connector-specific source configuration (e.g. {spreadsheet_id, sheet_name, range} for Google Sheets)
         execution:
           $ref: "#/components/schemas/ImportExecution"
     CreateImportJobResponse:
