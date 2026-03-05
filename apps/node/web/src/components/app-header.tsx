@@ -17,6 +17,7 @@ export type NavItem = { href: string; label: string };
 const mainNavItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboards", label: "Dashboards" },
+  { href: "/charts", label: "Charts" },
   { href: "/jobs", label: "Jobs" },
   { href: "/job-runs", label: "Job Runs" },
   { href: "/datasets", label: "Datasets" },

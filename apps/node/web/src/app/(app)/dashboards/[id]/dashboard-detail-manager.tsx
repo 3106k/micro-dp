@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ChartPreview } from "@/components/chart-preview";
 import { useToast } from "@/components/ui/toast-provider";
 import { readApiErrorMessage } from "@/lib/api/error";
 import type { components } from "@/lib/api/generated";
@@ -11,6 +12,7 @@ import type { components } from "@/lib/api/generated";
 type Dashboard = components["schemas"]["Dashboard"];
 type DashboardWidget = components["schemas"]["DashboardWidget"];
 type Chart = components["schemas"]["Chart"];
+type ChartDataResponse = components["schemas"]["ChartDataResponse"];
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -163,6 +165,9 @@ export function DashboardDetailManager({
   // Map chart_id -> chart for display
   const chartMap = new Map(charts.map((c) => [c.id, c]));
 
+  // Sort widgets by position for display
+  const sortedWidgets = [...widgets].sort((a, b) => a.position - b.position);
+
   return (
     <div className="space-y-6">
       {/* Dashboard info */}
@@ -247,52 +252,95 @@ export function DashboardDetailManager({
           </Button>
         </form>
 
-        {/* Widget list */}
-        <div className="rounded-lg border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/50">
-                <th className="px-4 py-3 text-left font-medium">Position</th>
-                <th className="px-4 py-3 text-left font-medium">Chart</th>
-                <th className="px-4 py-3 text-left font-medium">Type</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {widgets.map((w) => {
-                const chart = chartMap.get(w.chart_id);
-                return (
-                  <tr key={w.id} className="border-b last:border-0">
-                    <td className="px-4 py-3">{w.position}</td>
-                    <td className="px-4 py-3 font-medium">
-                      {chart?.name ?? w.chart_id}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {chart?.chart_type ?? "-"}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        disabled={deletingWidget === w.id}
-                        onClick={() => handleDeleteWidget(w.id)}
-                      >
-                        {deletingWidget === w.id ? "Removing..." : "Remove"}
-                      </Button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {widgets.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-              No widgets yet. Add a chart above.
-            </div>
-          ) : null}
-        </div>
+        {/* Widget grid with previews */}
+        {sortedWidgets.length === 0 ? (
+          <div className="rounded-lg border px-4 py-8 text-center text-sm text-muted-foreground">
+            No widgets yet. Add a chart above.
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2">
+            {sortedWidgets.map((w) => {
+              const chart = chartMap.get(w.chart_id);
+              return (
+                <WidgetCard
+                  key={w.id}
+                  widget={w}
+                  chart={chart}
+                  deleting={deletingWidget === w.id}
+                  onDelete={() => handleDeleteWidget(w.id)}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function WidgetCard({
+  widget,
+  chart,
+  deleting,
+  onDelete,
+}: {
+  widget: DashboardWidget;
+  chart: Chart | undefined;
+  deleting: boolean;
+  onDelete: () => void;
+}) {
+  const [chartData, setChartData] = useState<ChartDataResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchData() {
+      try {
+        const res = await fetch(
+          `/api/charts/${widget.chart_id}/data?period=last_30_days`,
+          { cache: "no-store" }
+        );
+        if (res.ok && !cancelled) {
+          const data: ChartDataResponse = await res.json();
+          setChartData(data);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, [widget.chart_id]);
+
+  return (
+    <div className="rounded-lg border p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-medium">{chart?.name ?? widget.chart_id}</p>
+          <p className="text-xs text-muted-foreground">
+            {chart?.chart_type ?? "-"}
+          </p>
+        </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={deleting}
+          onClick={onDelete}
+        >
+          {deleting ? "Removing..." : "Remove"}
+        </Button>
+      </div>
+      <ChartPreview
+        chartType={chart?.chart_type ?? "line"}
+        labels={chartData?.labels ?? []}
+        datasets={chartData?.datasets ?? []}
+        loading={loading}
+        height={200}
+      />
     </div>
   );
 }
