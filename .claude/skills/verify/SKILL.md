@@ -1,14 +1,16 @@
 ---
 name: verify
 description: Build, deploy, and run E2E tests to verify the current codebase
-disable-model-invocation: true
 allowed-tools: Bash, Read, Grep
-argument-hint: "[--skip-e2e]"
+argument-hint: "[--skip-e2e] [--skip-docker]"
 ---
 
 # Verify Skill
 
-実装後の一連の検証を実行する。引数に `--skip-e2e` を渡すと E2E テストをスキップする。
+実装後の一連の検証を実行する。
+
+- `--skip-e2e`: E2E テストをスキップ
+- `--skip-docker`: Docker rebuild + health check をスキップ（ローカルビルド確認のみ）
 
 ## Current state
 
@@ -17,7 +19,17 @@ argument-hint: "[--skip-e2e]"
 
 ## Steps
 
-### 1. Go build
+### 1. OpenAPI check
+
+spec と生成コードの同期を確認する:
+
+```bash
+make openapi-check
+```
+
+差分がある場合は `make openapi-generate` の実行を促して停止する。
+
+### 2. Go build
 
 backend と e2e-cli の両方をビルドする:
 
@@ -28,7 +40,19 @@ cd apps/golang/e2e-cli && go build ./...
 
 ビルドが失敗した場合はエラー内容を報告して停止する。
 
-### 2. Docker rebuild + health check
+### 3. Frontend build
+
+Next.js のビルドを実行する:
+
+```bash
+cd apps/node/web && npm run build
+```
+
+型エラーやビルドエラーがあれば報告して停止する。
+
+### 4. Docker rebuild + health check
+
+`$ARGUMENTS` に `--skip-docker` が含まれていなければ実行:
 
 ```bash
 make down && make up
@@ -42,16 +66,16 @@ make health
 
 いずれかが unhealthy の場合は `docker logs` でエラーを確認して報告する。
 
-### 3. Startup log verification
+### 5. Startup log verification
 
-API と Worker のログから初期化メッセージを確認する:
+`--skip-docker` でなければ、API と Worker のログから初期化メッセージを確認する:
 
 ```bash
 docker logs $(docker ps -qf name=-api) 2>&1 | grep -E "feature flags|observability|api server"
 docker logs $(docker ps -qf name=-worker) 2>&1 | grep -E "feature flags|observability|worker starting"
 ```
 
-### 4. E2E tests
+### 6. E2E tests
 
 `$ARGUMENTS` に `--skip-e2e` が含まれていなければ実行:
 
@@ -59,13 +83,15 @@ docker logs $(docker ps -qf name=-worker) 2>&1 | grep -E "feature flags|observab
 make e2e-cli
 ```
 
-### 5. Report
+### 7. Report
 
 全ステップの結果を以下のフォーマットでサマリ報告する:
 
 | Step | Result |
 |------|--------|
+| OpenAPI check | pass/fail/skipped |
 | Go build | pass/fail |
-| Health check | pass/fail |
-| Startup logs | OK / issues found |
+| Frontend build | pass/fail |
+| Docker health | pass/fail/skipped |
+| Startup logs | OK / issues found / skipped |
 | E2E tests | N passed, N failed, N skipped / skipped |
