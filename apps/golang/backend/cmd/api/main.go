@@ -195,7 +195,7 @@ func main() {
 	writeKeyService := usecase.NewWriteKeyService(writeKeyRepo, tenantRepo)
 	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo, connectionRepo)
 	dashboardService := usecase.NewDashboardService(dashboardRepo, dashboardWidgetRepo, chartRepo)
-	chartService := usecase.NewChartService(chartRepo, datasetRepo)
+	chartService := usecase.NewChartService(chartRepo, datasetRepo, minioClient)
 	templateRunService := usecase.NewTemplateRunService(templateRunRepo)
 
 	// Handlers
