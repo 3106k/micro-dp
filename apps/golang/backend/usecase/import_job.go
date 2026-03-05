@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/user/micro-dp/domain"
+	"github.com/user/micro-dp/internal/connector"
 )
 
 type ImportJobService struct {
@@ -15,6 +16,7 @@ type ImportJobService struct {
 	moduleTypes domain.ModuleTypeRepository
 	versions    domain.JobVersionRepository
 	modules     domain.JobModuleRepository
+	connections domain.ConnectionRepository
 }
 
 func NewImportJobService(
@@ -23,6 +25,7 @@ func NewImportJobService(
 	moduleTypes domain.ModuleTypeRepository,
 	versions domain.JobVersionRepository,
 	modules domain.JobModuleRepository,
+	connections domain.ConnectionRepository,
 ) *ImportJobService {
 	return &ImportJobService{
 		jobs:        jobs,
@@ -30,18 +33,17 @@ func NewImportJobService(
 		moduleTypes: moduleTypes,
 		versions:    versions,
 		modules:     modules,
+		connections: connections,
 	}
 }
 
 type CreateImportJobInput struct {
-	Name          string
-	Slug          string
-	Description   string
-	ConnectionID  string
-	SpreadsheetID string
-	SheetName     string
-	Range         string
-	Execution     string
+	Name         string
+	Slug         string
+	Description  string
+	ConnectionID string
+	SourceConfig map[string]interface{}
+	Execution    string
 }
 
 type CreateImportJobResult struct {
@@ -56,14 +58,25 @@ func (s *ImportJobService) CreateImportJob(ctx context.Context, input CreateImpo
 		return nil, fmt.Errorf("tenant id not found in context")
 	}
 
+	// Look up connection to determine connector type
+	conn, err := s.connections.FindByID(ctx, tenantID, input.ConnectionID)
+	if err != nil {
+		return nil, fmt.Errorf("connection not found: %w", err)
+	}
+
+	def := connector.Global().Get(conn.Type)
+	if def == nil {
+		return nil, fmt.Errorf("unknown connector type: %s", conn.Type)
+	}
+
 	// Create Job
 	job, err := s.jobs.CreateJob(ctx, input.Name, input.Slug, input.Description, domain.JobKindImport)
 	if err != nil {
 		return nil, fmt.Errorf("create job: %w", err)
 	}
 
-	// Ensure "Google Sheets Import" module type exists
-	mtName := "Google Sheets Import"
+	// Ensure module type exists for this connector
+	mtName := def.Name
 	mt, err := s.moduleTypes.FindByTenantAndName(ctx, tenantID, mtName)
 	if err != nil {
 		mt = &domain.ModuleType{
@@ -98,17 +111,8 @@ func (s *ImportJobService) CreateImportJob(ctx context.Context, input CreateImpo
 		return nil, fmt.Errorf("create version: %w", err)
 	}
 
-	// Build config_json
-	configMap := map[string]string{
-		"spreadsheet_id": input.SpreadsheetID,
-	}
-	if input.SheetName != "" {
-		configMap["sheet_name"] = input.SheetName
-	}
-	if input.Range != "" {
-		configMap["range"] = input.Range
-	}
-	configBytes, _ := json.Marshal(configMap)
+	// Build config_json from source_config
+	configBytes, _ := json.Marshal(input.SourceConfig)
 
 	connID := input.ConnectionID
 	mod := &domain.JobModule{
@@ -117,7 +121,7 @@ func (s *ImportJobService) CreateImportJob(ctx context.Context, input CreateImpo
 		JobVersionID: version.ID,
 		ModuleTypeID: mt.ID,
 		ConnectionID: &connID,
-		Name:         "Google Sheets Import",
+		Name:         def.Name,
 		ConfigJSON:   string(configBytes),
 	}
 	if err := s.modules.Create(ctx, mod); err != nil {
