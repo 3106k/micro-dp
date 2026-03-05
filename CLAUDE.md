@@ -686,9 +686,22 @@ Playwright で `browser_take_screenshot` を使用した場合、確認完了後
   "kind": "source",
   "icon": "postgres",
   "description": "Read data from PostgreSQL databases",
+  "capabilities": ["testable"],
   "spec": { /* JSON Schema */ }
 }
 ```
+
+### Capabilities
+
+定義 JSON の `capabilities` 配列が SSOT。API レスポンス (`ConnectorDefinition`, `ConnectorDefinitionDetail`) に公開される。
+
+| 値 | 意味 |
+|-----|------|
+| `testable` | ConnectionTester が登録済み (接続テスト可能) |
+| `fetchable` | SchemaFetcher が登録済み (スキーマ取得可能) |
+| `importable` | ImportExecutor が登録済み (インポート実行可能) |
+
+`Definition.HasCapability(cap)` メソッドでランタイム判定可能。
 
 ### x-* 拡張一覧
 
