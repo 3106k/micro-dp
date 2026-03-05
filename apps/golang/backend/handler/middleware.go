@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strings"
@@ -75,6 +76,29 @@ func TenantMiddleware(tenantRepo domain.TenantRepository) func(http.Handler) htt
 			}
 
 			ctx := domain.ContextWithTenantID(r.Context(), tenantID)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+func WriteKeyMiddleware(writeKeyService interface {
+	Authenticate(ctx context.Context, rawKey string) (*domain.WriteKey, error)
+}) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			rawKey := r.Header.Get("X-Write-Key")
+			if rawKey == "" {
+				writeError(w, http.StatusUnauthorized, "missing X-Write-Key header")
+				return
+			}
+
+			wk, err := writeKeyService.Authenticate(r.Context(), rawKey)
+			if err != nil {
+				writeError(w, http.StatusUnauthorized, "invalid write key")
+				return
+			}
+
+			ctx := domain.ContextWithTenantID(r.Context(), wk.TenantID)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}

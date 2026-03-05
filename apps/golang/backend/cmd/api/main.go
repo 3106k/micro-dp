@@ -89,6 +89,7 @@ func main() {
 	billingAuditLogRepo := db.NewBillingAuditLogRepo(sqlDB)
 	credentialRepo := db.NewCredentialRepo(sqlDB)
 	invitationRepo := db.NewInvitationRepo(sqlDB)
+	writeKeyRepo := db.NewWriteKeyRepo(sqlDB)
 	txManager := db.NewTxManager(sqlDB)
 
 	jobRunModuleRepo := db.NewJobRunModuleRepo(sqlDB)
@@ -191,6 +192,7 @@ func main() {
 		datasetRepo, minioClient, jobService, moduleTypeRepo,
 		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
 	)
+	writeKeyService := usecase.NewWriteKeyService(writeKeyRepo, tenantRepo)
 	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo, connectionRepo)
 	dashboardService := usecase.NewDashboardService(dashboardRepo, dashboardWidgetRepo, chartRepo)
 	chartService := usecase.NewChartService(chartRepo, datasetRepo)
@@ -217,6 +219,8 @@ func main() {
 	adminPlanH := handler.NewAdminPlanHandler(planService)
 	billingH := handler.NewBillingHandler(billingService)
 	transformH := handler.NewTransformHandler(transformService)
+	writeKeyH := handler.NewWriteKeyHandler(writeKeyService)
+	collectH := handler.NewCollectHandler(eventService, planService, eventMetrics)
 	importJobH := handler.NewImportJobHandler(importJobService)
 	dashboardH := handler.NewDashboardHandler(dashboardService)
 	chartH := handler.NewChartHandler(chartService)
@@ -226,6 +230,7 @@ func main() {
 	authMW := handler.AuthMiddleware(jwtSecret)
 	tenantMW := handler.TenantMiddleware(tenantRepo)
 	superadminMW := handler.SuperadminMiddleware(userRepo)
+	writeKeyMW := handler.WriteKeyMiddleware(writeKeyService)
 
 	protected := func(h http.HandlerFunc) http.Handler {
 		return authMW(tenantMW(http.HandlerFunc(h)))
@@ -348,6 +353,18 @@ func main() {
 	mux.Handle("POST /api/v1/template_runs", protected(templateRunH.Create))
 	mux.Handle("GET /api/v1/template_runs", protected(templateRunH.List))
 	mux.Handle("GET /api/v1/template_runs/{id}", protected(templateRunH.Get))
+
+	// Write Keys (tenant-scoped, owner/admin)
+	mux.Handle("POST /api/v1/write-keys", protected(writeKeyH.Create))
+	mux.Handle("GET /api/v1/write-keys", protected(writeKeyH.List))
+	mux.Handle("DELETE /api/v1/write-keys/{id}", protected(writeKeyH.Delete))
+	mux.Handle("POST /api/v1/write-keys/{id}/regenerate", protected(writeKeyH.Regenerate))
+
+	// Collect (Write Key auth + CORS)
+	mux.Handle("POST /api/v1/collect", handler.CORSMiddleware(writeKeyMW(http.HandlerFunc(collectH.Collect))))
+	mux.Handle("OPTIONS /api/v1/collect", handler.CORSMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	})))
 
 	// Members (tenant-scoped)
 	mux.Handle("GET /api/v1/tenants/current/members", protected(memberH.List))

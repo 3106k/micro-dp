@@ -37,7 +37,9 @@ func (w *ParquetWriter) WriteBatch(ctx context.Context, events []*domain.EventQu
 		event_id VARCHAR,
 		tenant_id VARCHAR,
 		event_name VARCHAR,
+		session_id VARCHAR,
 		properties VARCHAR,
+		context VARCHAR,
 		event_time TIMESTAMP,
 		received_at TIMESTAMP
 	)`)
@@ -45,14 +47,18 @@ func (w *ParquetWriter) WriteBatch(ctx context.Context, events []*domain.EventQu
 		return fmt.Errorf("create table: %w", err)
 	}
 
-	stmt, err := db.PrepareContext(ctx, `INSERT INTO events VALUES (?, ?, ?, ?, ?, ?)`)
+	stmt, err := db.PrepareContext(ctx, `INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return fmt.Errorf("prepare insert: %w", err)
 	}
 	defer stmt.Close()
 
 	for _, e := range events {
-		_, err := stmt.ExecContext(ctx, e.EventID, e.TenantID, e.EventName, e.Properties, e.EventTime, e.ReceivedAt)
+		ctxVal := e.Context
+		if ctxVal == "" {
+			ctxVal = "{}"
+		}
+		_, err := stmt.ExecContext(ctx, e.EventID, e.TenantID, e.EventName, e.SessionID, e.Properties, ctxVal, e.EventTime, e.ReceivedAt)
 		if err != nil {
 			return fmt.Errorf("insert event %s: %w", e.EventID, err)
 		}
@@ -77,11 +83,15 @@ func (w *ParquetWriter) WriteBatch(ctx context.Context, events []*domain.EventQu
 
 	tenantID := events[0].TenantID
 	now := time.Now().UTC()
+	eid := events[0].EventID
+	if len(eid) > 8 {
+		eid = eid[:8]
+	}
 	objectKey := fmt.Sprintf("events/%s/dt=%s/%d_%s.parquet",
 		tenantID,
 		now.Format("2006-01-02"),
 		now.UnixMilli(),
-		events[0].EventID[:8],
+		eid,
 	)
 
 	if err := w.minio.PutParquet(ctx, objectKey, data); err != nil {

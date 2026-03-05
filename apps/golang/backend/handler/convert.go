@@ -422,6 +422,21 @@ func toOpenAPITemplateRun(tr *domain.TemplateRun) openapi.TemplateRun {
 	return out
 }
 
+func toOpenAPIWriteKey(wk *domain.WriteKey) openapi.WriteKey {
+	out := openapi.WriteKey{
+		Id:        wk.ID,
+		TenantId:  wk.TenantID,
+		Name:      wk.Name,
+		KeyPrefix: wk.KeyPrefix,
+		IsActive:  wk.IsActive,
+		CreatedAt: wk.CreatedAt,
+	}
+	if !wk.UpdatedAt.IsZero() {
+		out.UpdatedAt = &wk.UpdatedAt
+	}
+	return out
+}
+
 func toOpenAPITenantInvitation(inv *domain.TenantInvitation, includeToken bool) openapi.TenantInvitation {
 	out := openapi.TenantInvitation{
 		Id:        inv.ID,

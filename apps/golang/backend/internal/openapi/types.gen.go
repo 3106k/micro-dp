@@ -232,6 +232,27 @@ type ChartPeriod string
 // ChartType defines model for ChartType.
 type ChartType string
 
+// CollectEvent defines model for CollectEvent.
+type CollectEvent struct {
+	Context    *map[string]interface{} `json:"context,omitempty"`
+	EventId    string                  `json:"event_id"`
+	EventName  string                  `json:"event_name"`
+	EventTime  time.Time               `json:"event_time"`
+	Properties *map[string]interface{} `json:"properties,omitempty"`
+	SessionId  *string                 `json:"session_id,omitempty"`
+}
+
+// CollectEventsRequest defines model for CollectEventsRequest.
+type CollectEventsRequest struct {
+	Events []CollectEvent `json:"events"`
+}
+
+// CollectEventsResponse defines model for CollectEventsResponse.
+type CollectEventsResponse struct {
+	Accepted int `json:"accepted"`
+	Errors   int `json:"errors"`
+}
+
 // ColumnStatistics defines model for ColumnStatistics.
 type ColumnStatistics struct {
 	DistinctCount *int64   `json:"distinct_count,omitempty"`
@@ -343,7 +364,6 @@ type CreateEdgeInput struct {
 
 // CreateImportJobRequest defines model for CreateImportJobRequest.
 type CreateImportJobRequest struct {
-	// ConnectionId ID of the source connection (connector type is derived from connection)
 	ConnectionId string           `json:"connection_id"`
 	Description  *string          `json:"description,omitempty"`
 	Execution    *ImportExecution `json:"execution,omitempty"`
@@ -456,6 +476,18 @@ type CreateUploadPresignResponse struct {
 	UploadId string                `json:"upload_id"`
 }
 
+// CreateWriteKeyRequest defines model for CreateWriteKeyRequest.
+type CreateWriteKeyRequest struct {
+	Name string `json:"name"`
+}
+
+// CreateWriteKeyResponse defines model for CreateWriteKeyResponse.
+type CreateWriteKeyResponse struct {
+	// RawKey Full write key value (shown only once)
+	RawKey   string   `json:"raw_key"`
+	WriteKey WriteKey `json:"write_key"`
+}
+
 // Credential defines model for Credential.
 type Credential struct {
 	CreatedAt     *time.Time `json:"created_at,omitempty"`
@@ -565,6 +597,7 @@ type IngestEventRequest struct {
 	EventName  string                  `json:"event_name"`
 	EventTime  time.Time               `json:"event_time"`
 	Properties *map[string]interface{} `json:"properties,omitempty"`
+	SessionId  *string                 `json:"session_id,omitempty"`
 }
 
 // IngestEventResponse defines model for IngestEventResponse.
@@ -988,6 +1021,19 @@ type UsageSummaryResponse struct {
 	UploadsCount int    `json:"uploads_count"`
 }
 
+// WriteKey defines model for WriteKey.
+type WriteKey struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        string    `json:"id"`
+	IsActive  bool      `json:"is_active"`
+
+	// KeyPrefix First 8 characters of the key for identification
+	KeyPrefix string     `json:"key_prefix"`
+	Name      string     `json:"name"`
+	TenantId  string     `json:"tenant_id"`
+	UpdatedAt *time.Time `json:"updated_at,omitempty"`
+}
+
 // XTenantID defines model for XTenantID.
 type XTenantID = string
 
@@ -1046,6 +1092,11 @@ type GetChartDataParams struct {
 	StartDate *openapi_types.Date `form:"start_date,omitempty" json:"start_date,omitempty"`
 	EndDate   *openapi_types.Date `form:"end_date,omitempty" json:"end_date,omitempty"`
 	XTenantID XTenantID           `json:"X-Tenant-ID"`
+}
+
+// CollectEventsParams defines parameters for CollectEvents.
+type CollectEventsParams struct {
+	XWriteKey string `json:"X-Write-Key"`
 }
 
 // ListConnectionsParams defines parameters for ListConnections.
@@ -1369,6 +1420,26 @@ type GetUsageSummaryParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
 
+// ListWriteKeysParams defines parameters for ListWriteKeys.
+type ListWriteKeysParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// CreateWriteKeyParams defines parameters for CreateWriteKey.
+type CreateWriteKeyParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// DeleteWriteKeyParams defines parameters for DeleteWriteKey.
+type DeleteWriteKeyParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
+// RegenerateWriteKeyParams defines parameters for RegenerateWriteKey.
+type RegenerateWriteKeyParams struct {
+	XTenantID XTenantID `json:"X-Tenant-ID"`
+}
+
 // AdminCreatePlanJSONRequestBody defines body for AdminCreatePlan for application/json ContentType.
 type AdminCreatePlanJSONRequestBody = CreatePlanRequest
 
@@ -1404,6 +1475,9 @@ type CreateChartJSONRequestBody = CreateChartRequest
 
 // UpdateChartJSONRequestBody defines body for UpdateChart for application/json ContentType.
 type UpdateChartJSONRequestBody = UpdateChartRequest
+
+// CollectEventsJSONRequestBody defines body for CollectEvents for application/json ContentType.
+type CollectEventsJSONRequestBody = CollectEventsRequest
 
 // CreateConnectionJSONRequestBody defines body for CreateConnection for application/json ContentType.
 type CreateConnectionJSONRequestBody = CreateConnectionRequest
@@ -1470,3 +1544,6 @@ type TransformValidateJSONRequestBody = TransformValidateRequest
 
 // CreateUploadPresignJSONRequestBody defines body for CreateUploadPresign for application/json ContentType.
 type CreateUploadPresignJSONRequestBody = CreateUploadPresignRequest
+
+// CreateWriteKeyJSONRequestBody defines body for CreateWriteKey for application/json ContentType.
+type CreateWriteKeyJSONRequestBody = CreateWriteKeyRequest

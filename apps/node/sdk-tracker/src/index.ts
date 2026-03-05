@@ -1,2 +1,2 @@
 export { flush, identify, init, page, track } from "./tracker";
-export type { FlushOptions, TrackerConfig, TrackerEvent, TrackOptions } from "./types";
+export type { EventContext, FlushOptions, TrackerConfig, TrackerEvent, TrackOptions } from "./types";
