@@ -164,6 +164,39 @@ func (m *MinIOClient) DownloadToFile(ctx context.Context, objectKey, destPath st
 	return nil
 }
 
+func (m *MinIOClient) ListObjectKeys(ctx context.Context, prefix string) ([]string, error) {
+	var keys []string
+	opts := minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: true,
+	}
+	for obj := range m.client.ListObjects(ctx, m.bucket, opts) {
+		if obj.Err != nil {
+			return nil, fmt.Errorf("list objects: %w", obj.Err)
+		}
+		keys = append(keys, obj.Key)
+	}
+	return keys, nil
+}
+
+func (m *MinIOClient) ListPrefixes(ctx context.Context, prefix string) ([]string, error) {
+	var prefixes []string
+	opts := minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: false,
+	}
+	for obj := range m.client.ListObjects(ctx, m.bucket, opts) {
+		if obj.Err != nil {
+			return nil, fmt.Errorf("list prefixes: %w", obj.Err)
+		}
+		// Non-recursive listing returns prefixes (directories) as keys ending with "/"
+		if strings.HasSuffix(obj.Key, "/") {
+			prefixes = append(prefixes, obj.Key)
+		}
+	}
+	return prefixes, nil
+}
+
 func (m *MinIOClient) PutParquet(ctx context.Context, objectKey string, data []byte) error {
 	reader := bytes.NewReader(data)
 	_, err := m.client.PutObject(ctx, m.bucket, objectKey, reader, int64(len(data)), minio.PutObjectOptions{

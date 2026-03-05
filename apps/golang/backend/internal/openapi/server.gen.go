@@ -83,6 +83,12 @@ type ServerInterface interface {
 	// Get chart data
 	// (GET /api/v1/charts/{id}/data)
 	GetChartData(w http.ResponseWriter, r *http.Request, id string, params GetChartDataParams)
+	// CORS preflight for collect
+	// (OPTIONS /api/v1/collect)
+	CollectEventsPreflight(w http.ResponseWriter, r *http.Request)
+	// Collect events (Write Key auth)
+	// (POST /api/v1/collect)
+	CollectEvents(w http.ResponseWriter, r *http.Request, params CollectEventsParams)
 	// List connections
 	// (GET /api/v1/connections)
 	ListConnections(w http.ResponseWriter, r *http.Request, params ListConnectionsParams)
@@ -272,6 +278,18 @@ type ServerInterface interface {
 	// Get today's usage summary
 	// (GET /api/v1/usage/summary)
 	GetUsageSummary(w http.ResponseWriter, r *http.Request, params GetUsageSummaryParams)
+	// List write keys
+	// (GET /api/v1/write-keys)
+	ListWriteKeys(w http.ResponseWriter, r *http.Request, params ListWriteKeysParams)
+	// Create write key
+	// (POST /api/v1/write-keys)
+	CreateWriteKey(w http.ResponseWriter, r *http.Request, params CreateWriteKeyParams)
+	// Delete write key
+	// (DELETE /api/v1/write-keys/{id})
+	DeleteWriteKey(w http.ResponseWriter, r *http.Request, id string, params DeleteWriteKeyParams)
+	// Regenerate write key
+	// (POST /api/v1/write-keys/{id}/regenerate)
+	RegenerateWriteKey(w http.ResponseWriter, r *http.Request, id string, params RegenerateWriteKeyParams)
 	// Health check
 	// (GET /healthz)
 	GetHealthz(w http.ResponseWriter, r *http.Request)
@@ -1085,6 +1103,64 @@ func (siw *ServerInterfaceWrapper) GetChartData(w http.ResponseWriter, r *http.R
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetChartData(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CollectEventsPreflight operation middleware
+func (siw *ServerInterfaceWrapper) CollectEventsPreflight(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CollectEventsPreflight(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CollectEvents operation middleware
+func (siw *ServerInterfaceWrapper) CollectEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CollectEventsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Write-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Write-Key")]; found {
+		var XWriteKey string
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Write-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Write-Key", valueList[0], &XWriteKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Write-Key", Err: err})
+			return
+		}
+
+		params.XWriteKey = XWriteKey
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Write-Key is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Write-Key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CollectEvents(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4638,6 +4714,224 @@ func (siw *ServerInterfaceWrapper) GetUsageSummary(w http.ResponseWriter, r *htt
 	handler.ServeHTTP(w, r)
 }
 
+// ListWriteKeys operation middleware
+func (siw *ServerInterfaceWrapper) ListWriteKeys(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListWriteKeysParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListWriteKeys(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateWriteKey operation middleware
+func (siw *ServerInterfaceWrapper) CreateWriteKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateWriteKeyParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateWriteKey(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteWriteKey operation middleware
+func (siw *ServerInterfaceWrapper) DeleteWriteKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteWriteKeyParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteWriteKey(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RegenerateWriteKey operation middleware
+func (siw *ServerInterfaceWrapper) RegenerateWriteKey(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RegenerateWriteKeyParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RegenerateWriteKey(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetHealthz operation middleware
 func (siw *ServerInterfaceWrapper) GetHealthz(w http.ResponseWriter, r *http.Request) {
 
@@ -4794,6 +5088,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/charts/{id}", wrapper.GetChart)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/charts/{id}", wrapper.UpdateChart)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/charts/{id}/data", wrapper.GetChartData)
+	m.HandleFunc("OPTIONS "+options.BaseURL+"/api/v1/collect", wrapper.CollectEventsPreflight)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/collect", wrapper.CollectEvents)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections", wrapper.ListConnections)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/connections", wrapper.CreateConnection)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/connections/test", wrapper.TestConnection)
@@ -4857,6 +5153,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/presign", wrapper.CreateUploadPresign)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/uploads/{id}/complete", wrapper.CompleteUpload)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/usage/summary", wrapper.GetUsageSummary)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/write-keys", wrapper.ListWriteKeys)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/write-keys", wrapper.CreateWriteKey)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/write-keys/{id}", wrapper.DeleteWriteKey)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/write-keys/{id}/regenerate", wrapper.RegenerateWriteKey)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.GetHealthz)
 
 	return m
@@ -5742,6 +6042,57 @@ type GetChartData404JSONResponse ErrorResponse
 func (response GetChartData404JSONResponse) VisitGetChartDataResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CollectEventsPreflightRequestObject struct {
+}
+
+type CollectEventsPreflightResponseObject interface {
+	VisitCollectEventsPreflightResponse(w http.ResponseWriter) error
+}
+
+type CollectEventsPreflight204Response struct {
+}
+
+func (response CollectEventsPreflight204Response) VisitCollectEventsPreflightResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type CollectEventsRequestObject struct {
+	Params CollectEventsParams
+	Body   *CollectEventsJSONRequestBody
+}
+
+type CollectEventsResponseObject interface {
+	VisitCollectEventsResponse(w http.ResponseWriter) error
+}
+
+type CollectEvents202JSONResponse CollectEventsResponse
+
+func (response CollectEvents202JSONResponse) VisitCollectEventsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(202)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CollectEvents400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CollectEvents400JSONResponse) VisitCollectEventsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CollectEvents401JSONResponse ErrorResponse
+
+func (response CollectEvents401JSONResponse) VisitCollectEventsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
 
 	return json.NewEncoder(w).Encode(response)
 }
@@ -8124,6 +8475,168 @@ func (response GetUsageSummary401JSONResponse) VisitGetUsageSummaryResponse(w ht
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListWriteKeysRequestObject struct {
+	Params ListWriteKeysParams
+}
+
+type ListWriteKeysResponseObject interface {
+	VisitListWriteKeysResponse(w http.ResponseWriter) error
+}
+
+type ListWriteKeys200JSONResponse struct {
+	Items []WriteKey `json:"items"`
+}
+
+func (response ListWriteKeys200JSONResponse) VisitListWriteKeysResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListWriteKeys401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListWriteKeys401JSONResponse) VisitListWriteKeysResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateWriteKeyRequestObject struct {
+	Params CreateWriteKeyParams
+	Body   *CreateWriteKeyJSONRequestBody
+}
+
+type CreateWriteKeyResponseObject interface {
+	VisitCreateWriteKeyResponse(w http.ResponseWriter) error
+}
+
+type CreateWriteKey201JSONResponse CreateWriteKeyResponse
+
+func (response CreateWriteKey201JSONResponse) VisitCreateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateWriteKey400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateWriteKey400JSONResponse) VisitCreateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateWriteKey401JSONResponse ErrorResponse
+
+func (response CreateWriteKey401JSONResponse) VisitCreateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateWriteKey403JSONResponse ErrorResponse
+
+func (response CreateWriteKey403JSONResponse) VisitCreateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteWriteKeyRequestObject struct {
+	Id     string `json:"id"`
+	Params DeleteWriteKeyParams
+}
+
+type DeleteWriteKeyResponseObject interface {
+	VisitDeleteWriteKeyResponse(w http.ResponseWriter) error
+}
+
+type DeleteWriteKey204Response struct {
+}
+
+func (response DeleteWriteKey204Response) VisitDeleteWriteKeyResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteWriteKey401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response DeleteWriteKey401JSONResponse) VisitDeleteWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteWriteKey403JSONResponse ErrorResponse
+
+func (response DeleteWriteKey403JSONResponse) VisitDeleteWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteWriteKey404JSONResponse ErrorResponse
+
+func (response DeleteWriteKey404JSONResponse) VisitDeleteWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RegenerateWriteKeyRequestObject struct {
+	Id     string `json:"id"`
+	Params RegenerateWriteKeyParams
+}
+
+type RegenerateWriteKeyResponseObject interface {
+	VisitRegenerateWriteKeyResponse(w http.ResponseWriter) error
+}
+
+type RegenerateWriteKey200JSONResponse CreateWriteKeyResponse
+
+func (response RegenerateWriteKey200JSONResponse) VisitRegenerateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RegenerateWriteKey401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response RegenerateWriteKey401JSONResponse) VisitRegenerateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RegenerateWriteKey403JSONResponse ErrorResponse
+
+func (response RegenerateWriteKey403JSONResponse) VisitRegenerateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type RegenerateWriteKey404JSONResponse ErrorResponse
+
+func (response RegenerateWriteKey404JSONResponse) VisitRegenerateWriteKeyResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type GetHealthzRequestObject struct {
 }
 
@@ -8208,6 +8721,12 @@ type StrictServerInterface interface {
 	// Get chart data
 	// (GET /api/v1/charts/{id}/data)
 	GetChartData(ctx context.Context, request GetChartDataRequestObject) (GetChartDataResponseObject, error)
+	// CORS preflight for collect
+	// (OPTIONS /api/v1/collect)
+	CollectEventsPreflight(ctx context.Context, request CollectEventsPreflightRequestObject) (CollectEventsPreflightResponseObject, error)
+	// Collect events (Write Key auth)
+	// (POST /api/v1/collect)
+	CollectEvents(ctx context.Context, request CollectEventsRequestObject) (CollectEventsResponseObject, error)
 	// List connections
 	// (GET /api/v1/connections)
 	ListConnections(ctx context.Context, request ListConnectionsRequestObject) (ListConnectionsResponseObject, error)
@@ -8397,6 +8916,18 @@ type StrictServerInterface interface {
 	// Get today's usage summary
 	// (GET /api/v1/usage/summary)
 	GetUsageSummary(ctx context.Context, request GetUsageSummaryRequestObject) (GetUsageSummaryResponseObject, error)
+	// List write keys
+	// (GET /api/v1/write-keys)
+	ListWriteKeys(ctx context.Context, request ListWriteKeysRequestObject) (ListWriteKeysResponseObject, error)
+	// Create write key
+	// (POST /api/v1/write-keys)
+	CreateWriteKey(ctx context.Context, request CreateWriteKeyRequestObject) (CreateWriteKeyResponseObject, error)
+	// Delete write key
+	// (DELETE /api/v1/write-keys/{id})
+	DeleteWriteKey(ctx context.Context, request DeleteWriteKeyRequestObject) (DeleteWriteKeyResponseObject, error)
+	// Regenerate write key
+	// (POST /api/v1/write-keys/{id}/regenerate)
+	RegenerateWriteKey(ctx context.Context, request RegenerateWriteKeyRequestObject) (RegenerateWriteKeyResponseObject, error)
 	// Health check
 	// (GET /healthz)
 	GetHealthz(ctx context.Context, request GetHealthzRequestObject) (GetHealthzResponseObject, error)
@@ -9066,6 +9597,63 @@ func (sh *strictHandler) GetChartData(w http.ResponseWriter, r *http.Request, id
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetChartDataResponseObject); ok {
 		if err := validResponse.VisitGetChartDataResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CollectEventsPreflight operation middleware
+func (sh *strictHandler) CollectEventsPreflight(w http.ResponseWriter, r *http.Request) {
+	var request CollectEventsPreflightRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CollectEventsPreflight(ctx, request.(CollectEventsPreflightRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CollectEventsPreflight")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CollectEventsPreflightResponseObject); ok {
+		if err := validResponse.VisitCollectEventsPreflightResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CollectEvents operation middleware
+func (sh *strictHandler) CollectEvents(w http.ResponseWriter, r *http.Request, params CollectEventsParams) {
+	var request CollectEventsRequestObject
+
+	request.Params = params
+
+	var body CollectEventsJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CollectEvents(ctx, request.(CollectEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CollectEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CollectEventsResponseObject); ok {
+		if err := validResponse.VisitCollectEventsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -10896,6 +11484,119 @@ func (sh *strictHandler) GetUsageSummary(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetUsageSummaryResponseObject); ok {
 		if err := validResponse.VisitGetUsageSummaryResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListWriteKeys operation middleware
+func (sh *strictHandler) ListWriteKeys(w http.ResponseWriter, r *http.Request, params ListWriteKeysParams) {
+	var request ListWriteKeysRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListWriteKeys(ctx, request.(ListWriteKeysRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListWriteKeys")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListWriteKeysResponseObject); ok {
+		if err := validResponse.VisitListWriteKeysResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateWriteKey operation middleware
+func (sh *strictHandler) CreateWriteKey(w http.ResponseWriter, r *http.Request, params CreateWriteKeyParams) {
+	var request CreateWriteKeyRequestObject
+
+	request.Params = params
+
+	var body CreateWriteKeyJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateWriteKey(ctx, request.(CreateWriteKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateWriteKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateWriteKeyResponseObject); ok {
+		if err := validResponse.VisitCreateWriteKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteWriteKey operation middleware
+func (sh *strictHandler) DeleteWriteKey(w http.ResponseWriter, r *http.Request, id string, params DeleteWriteKeyParams) {
+	var request DeleteWriteKeyRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteWriteKey(ctx, request.(DeleteWriteKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteWriteKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteWriteKeyResponseObject); ok {
+		if err := validResponse.VisitDeleteWriteKeyResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// RegenerateWriteKey operation middleware
+func (sh *strictHandler) RegenerateWriteKey(w http.ResponseWriter, r *http.Request, id string, params RegenerateWriteKeyParams) {
+	var request RegenerateWriteKeyRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.RegenerateWriteKey(ctx, request.(RegenerateWriteKeyRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "RegenerateWriteKey")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(RegenerateWriteKeyResponseObject); ok {
+		if err := validResponse.VisitRegenerateWriteKeyResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

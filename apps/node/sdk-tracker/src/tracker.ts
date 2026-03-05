@@ -1,5 +1,6 @@
 import { createId } from "./id";
 import type {
+  EventContext,
   FlushOptions,
   TrackerConfig,
   TrackerEvent,
@@ -12,7 +13,8 @@ const DEFAULTS = {
   flushIntervalMs: 5000,
   maxQueueSize: 20,
   retryMaxAttempts: 3,
-  retryBaseDelayMs: 300
+  retryBaseDelayMs: 300,
+  sessionTimeoutMs: 1_800_000 // 30 minutes
 };
 
 class Tracker {
@@ -21,13 +23,27 @@ class Tracker {
   private timer: ReturnType<typeof setInterval> | null = null;
   private inFlight = false;
   private boundUnloadFlush = () => void this.flush({ useBeacon: true });
+  private sessionId: string = "";
+  private lastActivityAt: number = 0;
 
   init(config: TrackerConfig): void {
     this.config = {
       ...DEFAULTS,
       ...config,
-      enabled: config.enabled ?? DEFAULTS.enabled
+      enabled: config.enabled ?? DEFAULTS.enabled,
+      collectContext: config.collectContext ?? !!config.writeKey
     };
+
+    // Auto-add X-Write-Key header when writeKey is provided
+    if (this.config.writeKey) {
+      this.config.headers = {
+        ...this.config.headers,
+        "X-Write-Key": this.config.writeKey
+      };
+    }
+
+    this.sessionId = this.config.sessionId ?? createId();
+    this.lastActivityAt = Date.now();
 
     this.clearTimer();
 
@@ -95,6 +111,16 @@ class Tracker {
     }
   }
 
+  private getOrRotateSessionId(): string {
+    const now = Date.now();
+    const timeout = this.config.sessionTimeoutMs ?? DEFAULTS.sessionTimeoutMs;
+    if (now - this.lastActivityAt > timeout) {
+      this.sessionId = createId();
+    }
+    this.lastActivityAt = now;
+    return this.sessionId;
+  }
+
   private buildEvent(
     eventName: string,
     properties: Record<string, unknown>,
@@ -102,17 +128,48 @@ class Tracker {
   ): TrackerEvent {
     const now = new Date().toISOString();
 
-    return {
+    const event: TrackerEvent = {
       event_id: createId(),
       tenant_id: options.tenantId ?? this.config.tenantId,
       user_id: options.userId ?? this.config.userId,
       anonymous_id: options.anonymousId ?? this.config.anonymousId,
-      session_id: options.sessionId ?? this.config.sessionId ?? createId(),
+      session_id: options.sessionId ?? this.getOrRotateSessionId(),
       event_name: eventName,
       properties,
       event_time: options.eventTime ?? now,
       sent_at: now
     };
+
+    if (this.config.collectContext) {
+      event.context = this.collectContext();
+    }
+
+    return event;
+  }
+
+  private collectContext(): EventContext {
+    const ctx: EventContext = {};
+    if (typeof window === "undefined") return ctx;
+
+    try {
+      ctx.user_agent = navigator.userAgent;
+      ctx.referrer = document.referrer || undefined;
+      ctx.page_url = window.location.href;
+      ctx.page_title = document.title || undefined;
+      ctx.language = navigator.language;
+      ctx.timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+      if (window.screen) {
+        ctx.screen_width = window.screen.width;
+        ctx.screen_height = window.screen.height;
+      }
+      ctx.viewport_width = window.innerWidth;
+      ctx.viewport_height = window.innerHeight;
+    } catch {
+      // silently ignore context collection errors
+    }
+
+    return ctx;
   }
 
   private sendByBeacon(events: TrackerEvent[]): boolean {

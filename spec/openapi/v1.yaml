@@ -25,6 +25,8 @@ tags:
   - name: members
   - name: transform
   - name: import
+  - name: write_keys
+  - name: collect
   - name: dashboards
   - name: charts
   - name: template_runs
@@ -1916,6 +1918,146 @@ paths:
         "409":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Write Keys ----
+  /api/v1/write-keys:
+    post:
+      tags: [write_keys]
+      summary: Create write key
+      operationId: createWriteKey
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateWriteKeyRequest"
+      responses:
+        "201":
+          description: Write key created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateWriteKeyResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [write_keys]
+      summary: List write keys
+      operationId: listWriteKeys
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of write keys
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WriteKey"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/write-keys/{id}:
+    delete:
+      tags: [write_keys]
+      summary: Delete write key
+      operationId: deleteWriteKey
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Write key deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/write-keys/{id}/regenerate:
+    post:
+      tags: [write_keys]
+      summary: Regenerate write key
+      operationId: regenerateWriteKey
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Write key regenerated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateWriteKeyResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Collect (public, Write Key auth) ----
+  /api/v1/collect:
+    post:
+      tags: [collect]
+      summary: Collect events (Write Key auth)
+      operationId: collectEvents
+      parameters:
+        - name: X-Write-Key
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CollectEventsRequest"
+      responses:
+        "202":
+          description: Events accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CollectEventsResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+    options:
+      tags: [collect]
+      summary: CORS preflight for collect
+      operationId: collectEventsPreflight
+      responses:
+        "204":
+          description: CORS preflight response
+
   # ---- Dashboards ----
   /api/v1/dashboards:
     post:
@@ -2504,6 +2646,8 @@ components:
         event_id:
           type: string
         event_name:
+          type: string
+        session_id:
           type: string
         properties:
           type: object
@@ -3565,7 +3709,6 @@ components:
           type: string
         connection_id:
           type: string
-          description: ID of the source connection (connector type is derived from connection)
         source_config:
           type: object
           additionalProperties: true
@@ -3582,6 +3725,83 @@ components:
           $ref: "#/components/schemas/JobVersion"
         job_run:
           $ref: "#/components/schemas/JobRun"
+
+    # ---- Write Key schemas ----
+    WriteKey:
+      type: object
+      required: [id, tenant_id, name, key_prefix, is_active, created_at]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        name:
+          type: string
+        key_prefix:
+          type: string
+          description: First 8 characters of the key for identification
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    CreateWriteKeyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    CreateWriteKeyResponse:
+      type: object
+      required: [write_key, raw_key]
+      properties:
+        write_key:
+          $ref: "#/components/schemas/WriteKey"
+        raw_key:
+          type: string
+          description: Full write key value (shown only once)
+
+    # ---- Collect schemas ----
+    CollectEvent:
+      type: object
+      required: [event_id, event_name, event_time]
+      properties:
+        event_id:
+          type: string
+        event_name:
+          type: string
+        session_id:
+          type: string
+        properties:
+          type: object
+          additionalProperties: true
+        event_time:
+          type: string
+          format: date-time
+        context:
+          type: object
+          additionalProperties: true
+    CollectEventsRequest:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CollectEvent"
+          minItems: 1
+          maxItems: 100
+    CollectEventsResponse:
+      type: object
+      required: [accepted, errors]
+      properties:
+        accepted:
+          type: integer
+        errors:
+          type: integer
 
     # ---- Dashboard / Chart / Widget / TemplateRun ----
     ChartType:
