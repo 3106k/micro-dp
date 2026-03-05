@@ -188,7 +188,7 @@ func main() {
 		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
 	)
 	writeKeyService := usecase.NewWriteKeyService(writeKeyRepo, tenantRepo)
-	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo)
+	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo, connectionRepo)
 
 	// Handlers
 	healthH := handler.NewHealthHandler(sqlDB)

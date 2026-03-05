@@ -29,18 +29,17 @@ func (h *ImportJobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "connection_id is required")
 		return
 	}
-
 	desc := ""
 	if req.Description != nil {
 		desc = *req.Description
 	}
-	var srcCfg map[string]any
-	if req.SourceConfig != nil {
-		srcCfg = *req.SourceConfig
-	}
 	execution := "save_only"
 	if req.Execution != nil {
 		execution = string(*req.Execution)
+	}
+	sourceConfig := map[string]interface{}{}
+	if req.SourceConfig != nil {
+		sourceConfig = *req.SourceConfig
 	}
 
 	input := usecase.CreateImportJobInput{
@@ -48,7 +47,7 @@ func (h *ImportJobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		Slug:         req.Slug,
 		Description:  desc,
 		ConnectionID: req.ConnectionId,
-		SourceConfig: srcCfg,
+		SourceConfig: sourceConfig,
 		Execution:    execution,
 	}
 
