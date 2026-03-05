@@ -34,14 +34,12 @@ func NewImportJobService(
 }
 
 type CreateImportJobInput struct {
-	Name          string
-	Slug          string
-	Description   string
-	ConnectionID  string
-	SpreadsheetID string
-	SheetName     string
-	Range         string
-	Execution     string
+	Name         string
+	Slug         string
+	Description  string
+	ConnectionID string
+	SourceConfig map[string]any
+	Execution    string
 }
 
 type CreateImportJobResult struct {
@@ -98,17 +96,12 @@ func (s *ImportJobService) CreateImportJob(ctx context.Context, input CreateImpo
 		return nil, fmt.Errorf("create version: %w", err)
 	}
 
-	// Build config_json
-	configMap := map[string]string{
-		"spreadsheet_id": input.SpreadsheetID,
+	// Build config_json from source_config
+	srcCfg := input.SourceConfig
+	if srcCfg == nil {
+		srcCfg = map[string]any{}
 	}
-	if input.SheetName != "" {
-		configMap["sheet_name"] = input.SheetName
-	}
-	if input.Range != "" {
-		configMap["range"] = input.Range
-	}
-	configBytes, _ := json.Marshal(configMap)
+	configBytes, _ := json.Marshal(srcCfg)
 
 	connID := input.ConnectionID
 	mod := &domain.JobModule{

@@ -65,6 +65,24 @@ type ServerInterface interface {
 	// Receive Stripe webhook events
 	// (POST /api/v1/billing/webhook)
 	BillingWebhook(w http.ResponseWriter, r *http.Request)
+	// List charts
+	// (GET /api/v1/charts)
+	ListCharts(w http.ResponseWriter, r *http.Request, params ListChartsParams)
+	// Create chart
+	// (POST /api/v1/charts)
+	CreateChart(w http.ResponseWriter, r *http.Request, params CreateChartParams)
+	// Delete chart
+	// (DELETE /api/v1/charts/{id})
+	DeleteChart(w http.ResponseWriter, r *http.Request, id string, params DeleteChartParams)
+	// Get chart
+	// (GET /api/v1/charts/{id})
+	GetChart(w http.ResponseWriter, r *http.Request, id string, params GetChartParams)
+	// Update chart
+	// (PUT /api/v1/charts/{id})
+	UpdateChart(w http.ResponseWriter, r *http.Request, id string, params UpdateChartParams)
+	// Get chart data
+	// (GET /api/v1/charts/{id}/data)
+	GetChartData(w http.ResponseWriter, r *http.Request, id string, params GetChartDataParams)
 	// CORS preflight for collect
 	// (OPTIONS /api/v1/collect)
 	CollectEventsPreflight(w http.ResponseWriter, r *http.Request)
@@ -110,6 +128,30 @@ type ServerInterface interface {
 	// Delete credential
 	// (DELETE /api/v1/credentials/{id})
 	DeleteCredential(w http.ResponseWriter, r *http.Request, id string, params DeleteCredentialParams)
+	// List dashboards
+	// (GET /api/v1/dashboards)
+	ListDashboards(w http.ResponseWriter, r *http.Request, params ListDashboardsParams)
+	// Create dashboard
+	// (POST /api/v1/dashboards)
+	CreateDashboard(w http.ResponseWriter, r *http.Request, params CreateDashboardParams)
+	// List dashboard widgets
+	// (GET /api/v1/dashboards/{dashboard_id}/widgets)
+	ListDashboardWidgets(w http.ResponseWriter, r *http.Request, dashboardId string, params ListDashboardWidgetsParams)
+	// Create dashboard widget
+	// (POST /api/v1/dashboards/{dashboard_id}/widgets)
+	CreateDashboardWidget(w http.ResponseWriter, r *http.Request, dashboardId string, params CreateDashboardWidgetParams)
+	// Delete dashboard widget
+	// (DELETE /api/v1/dashboards/{dashboard_id}/widgets/{widget_id})
+	DeleteDashboardWidget(w http.ResponseWriter, r *http.Request, dashboardId string, widgetId string, params DeleteDashboardWidgetParams)
+	// Delete dashboard
+	// (DELETE /api/v1/dashboards/{id})
+	DeleteDashboard(w http.ResponseWriter, r *http.Request, id string, params DeleteDashboardParams)
+	// Get dashboard
+	// (GET /api/v1/dashboards/{id})
+	GetDashboard(w http.ResponseWriter, r *http.Request, id string, params GetDashboardParams)
+	// Update dashboard
+	// (PUT /api/v1/dashboards/{id})
+	UpdateDashboard(w http.ResponseWriter, r *http.Request, id string, params UpdateDashboardParams)
 	// List datasets
 	// (GET /api/v1/datasets)
 	ListDatasets(w http.ResponseWriter, r *http.Request, params ListDatasetsParams)
@@ -194,6 +236,15 @@ type ServerInterface interface {
 	// Get current tenant plan
 	// (GET /api/v1/plan)
 	GetTenantPlan(w http.ResponseWriter, r *http.Request, params GetTenantPlanParams)
+	// List template runs
+	// (GET /api/v1/template_runs)
+	ListTemplateRuns(w http.ResponseWriter, r *http.Request, params ListTemplateRunsParams)
+	// Create template run
+	// (POST /api/v1/template_runs)
+	CreateTemplateRun(w http.ResponseWriter, r *http.Request, params CreateTemplateRunParams)
+	// Get template run
+	// (GET /api/v1/template_runs/{id})
+	GetTemplateRun(w http.ResponseWriter, r *http.Request, id string, params GetTemplateRunParams)
 	// Create invitation
 	// (POST /api/v1/tenants/current/invitations)
 	CreateInvitation(w http.ResponseWriter, r *http.Request, params CreateInvitationParams)
@@ -692,6 +743,366 @@ func (siw *ServerInterfaceWrapper) BillingWebhook(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.BillingWebhook(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListCharts operation middleware
+func (siw *ServerInterfaceWrapper) ListCharts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListChartsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListCharts(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateChart operation middleware
+func (siw *ServerInterfaceWrapper) CreateChart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateChartParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateChart(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteChart operation middleware
+func (siw *ServerInterfaceWrapper) DeleteChart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteChartParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteChart(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetChart operation middleware
+func (siw *ServerInterfaceWrapper) GetChart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetChartParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetChart(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateChart operation middleware
+func (siw *ServerInterfaceWrapper) UpdateChart(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateChartParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateChart(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetChartData operation middleware
+func (siw *ServerInterfaceWrapper) GetChartData(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetChartDataParams
+
+	// ------------- Optional query parameter "period" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "period", r.URL.Query(), &params.Period)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "period", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "start_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "start_date", r.URL.Query(), &params.StartDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "start_date", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "end_date" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "end_date", r.URL.Query(), &params.EndDate)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "end_date", Err: err})
+		return
+	}
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetChartData(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1469,6 +1880,469 @@ func (siw *ServerInterfaceWrapper) DeleteCredential(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DeleteCredential(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDashboards operation middleware
+func (siw *ServerInterfaceWrapper) ListDashboards(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDashboardsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDashboards(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDashboard operation middleware
+func (siw *ServerInterfaceWrapper) CreateDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateDashboardParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDashboard(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDashboardWidgets operation middleware
+func (siw *ServerInterfaceWrapper) ListDashboardWidgets(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "dashboard_id" -------------
+	var dashboardId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard_id", r.PathValue("dashboard_id"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDashboardWidgetsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDashboardWidgets(w, r, dashboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDashboardWidget operation middleware
+func (siw *ServerInterfaceWrapper) CreateDashboardWidget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "dashboard_id" -------------
+	var dashboardId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard_id", r.PathValue("dashboard_id"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateDashboardWidgetParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDashboardWidget(w, r, dashboardId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDashboardWidget operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDashboardWidget(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "dashboard_id" -------------
+	var dashboardId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "dashboard_id", r.PathValue("dashboard_id"), &dashboardId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "dashboard_id", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "widget_id" -------------
+	var widgetId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "widget_id", r.PathValue("widget_id"), &widgetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "widget_id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDashboardWidgetParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDashboardWidget(w, r, dashboardId, widgetId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDashboard operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeleteDashboardParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDashboard(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetDashboard operation middleware
+func (siw *ServerInterfaceWrapper) GetDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetDashboardParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetDashboard(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDashboard operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDashboard(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params UpdateDashboardParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDashboard(w, r, id, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -3123,6 +3997,165 @@ func (siw *ServerInterfaceWrapper) GetTenantPlan(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ListTemplateRuns operation middleware
+func (siw *ServerInterfaceWrapper) ListTemplateRuns(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListTemplateRunsParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListTemplateRuns(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateTemplateRun operation middleware
+func (siw *ServerInterfaceWrapper) CreateTemplateRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CreateTemplateRunParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateTemplateRun(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetTemplateRun operation middleware
+func (siw *ServerInterfaceWrapper) GetTemplateRun(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params GetTemplateRunParams
+
+	headers := r.Header
+
+	// ------------- Required header parameter "X-Tenant-ID" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Tenant-ID")]; found {
+		var XTenantID XTenantID
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Tenant-ID", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Tenant-ID", valueList[0], &XTenantID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: true})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Tenant-ID", Err: err})
+			return
+		}
+
+		params.XTenantID = XTenantID
+
+	} else {
+		err := fmt.Errorf("Header parameter X-Tenant-ID is required, but not found")
+		siw.ErrorHandlerFunc(w, r, &RequiredHeaderError{ParamName: "X-Tenant-ID", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetTemplateRun(w, r, id, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CreateInvitation operation middleware
 func (siw *ServerInterfaceWrapper) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 
@@ -4049,6 +5082,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/billing/portal-session", wrapper.CreateBillingPortalSession)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/billing/subscription", wrapper.GetBillingSubscription)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/billing/webhook", wrapper.BillingWebhook)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/charts", wrapper.ListCharts)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/charts", wrapper.CreateChart)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/charts/{id}", wrapper.DeleteChart)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/charts/{id}", wrapper.GetChart)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/charts/{id}", wrapper.UpdateChart)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/charts/{id}/data", wrapper.GetChartData)
 	m.HandleFunc("OPTIONS "+options.BaseURL+"/api/v1/collect", wrapper.CollectEventsPreflight)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/collect", wrapper.CollectEvents)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/connections", wrapper.ListConnections)
@@ -4064,6 +5103,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/google/callback", wrapper.GoogleCredentialCallback)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/credentials/google/start", wrapper.StartGoogleCredentialOAuth)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/credentials/{id}", wrapper.DeleteCredential)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/dashboards", wrapper.ListDashboards)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/dashboards", wrapper.CreateDashboard)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/dashboards/{dashboard_id}/widgets", wrapper.ListDashboardWidgets)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/dashboards/{dashboard_id}/widgets", wrapper.CreateDashboardWidget)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/dashboards/{dashboard_id}/widgets/{widget_id}", wrapper.DeleteDashboardWidget)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/dashboards/{id}", wrapper.DeleteDashboard)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/dashboards/{id}", wrapper.GetDashboard)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/dashboards/{id}", wrapper.UpdateDashboard)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets", wrapper.ListDatasets)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/datasets/{id}", wrapper.GetDataset)
 	m.HandleFunc("PATCH "+options.BaseURL+"/api/v1/datasets/{id}/columns", wrapper.UpdateDatasetColumns)
@@ -4092,6 +5139,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/module_types/{id}/schemas", wrapper.ListModuleTypeSchemas)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/module_types/{id}/schemas", wrapper.CreateModuleTypeSchema)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/plan", wrapper.GetTenantPlan)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/template_runs", wrapper.ListTemplateRuns)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/template_runs", wrapper.CreateTemplateRun)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/template_runs/{id}", wrapper.GetTemplateRun)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/tenants/current/invitations", wrapper.CreateInvitation)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/tenants/current/invitations/{token}/accept", wrapper.AcceptInvitation)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/tenants/current/members", wrapper.ListTenantMembers)
@@ -4779,6 +5829,223 @@ func (response BillingWebhook500JSONResponse) VisitBillingWebhookResponse(w http
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListChartsRequestObject struct {
+	Params ListChartsParams
+}
+
+type ListChartsResponseObject interface {
+	VisitListChartsResponse(w http.ResponseWriter) error
+}
+
+type ListCharts200JSONResponse struct {
+	Items []Chart `json:"items"`
+}
+
+func (response ListCharts200JSONResponse) VisitListChartsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListCharts401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListCharts401JSONResponse) VisitListChartsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateChartRequestObject struct {
+	Params CreateChartParams
+	Body   *CreateChartJSONRequestBody
+}
+
+type CreateChartResponseObject interface {
+	VisitCreateChartResponse(w http.ResponseWriter) error
+}
+
+type CreateChart201JSONResponse Chart
+
+func (response CreateChart201JSONResponse) VisitCreateChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateChart400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateChart400JSONResponse) VisitCreateChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateChart401JSONResponse ErrorResponse
+
+func (response CreateChart401JSONResponse) VisitCreateChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteChartRequestObject struct {
+	Id     string `json:"id"`
+	Params DeleteChartParams
+}
+
+type DeleteChartResponseObject interface {
+	VisitDeleteChartResponse(w http.ResponseWriter) error
+}
+
+type DeleteChart204Response struct {
+}
+
+func (response DeleteChart204Response) VisitDeleteChartResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteChart401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response DeleteChart401JSONResponse) VisitDeleteChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteChart404JSONResponse ErrorResponse
+
+func (response DeleteChart404JSONResponse) VisitDeleteChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChartRequestObject struct {
+	Id     string `json:"id"`
+	Params GetChartParams
+}
+
+type GetChartResponseObject interface {
+	VisitGetChartResponse(w http.ResponseWriter) error
+}
+
+type GetChart200JSONResponse Chart
+
+func (response GetChart200JSONResponse) VisitGetChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChart401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetChart401JSONResponse) VisitGetChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChart404JSONResponse ErrorResponse
+
+func (response GetChart404JSONResponse) VisitGetChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateChartRequestObject struct {
+	Id     string `json:"id"`
+	Params UpdateChartParams
+	Body   *UpdateChartJSONRequestBody
+}
+
+type UpdateChartResponseObject interface {
+	VisitUpdateChartResponse(w http.ResponseWriter) error
+}
+
+type UpdateChart200JSONResponse Chart
+
+func (response UpdateChart200JSONResponse) VisitUpdateChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateChart400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response UpdateChart400JSONResponse) VisitUpdateChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateChart401JSONResponse ErrorResponse
+
+func (response UpdateChart401JSONResponse) VisitUpdateChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateChart404JSONResponse ErrorResponse
+
+func (response UpdateChart404JSONResponse) VisitUpdateChartResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChartDataRequestObject struct {
+	Id     string `json:"id"`
+	Params GetChartDataParams
+}
+
+type GetChartDataResponseObject interface {
+	VisitGetChartDataResponse(w http.ResponseWriter) error
+}
+
+type GetChartData200JSONResponse ChartDataResponse
+
+func (response GetChartData200JSONResponse) VisitGetChartDataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChartData401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetChartData401JSONResponse) VisitGetChartDataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetChartData404JSONResponse ErrorResponse
+
+func (response GetChartData404JSONResponse) VisitGetChartDataResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CollectEventsPreflightRequestObject struct {
 }
 
@@ -5308,6 +6575,307 @@ func (response DeleteCredential401JSONResponse) VisitDeleteCredentialResponse(w 
 type DeleteCredential404JSONResponse ErrorResponse
 
 func (response DeleteCredential404JSONResponse) VisitDeleteCredentialResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDashboardsRequestObject struct {
+	Params ListDashboardsParams
+}
+
+type ListDashboardsResponseObject interface {
+	VisitListDashboardsResponse(w http.ResponseWriter) error
+}
+
+type ListDashboards200JSONResponse struct {
+	Items []Dashboard `json:"items"`
+}
+
+func (response ListDashboards200JSONResponse) VisitListDashboardsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDashboards401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListDashboards401JSONResponse) VisitListDashboardsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDashboardRequestObject struct {
+	Params CreateDashboardParams
+	Body   *CreateDashboardJSONRequestBody
+}
+
+type CreateDashboardResponseObject interface {
+	VisitCreateDashboardResponse(w http.ResponseWriter) error
+}
+
+type CreateDashboard201JSONResponse Dashboard
+
+func (response CreateDashboard201JSONResponse) VisitCreateDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDashboard400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateDashboard400JSONResponse) VisitCreateDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDashboard401JSONResponse ErrorResponse
+
+func (response CreateDashboard401JSONResponse) VisitCreateDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDashboardWidgetsRequestObject struct {
+	DashboardId string `json:"dashboard_id"`
+	Params      ListDashboardWidgetsParams
+}
+
+type ListDashboardWidgetsResponseObject interface {
+	VisitListDashboardWidgetsResponse(w http.ResponseWriter) error
+}
+
+type ListDashboardWidgets200JSONResponse struct {
+	Items []DashboardWidget `json:"items"`
+}
+
+func (response ListDashboardWidgets200JSONResponse) VisitListDashboardWidgetsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDashboardWidgets401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListDashboardWidgets401JSONResponse) VisitListDashboardWidgetsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListDashboardWidgets404JSONResponse ErrorResponse
+
+func (response ListDashboardWidgets404JSONResponse) VisitListDashboardWidgetsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDashboardWidgetRequestObject struct {
+	DashboardId string `json:"dashboard_id"`
+	Params      CreateDashboardWidgetParams
+	Body        *CreateDashboardWidgetJSONRequestBody
+}
+
+type CreateDashboardWidgetResponseObject interface {
+	VisitCreateDashboardWidgetResponse(w http.ResponseWriter) error
+}
+
+type CreateDashboardWidget201JSONResponse DashboardWidget
+
+func (response CreateDashboardWidget201JSONResponse) VisitCreateDashboardWidgetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDashboardWidget400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateDashboardWidget400JSONResponse) VisitCreateDashboardWidgetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDashboardWidget401JSONResponse ErrorResponse
+
+func (response CreateDashboardWidget401JSONResponse) VisitCreateDashboardWidgetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateDashboardWidget404JSONResponse ErrorResponse
+
+func (response CreateDashboardWidget404JSONResponse) VisitCreateDashboardWidgetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteDashboardWidgetRequestObject struct {
+	DashboardId string `json:"dashboard_id"`
+	WidgetId    string `json:"widget_id"`
+	Params      DeleteDashboardWidgetParams
+}
+
+type DeleteDashboardWidgetResponseObject interface {
+	VisitDeleteDashboardWidgetResponse(w http.ResponseWriter) error
+}
+
+type DeleteDashboardWidget204Response struct {
+}
+
+func (response DeleteDashboardWidget204Response) VisitDeleteDashboardWidgetResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteDashboardWidget401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response DeleteDashboardWidget401JSONResponse) VisitDeleteDashboardWidgetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteDashboardWidget404JSONResponse ErrorResponse
+
+func (response DeleteDashboardWidget404JSONResponse) VisitDeleteDashboardWidgetResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteDashboardRequestObject struct {
+	Id     string `json:"id"`
+	Params DeleteDashboardParams
+}
+
+type DeleteDashboardResponseObject interface {
+	VisitDeleteDashboardResponse(w http.ResponseWriter) error
+}
+
+type DeleteDashboard204Response struct {
+}
+
+func (response DeleteDashboard204Response) VisitDeleteDashboardResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type DeleteDashboard401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response DeleteDashboard401JSONResponse) VisitDeleteDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type DeleteDashboard404JSONResponse ErrorResponse
+
+func (response DeleteDashboard404JSONResponse) VisitDeleteDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDashboardRequestObject struct {
+	Id     string `json:"id"`
+	Params GetDashboardParams
+}
+
+type GetDashboardResponseObject interface {
+	VisitGetDashboardResponse(w http.ResponseWriter) error
+}
+
+type GetDashboard200JSONResponse Dashboard
+
+func (response GetDashboard200JSONResponse) VisitGetDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDashboard401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetDashboard401JSONResponse) VisitGetDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetDashboard404JSONResponse ErrorResponse
+
+func (response GetDashboard404JSONResponse) VisitGetDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDashboardRequestObject struct {
+	Id     string `json:"id"`
+	Params UpdateDashboardParams
+	Body   *UpdateDashboardJSONRequestBody
+}
+
+type UpdateDashboardResponseObject interface {
+	VisitUpdateDashboardResponse(w http.ResponseWriter) error
+}
+
+type UpdateDashboard200JSONResponse Dashboard
+
+func (response UpdateDashboard200JSONResponse) VisitUpdateDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDashboard400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response UpdateDashboard400JSONResponse) VisitUpdateDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDashboard401JSONResponse ErrorResponse
+
+func (response UpdateDashboard401JSONResponse) VisitUpdateDashboardResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type UpdateDashboard404JSONResponse ErrorResponse
+
+func (response UpdateDashboard404JSONResponse) VisitUpdateDashboardResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(404)
 
@@ -6340,6 +7908,106 @@ func (response GetTenantPlan401JSONResponse) VisitGetTenantPlanResponse(w http.R
 	return json.NewEncoder(w).Encode(response)
 }
 
+type ListTemplateRunsRequestObject struct {
+	Params ListTemplateRunsParams
+}
+
+type ListTemplateRunsResponseObject interface {
+	VisitListTemplateRunsResponse(w http.ResponseWriter) error
+}
+
+type ListTemplateRuns200JSONResponse struct {
+	Items []TemplateRun `json:"items"`
+}
+
+func (response ListTemplateRuns200JSONResponse) VisitListTemplateRunsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type ListTemplateRuns401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response ListTemplateRuns401JSONResponse) VisitListTemplateRunsResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTemplateRunRequestObject struct {
+	Params CreateTemplateRunParams
+	Body   *CreateTemplateRunJSONRequestBody
+}
+
+type CreateTemplateRunResponseObject interface {
+	VisitCreateTemplateRunResponse(w http.ResponseWriter) error
+}
+
+type CreateTemplateRun201JSONResponse TemplateRun
+
+func (response CreateTemplateRun201JSONResponse) VisitCreateTemplateRunResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(201)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTemplateRun400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response CreateTemplateRun400JSONResponse) VisitCreateTemplateRunResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type CreateTemplateRun401JSONResponse ErrorResponse
+
+func (response CreateTemplateRun401JSONResponse) VisitCreateTemplateRunResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTemplateRunRequestObject struct {
+	Id     string `json:"id"`
+	Params GetTemplateRunParams
+}
+
+type GetTemplateRunResponseObject interface {
+	VisitGetTemplateRunResponse(w http.ResponseWriter) error
+}
+
+type GetTemplateRun200JSONResponse TemplateRun
+
+func (response GetTemplateRun200JSONResponse) VisitGetTemplateRunResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTemplateRun401JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response GetTemplateRun401JSONResponse) VisitGetTemplateRunResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type GetTemplateRun404JSONResponse ErrorResponse
+
+func (response GetTemplateRun404JSONResponse) VisitGetTemplateRunResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(404)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
 type CreateInvitationRequestObject struct {
 	Params CreateInvitationParams
 	Body   *CreateInvitationJSONRequestBody
@@ -7035,6 +8703,24 @@ type StrictServerInterface interface {
 	// Receive Stripe webhook events
 	// (POST /api/v1/billing/webhook)
 	BillingWebhook(ctx context.Context, request BillingWebhookRequestObject) (BillingWebhookResponseObject, error)
+	// List charts
+	// (GET /api/v1/charts)
+	ListCharts(ctx context.Context, request ListChartsRequestObject) (ListChartsResponseObject, error)
+	// Create chart
+	// (POST /api/v1/charts)
+	CreateChart(ctx context.Context, request CreateChartRequestObject) (CreateChartResponseObject, error)
+	// Delete chart
+	// (DELETE /api/v1/charts/{id})
+	DeleteChart(ctx context.Context, request DeleteChartRequestObject) (DeleteChartResponseObject, error)
+	// Get chart
+	// (GET /api/v1/charts/{id})
+	GetChart(ctx context.Context, request GetChartRequestObject) (GetChartResponseObject, error)
+	// Update chart
+	// (PUT /api/v1/charts/{id})
+	UpdateChart(ctx context.Context, request UpdateChartRequestObject) (UpdateChartResponseObject, error)
+	// Get chart data
+	// (GET /api/v1/charts/{id}/data)
+	GetChartData(ctx context.Context, request GetChartDataRequestObject) (GetChartDataResponseObject, error)
 	// CORS preflight for collect
 	// (OPTIONS /api/v1/collect)
 	CollectEventsPreflight(ctx context.Context, request CollectEventsPreflightRequestObject) (CollectEventsPreflightResponseObject, error)
@@ -7080,6 +8766,30 @@ type StrictServerInterface interface {
 	// Delete credential
 	// (DELETE /api/v1/credentials/{id})
 	DeleteCredential(ctx context.Context, request DeleteCredentialRequestObject) (DeleteCredentialResponseObject, error)
+	// List dashboards
+	// (GET /api/v1/dashboards)
+	ListDashboards(ctx context.Context, request ListDashboardsRequestObject) (ListDashboardsResponseObject, error)
+	// Create dashboard
+	// (POST /api/v1/dashboards)
+	CreateDashboard(ctx context.Context, request CreateDashboardRequestObject) (CreateDashboardResponseObject, error)
+	// List dashboard widgets
+	// (GET /api/v1/dashboards/{dashboard_id}/widgets)
+	ListDashboardWidgets(ctx context.Context, request ListDashboardWidgetsRequestObject) (ListDashboardWidgetsResponseObject, error)
+	// Create dashboard widget
+	// (POST /api/v1/dashboards/{dashboard_id}/widgets)
+	CreateDashboardWidget(ctx context.Context, request CreateDashboardWidgetRequestObject) (CreateDashboardWidgetResponseObject, error)
+	// Delete dashboard widget
+	// (DELETE /api/v1/dashboards/{dashboard_id}/widgets/{widget_id})
+	DeleteDashboardWidget(ctx context.Context, request DeleteDashboardWidgetRequestObject) (DeleteDashboardWidgetResponseObject, error)
+	// Delete dashboard
+	// (DELETE /api/v1/dashboards/{id})
+	DeleteDashboard(ctx context.Context, request DeleteDashboardRequestObject) (DeleteDashboardResponseObject, error)
+	// Get dashboard
+	// (GET /api/v1/dashboards/{id})
+	GetDashboard(ctx context.Context, request GetDashboardRequestObject) (GetDashboardResponseObject, error)
+	// Update dashboard
+	// (PUT /api/v1/dashboards/{id})
+	UpdateDashboard(ctx context.Context, request UpdateDashboardRequestObject) (UpdateDashboardResponseObject, error)
 	// List datasets
 	// (GET /api/v1/datasets)
 	ListDatasets(ctx context.Context, request ListDatasetsRequestObject) (ListDatasetsResponseObject, error)
@@ -7164,6 +8874,15 @@ type StrictServerInterface interface {
 	// Get current tenant plan
 	// (GET /api/v1/plan)
 	GetTenantPlan(ctx context.Context, request GetTenantPlanRequestObject) (GetTenantPlanResponseObject, error)
+	// List template runs
+	// (GET /api/v1/template_runs)
+	ListTemplateRuns(ctx context.Context, request ListTemplateRunsRequestObject) (ListTemplateRunsResponseObject, error)
+	// Create template run
+	// (POST /api/v1/template_runs)
+	CreateTemplateRun(ctx context.Context, request CreateTemplateRunRequestObject) (CreateTemplateRunResponseObject, error)
+	// Get template run
+	// (GET /api/v1/template_runs/{id})
+	GetTemplateRun(ctx context.Context, request GetTemplateRunRequestObject) (GetTemplateRunResponseObject, error)
 	// Create invitation
 	// (POST /api/v1/tenants/current/invitations)
 	CreateInvitation(ctx context.Context, request CreateInvitationRequestObject) (CreateInvitationResponseObject, error)
@@ -7711,6 +9430,180 @@ func (sh *strictHandler) BillingWebhook(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
+// ListCharts operation middleware
+func (sh *strictHandler) ListCharts(w http.ResponseWriter, r *http.Request, params ListChartsParams) {
+	var request ListChartsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListCharts(ctx, request.(ListChartsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListCharts")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListChartsResponseObject); ok {
+		if err := validResponse.VisitListChartsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateChart operation middleware
+func (sh *strictHandler) CreateChart(w http.ResponseWriter, r *http.Request, params CreateChartParams) {
+	var request CreateChartRequestObject
+
+	request.Params = params
+
+	var body CreateChartJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateChart(ctx, request.(CreateChartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateChart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateChartResponseObject); ok {
+		if err := validResponse.VisitCreateChartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteChart operation middleware
+func (sh *strictHandler) DeleteChart(w http.ResponseWriter, r *http.Request, id string, params DeleteChartParams) {
+	var request DeleteChartRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteChart(ctx, request.(DeleteChartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteChart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteChartResponseObject); ok {
+		if err := validResponse.VisitDeleteChartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetChart operation middleware
+func (sh *strictHandler) GetChart(w http.ResponseWriter, r *http.Request, id string, params GetChartParams) {
+	var request GetChartRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetChart(ctx, request.(GetChartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetChart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetChartResponseObject); ok {
+		if err := validResponse.VisitGetChartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateChart operation middleware
+func (sh *strictHandler) UpdateChart(w http.ResponseWriter, r *http.Request, id string, params UpdateChartParams) {
+	var request UpdateChartRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body UpdateChartJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateChart(ctx, request.(UpdateChartRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateChart")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateChartResponseObject); ok {
+		if err := validResponse.VisitUpdateChartResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetChartData operation middleware
+func (sh *strictHandler) GetChartData(w http.ResponseWriter, r *http.Request, id string, params GetChartDataParams) {
+	var request GetChartDataRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetChartData(ctx, request.(GetChartDataRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetChartData")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetChartDataResponseObject); ok {
+		if err := validResponse.VisitGetChartDataResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // CollectEventsPreflight operation middleware
 func (sh *strictHandler) CollectEventsPreflight(w http.ResponseWriter, r *http.Request) {
 	var request CollectEventsPreflightRequestObject
@@ -8126,6 +10019,242 @@ func (sh *strictHandler) DeleteCredential(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(DeleteCredentialResponseObject); ok {
 		if err := validResponse.VisitDeleteCredentialResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListDashboards operation middleware
+func (sh *strictHandler) ListDashboards(w http.ResponseWriter, r *http.Request, params ListDashboardsParams) {
+	var request ListDashboardsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDashboards(ctx, request.(ListDashboardsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDashboards")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListDashboardsResponseObject); ok {
+		if err := validResponse.VisitListDashboardsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateDashboard operation middleware
+func (sh *strictHandler) CreateDashboard(w http.ResponseWriter, r *http.Request, params CreateDashboardParams) {
+	var request CreateDashboardRequestObject
+
+	request.Params = params
+
+	var body CreateDashboardJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateDashboard(ctx, request.(CreateDashboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateDashboard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateDashboardResponseObject); ok {
+		if err := validResponse.VisitCreateDashboardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListDashboardWidgets operation middleware
+func (sh *strictHandler) ListDashboardWidgets(w http.ResponseWriter, r *http.Request, dashboardId string, params ListDashboardWidgetsParams) {
+	var request ListDashboardWidgetsRequestObject
+
+	request.DashboardId = dashboardId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListDashboardWidgets(ctx, request.(ListDashboardWidgetsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListDashboardWidgets")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListDashboardWidgetsResponseObject); ok {
+		if err := validResponse.VisitListDashboardWidgetsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateDashboardWidget operation middleware
+func (sh *strictHandler) CreateDashboardWidget(w http.ResponseWriter, r *http.Request, dashboardId string, params CreateDashboardWidgetParams) {
+	var request CreateDashboardWidgetRequestObject
+
+	request.DashboardId = dashboardId
+	request.Params = params
+
+	var body CreateDashboardWidgetJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateDashboardWidget(ctx, request.(CreateDashboardWidgetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateDashboardWidget")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateDashboardWidgetResponseObject); ok {
+		if err := validResponse.VisitCreateDashboardWidgetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDashboardWidget operation middleware
+func (sh *strictHandler) DeleteDashboardWidget(w http.ResponseWriter, r *http.Request, dashboardId string, widgetId string, params DeleteDashboardWidgetParams) {
+	var request DeleteDashboardWidgetRequestObject
+
+	request.DashboardId = dashboardId
+	request.WidgetId = widgetId
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDashboardWidget(ctx, request.(DeleteDashboardWidgetRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDashboardWidget")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteDashboardWidgetResponseObject); ok {
+		if err := validResponse.VisitDeleteDashboardWidgetResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DeleteDashboard operation middleware
+func (sh *strictHandler) DeleteDashboard(w http.ResponseWriter, r *http.Request, id string, params DeleteDashboardParams) {
+	var request DeleteDashboardRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DeleteDashboard(ctx, request.(DeleteDashboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DeleteDashboard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DeleteDashboardResponseObject); ok {
+		if err := validResponse.VisitDeleteDashboardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetDashboard operation middleware
+func (sh *strictHandler) GetDashboard(w http.ResponseWriter, r *http.Request, id string, params GetDashboardParams) {
+	var request GetDashboardRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetDashboard(ctx, request.(GetDashboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetDashboard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetDashboardResponseObject); ok {
+		if err := validResponse.VisitGetDashboardResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// UpdateDashboard operation middleware
+func (sh *strictHandler) UpdateDashboard(w http.ResponseWriter, r *http.Request, id string, params UpdateDashboardParams) {
+	var request UpdateDashboardRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	var body UpdateDashboardJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.UpdateDashboard(ctx, request.(UpdateDashboardRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "UpdateDashboard")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(UpdateDashboardResponseObject); ok {
+		if err := validResponse.VisitUpdateDashboardResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -8938,6 +11067,92 @@ func (sh *strictHandler) GetTenantPlan(w http.ResponseWriter, r *http.Request, p
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetTenantPlanResponseObject); ok {
 		if err := validResponse.VisitGetTenantPlanResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListTemplateRuns operation middleware
+func (sh *strictHandler) ListTemplateRuns(w http.ResponseWriter, r *http.Request, params ListTemplateRunsParams) {
+	var request ListTemplateRunsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListTemplateRuns(ctx, request.(ListTemplateRunsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListTemplateRuns")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListTemplateRunsResponseObject); ok {
+		if err := validResponse.VisitListTemplateRunsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// CreateTemplateRun operation middleware
+func (sh *strictHandler) CreateTemplateRun(w http.ResponseWriter, r *http.Request, params CreateTemplateRunParams) {
+	var request CreateTemplateRunRequestObject
+
+	request.Params = params
+
+	var body CreateTemplateRunJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.CreateTemplateRun(ctx, request.(CreateTemplateRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "CreateTemplateRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(CreateTemplateRunResponseObject); ok {
+		if err := validResponse.VisitCreateTemplateRunResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetTemplateRun operation middleware
+func (sh *strictHandler) GetTemplateRun(w http.ResponseWriter, r *http.Request, id string, params GetTemplateRunParams) {
+	var request GetTemplateRunRequestObject
+
+	request.Id = id
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetTemplateRun(ctx, request.(GetTemplateRunRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetTemplateRun")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetTemplateRunResponseObject); ok {
+		if err := validResponse.VisitGetTemplateRunResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {

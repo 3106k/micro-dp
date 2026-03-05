@@ -29,22 +29,14 @@ func (h *ImportJobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "connection_id is required")
 		return
 	}
-	if req.SpreadsheetId == "" {
-		writeError(w, http.StatusBadRequest, "spreadsheet_id is required")
-		return
-	}
 
 	desc := ""
 	if req.Description != nil {
 		desc = *req.Description
 	}
-	sheetName := ""
-	if req.SheetName != nil {
-		sheetName = *req.SheetName
-	}
-	rangeStr := ""
-	if req.Range != nil {
-		rangeStr = *req.Range
+	var srcCfg map[string]any
+	if req.SourceConfig != nil {
+		srcCfg = *req.SourceConfig
 	}
 	execution := "save_only"
 	if req.Execution != nil {
@@ -52,14 +44,12 @@ func (h *ImportJobHandler) CreateJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	input := usecase.CreateImportJobInput{
-		Name:          req.Name,
-		Slug:          req.Slug,
-		Description:   desc,
-		ConnectionID:  req.ConnectionId,
-		SpreadsheetID: req.SpreadsheetId,
-		SheetName:     sheetName,
-		Range:         rangeStr,
-		Execution:     execution,
+		Name:         req.Name,
+		Slug:         req.Slug,
+		Description:  desc,
+		ConnectionID: req.ConnectionId,
+		SourceConfig: srcCfg,
+		Execution:    execution,
 	}
 
 	result, err := h.importJob.CreateImportJob(r.Context(), input)

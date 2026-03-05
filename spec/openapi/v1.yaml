@@ -27,6 +27,9 @@ tags:
   - name: import
   - name: write_keys
   - name: collect
+  - name: dashboards
+  - name: charts
+  - name: template_runs
 paths:
   /healthz:
     get:
@@ -2055,6 +2058,473 @@ paths:
         "204":
           description: CORS preflight response
 
+  # ---- Dashboards ----
+  /api/v1/dashboards:
+    post:
+      tags: [dashboards]
+      summary: Create dashboard
+      operationId: createDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDashboardRequest"
+      responses:
+        "201":
+          description: Created dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [dashboards]
+      summary: List dashboards
+      operationId: listDashboards
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of dashboards
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/dashboards/{id}:
+    get:
+      tags: [dashboards]
+      summary: Get dashboard
+      operationId: getDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dashboard detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    put:
+      tags: [dashboards]
+      summary: Update dashboard
+      operationId: updateDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateDashboardRequest"
+      responses:
+        "200":
+          description: Updated dashboard
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    delete:
+      tags: [dashboards]
+      summary: Delete dashboard
+      operationId: deleteDashboard
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Dashboard Widgets ----
+  /api/v1/dashboards/{dashboard_id}/widgets:
+    post:
+      tags: [dashboards]
+      summary: Create dashboard widget
+      operationId: createDashboardWidget
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: dashboard_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDashboardWidgetRequest"
+      responses:
+        "201":
+          description: Created widget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardWidget"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [dashboards]
+      summary: List dashboard widgets
+      operationId: listDashboardWidgets
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: dashboard_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of widgets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/DashboardWidget"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/dashboards/{dashboard_id}/widgets/{widget_id}:
+    delete:
+      tags: [dashboards]
+      summary: Delete dashboard widget
+      operationId: deleteDashboardWidget
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: dashboard_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: widget_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Charts ----
+  /api/v1/charts:
+    post:
+      tags: [charts]
+      summary: Create chart
+      operationId: createChart
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChartRequest"
+      responses:
+        "201":
+          description: Created chart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chart"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [charts]
+      summary: List charts
+      operationId: listCharts
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of charts
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Chart"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/charts/{id}:
+    get:
+      tags: [charts]
+      summary: Get chart
+      operationId: getChart
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chart detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chart"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    put:
+      tags: [charts]
+      summary: Update chart
+      operationId: updateChart
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateChartRequest"
+      responses:
+        "200":
+          description: Updated chart
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Chart"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+    delete:
+      tags: [charts]
+      summary: Delete chart
+      operationId: deleteChart
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Chart Data ----
+  /api/v1/charts/{id}/data:
+    get:
+      tags: [charts]
+      summary: Get chart data
+      operationId: getChartData
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: period
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/ChartPeriod"
+        - name: start_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          description: Chart data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChartDataResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
+  # ---- Template Runs ----
+  /api/v1/template_runs:
+    post:
+      tags: [template_runs]
+      summary: Create template run
+      operationId: createTemplateRun
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateTemplateRunRequest"
+      responses:
+        "201":
+          description: Created template run
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateRun"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+    get:
+      tags: [template_runs]
+      summary: List template runs
+      operationId: listTemplateRuns
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+      responses:
+        "200":
+          description: List of template runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TemplateRun"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+  /api/v1/template_runs/{id}:
+    get:
+      tags: [template_runs]
+      summary: Get template run
+      operationId: getTemplateRun
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/XTenantID"
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Template run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateRun"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "404":
+          $ref: "#/components/responses/ErrorResponse"
+
 components:
   parameters:
     XTenantID:
@@ -3229,7 +3699,7 @@ components:
       enum: [save_only, immediate]
     CreateImportJobRequest:
       type: object
-      required: [name, slug, connection_id, spreadsheet_id]
+      required: [name, slug, connection_id]
       properties:
         name:
           type: string
@@ -3239,12 +3709,10 @@ components:
           type: string
         connection_id:
           type: string
-        spreadsheet_id:
-          type: string
-        sheet_name:
-          type: string
-        range:
-          type: string
+        source_config:
+          type: object
+          additionalProperties: true
+          description: Connector-specific source configuration (e.g. {spreadsheet_id, sheet_name, range} for Google Sheets)
         execution:
           $ref: "#/components/schemas/ImportExecution"
     CreateImportJobResponse:
@@ -3334,3 +3802,182 @@ components:
           type: integer
         errors:
           type: integer
+
+    # ---- Dashboard / Chart / Widget / TemplateRun ----
+    ChartType:
+      type: string
+      enum: [line, bar, pie]
+    ChartPeriod:
+      type: string
+      enum: [last_7_days, last_30_days, last_90_days, custom]
+    TemplateRunStatus:
+      type: string
+      enum: [success, failed, skipped]
+
+    Dashboard:
+      type: object
+      required: [id, tenant_id, name, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    Chart:
+      type: object
+      required: [id, tenant_id, name, chart_type, dataset_id, measure, dimension, created_at, updated_at]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        name:
+          type: string
+        chart_type:
+          $ref: "#/components/schemas/ChartType"
+        dataset_id:
+          type: string
+        measure:
+          type: string
+        dimension:
+          type: string
+        config_json:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    DashboardWidget:
+      type: object
+      required: [id, dashboard_id, chart_id, position, created_at]
+      properties:
+        id:
+          type: string
+        dashboard_id:
+          type: string
+        chart_id:
+          type: string
+        position:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    TemplateRun:
+      type: object
+      required: [id, tenant_id, template_type, status, created_at]
+      properties:
+        id:
+          type: string
+        tenant_id:
+          type: string
+        template_type:
+          type: string
+        status:
+          $ref: "#/components/schemas/TemplateRunStatus"
+        skip_reason:
+          type: string
+        dashboard_id:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    ChartDataResponse:
+      type: object
+      required: [chart_id, period, labels, datasets]
+      properties:
+        chart_id:
+          type: string
+        period:
+          $ref: "#/components/schemas/ChartPeriod"
+        labels:
+          type: array
+          items:
+            type: string
+        datasets:
+          type: array
+          items:
+            $ref: "#/components/schemas/ChartDataset"
+    ChartDataset:
+      type: object
+      required: [label, data]
+      properties:
+        label:
+          type: string
+        data:
+          type: array
+          items:
+            type: number
+
+    CreateDashboardRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    UpdateDashboardRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+    CreateChartRequest:
+      type: object
+      required: [name, chart_type, dataset_id, measure, dimension]
+      properties:
+        name:
+          type: string
+        chart_type:
+          $ref: "#/components/schemas/ChartType"
+        dataset_id:
+          type: string
+        measure:
+          type: string
+        dimension:
+          type: string
+        config_json:
+          type: string
+    UpdateChartRequest:
+      type: object
+      required: [name, chart_type, dataset_id, measure, dimension]
+      properties:
+        name:
+          type: string
+        chart_type:
+          $ref: "#/components/schemas/ChartType"
+        dataset_id:
+          type: string
+        measure:
+          type: string
+        dimension:
+          type: string
+        config_json:
+          type: string
+    CreateDashboardWidgetRequest:
+      type: object
+      required: [chart_id, position]
+      properties:
+        chart_id:
+          type: string
+        position:
+          type: integer
+    CreateTemplateRunRequest:
+      type: object
+      required: [template_type]
+      properties:
+        template_type:
+          type: string
