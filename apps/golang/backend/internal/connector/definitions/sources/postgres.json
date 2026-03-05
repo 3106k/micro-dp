@@ -4,6 +4,7 @@
   "kind": "source",
   "icon": "postgres",
   "description": "Read data from PostgreSQL databases",
+  "capabilities": ["testable"],
   "spec": {
     "type": "object",
     "required": ["host", "port", "database", "username", "password"],

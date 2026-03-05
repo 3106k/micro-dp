@@ -3104,7 +3104,7 @@ components:
       enum: [source, destination]
     ConnectorDefinition:
       type: object
-      required: [id, name, kind]
+      required: [id, name, kind, capabilities]
       properties:
         id:
           type: string
@@ -3116,9 +3116,14 @@ components:
           type: string
         description:
           type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: Supported capabilities (testable, fetchable, importable)
     ConnectorDefinitionDetail:
       type: object
-      required: [id, name, kind, spec]
+      required: [id, name, kind, spec, capabilities]
       properties:
         id:
           type: string
@@ -3132,6 +3137,11 @@ components:
           type: string
         credential_provider:
           type: string
+        capabilities:
+          type: array
+          items:
+            type: string
+          description: Supported capabilities (testable, fetchable, importable)
         spec:
           type: object
 

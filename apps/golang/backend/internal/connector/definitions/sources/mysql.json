@@ -4,6 +4,7 @@
   "kind": "source",
   "icon": "mysql",
   "description": "Read data from MySQL databases",
+  "capabilities": ["testable"],
   "spec": {
     "type": "object",
     "required": ["host", "port", "database", "username", "password"],

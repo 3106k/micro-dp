@@ -282,15 +282,19 @@ type ConnectionSchemasResponse struct {
 
 // ConnectorDefinition defines model for ConnectorDefinition.
 type ConnectorDefinition struct {
-	Description *string       `json:"description,omitempty"`
-	Icon        *string       `json:"icon,omitempty"`
-	Id          string        `json:"id"`
-	Kind        ConnectorKind `json:"kind"`
-	Name        string        `json:"name"`
+	// Capabilities Supported capabilities (testable, fetchable, importable)
+	Capabilities []string      `json:"capabilities"`
+	Description  *string       `json:"description,omitempty"`
+	Icon         *string       `json:"icon,omitempty"`
+	Id           string        `json:"id"`
+	Kind         ConnectorKind `json:"kind"`
+	Name         string        `json:"name"`
 }
 
 // ConnectorDefinitionDetail defines model for ConnectorDefinitionDetail.
 type ConnectorDefinitionDetail struct {
+	// Capabilities Supported capabilities (testable, fetchable, importable)
+	Capabilities       []string               `json:"capabilities"`
 	CredentialProvider *string                `json:"credential_provider,omitempty"`
 	Description        *string                `json:"description,omitempty"`
 	Icon               *string                `json:"icon,omitempty"`
