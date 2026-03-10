@@ -38,6 +38,7 @@ internal/      — private packages:
   observability/   — OpenTelemetry traces + Prometheus metrics
   openapi/         — oapi-codegen generated types/interfaces
   featureflag/     — OpenFeature feature flag infrastructure
+  credential/      — OAuth provider abstraction (OAuthProvider interface + Google impl)
   notification/    — Email notification (SendGrid / log provider)
 ```
 
@@ -200,6 +201,10 @@ Internal container ports are fixed; only host-side ports change per environment.
 | GET | `/api/v1/module_types/{id}/schemas` | List module type schemas |
 | GET | `/api/v1/connectors` | List connector definitions |
 | GET | `/api/v1/connectors/{id}` | Get connector definition (with spec) |
+| GET | `/api/v1/credentials` | List credentials |
+| DELETE | `/api/v1/credentials/{id}` | Delete credential |
+| GET | `/api/v1/credentials/{provider}/start` | Start credential OAuth flow (302 redirect) |
+| GET | `/api/v1/credentials/{provider}/callback` | Credential OAuth callback (302 redirect) |
 | POST | `/api/v1/connections` | Create connection |
 | GET | `/api/v1/connections` | List connections |
 | GET | `/api/v1/connections/{id}` | Get connection |
@@ -721,6 +726,54 @@ Playwright で `browser_take_screenshot` を使用した場合、確認完了後
 3. `spec` に JSON Schema を定義 (x-* 拡張でフォームヒント)
 4. `go build ./...` で起動時自動ロード確認
 5. `connections.type` に定義 ID を指定して使用
+
+## Credential OAuth Provider
+
+OAuth credential の取得・更新を provider strategy パターンで抽象化。Google を最初の実装として提供。
+
+### アーキテクチャ
+
+```
+GET /api/v1/credentials/{provider}/start → PKCE + state 生成 → OAuth provider redirect
+GET /api/v1/credentials/{provider}/callback → code exchange → token 取得 → credential upsert
+```
+
+### パッケージ構成
+
+| ファイル | 役割 |
+|---------|------|
+| `internal/credential/provider.go` | `OAuthProvider` interface 定義 |
+| `internal/credential/google.go` | `GoogleProvider` 実装 (Google OAuth + userinfo) |
+| `usecase/credential.go` | `CredentialService` (provider map, state HMAC, PKCE) |
+| `handler/credential.go` | `OAuthStart` / `OAuthCallback` ({provider} パスパラメータ) |
+
+### OAuthProvider interface
+
+```go
+type OAuthProvider interface {
+    ProviderName() string
+    Scopes() []string
+    AuthCodeURL(state, codeChallenge string) string
+    Exchange(ctx context.Context, code, codeVerifier string) (*oauth2.Token, error)
+    FetchLabel(ctx context.Context, token *oauth2.Token) (string, error)
+    RefreshToken(ctx context.Context, refreshToken string) (*oauth2.Token, error)
+    OAuthEnabled() bool
+    PostRedirectURL() string
+}
+```
+
+### 環境変数
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GOOGLE_OAUTH_CREDENTIAL_REDIRECT_URI` | — | OAuth callback URL (Next.js proxy) |
+| `GOOGLE_OAUTH_CREDENTIAL_POST_REDIRECT_URI` | `http://localhost:3000/integrations` | OAuth 完了後のリダイレクト先 |
+
+### 新プロバイダ追加手順
+
+1. `internal/credential/` に `{provider}.go` を追加し `OAuthProvider` を実装
+2. `cmd/api/main.go` と `cmd/worker/main.go` で provider を構築し `[]credential.OAuthProvider` に追加
+3. フロントエンドの integrations-manager.tsx に provider セクションを追加
 
 ## GitHub Project Board
 
