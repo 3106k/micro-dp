@@ -61,7 +61,7 @@ func (q *AggregationQueueImpl) MarkProcessed(ctx context.Context, tenantID, date
 		return fmt.Errorf("mark aggregation processed: %w", err)
 	}
 	if ok != "OK" {
-		return fmt.Errorf("aggregation already processed: %s:%s", tenantID, date)
+		return domain.ErrAggregationAlreadyProcessed
 	}
 	return nil
 }

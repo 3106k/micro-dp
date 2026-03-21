@@ -126,10 +126,10 @@ func main() {
 	go jobRunConsumer.Run(ctx)
 
 	// Aggregation consumer (raw → events/visits)
-	tenantRepo := db.NewTenantRepo(sqlDB)
+	aggregationQueue := queue.NewAggregationQueue(valkeyClient)
 	aggregationWriter := worker.NewAggregationWriter(minioClient)
 	aggregationMetrics := observability.NewAggregationMetrics()
-	aggregationConsumer := worker.NewAggregationConsumer(tenantRepo, aggregationWriter, aggregationMetrics, 1*time.Hour)
+	aggregationConsumer := worker.NewAggregationConsumer(aggregationQueue, aggregationWriter, aggregationMetrics)
 
 	go aggregationConsumer.Run(ctx)
 
