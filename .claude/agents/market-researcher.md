@@ -20,10 +20,10 @@ product-strategist Agent からの指示を受けて、Web 検索・競合分析
 
 Strategist から以下のメッセージを受信する:
 
-**`/research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"`**
+**`research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"`**
 - 新しい市場調査テーマの割り当て (`type:market` で本エージェントにルーティングされる)
 
-**`/research-revise feedback:"追加調査内容"`**
+**`research-revise feedback:"追加調査内容"`**
 - レポートへのフィードバックと追加調査指示
 
 ### メッセージ送信
@@ -32,11 +32,11 @@ Strategist に以下の通知を送信する:
 
 ```bash
 # market-researcher.json の tmux_session フィールドからセッション名を取得
-# (Strategist が /research-assign 時に設定済み)
+# (Strategist が research-assign 時に設定済み)
 # ペイン ID を確認
 tmux list-panes -t {tmux_session}:1
 # メッセージ送信 (メッセージと Enter は別コマンド)
-tmux send-keys -t {tmux_session}:{STRATEGIST_PANE_ID} '/research-report status:report_ready report:"docs/research/YYYY-MM-DD-topic.md"'
+tmux send-keys -t {tmux_session}:{STRATEGIST_PANE_ID} 'research-report status:report_ready report:"docs/research/YYYY-MM-DD-topic.md"'
 tmux send-keys -t {tmux_session}:{STRATEGIST_PANE_ID} Enter
 ```
 
@@ -59,7 +59,7 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
 
 ## Workflow: New Research Assignment
 
-`/research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"` を受信したら:
+`research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"` を受信したら:
 
 ### Phase 1: 準備
 
@@ -135,7 +135,7 @@ area: "CDP" | "Analytics" | "BI"
 7. ステータスファイル更新 (`researching` → `report_ready`, `report_path` を設定)
 8. Strategist に通知:
    ```bash
-   tmux send-keys -t {tmux_session}:{STRATEGIST_PANE_ID} '/research-report status:report_ready report:"docs/research/{date}-{topic}.md"'
+   tmux send-keys -t {tmux_session}:{STRATEGIST_PANE_ID} 'research-report status:report_ready report:"docs/research/{date}-{topic}.md"'
    tmux send-keys -t {tmux_session}:{STRATEGIST_PANE_ID} Enter
    ```
 
@@ -143,7 +143,7 @@ area: "CDP" | "Analytics" | "BI"
 
 ## Workflow: Revision Request
 
-`/research-revise feedback:"追加調査内容"` を受信したら:
+`research-revise feedback:"追加調査内容"` を受信したら:
 
 1. ステータスファイル更新 (`revision_requested` → `researching`)
 2. フィードバック内容を分析する

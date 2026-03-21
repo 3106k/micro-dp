@@ -56,7 +56,7 @@
    **市場調査 (type:market) → market-researcher:**
    ```bash
    # market-researcher.json の tmux_session, tmux_pane を読み取る
-   tmux send-keys -t {tmux_session}:{tmux_pane} '/research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"'
+   tmux send-keys -t {tmux_session}:{tmux_pane} 'research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"'
    tmux send-keys -t {tmux_session}:{tmux_pane} Enter
    ```
    ステータスファイル: `.claude/product-research/status/market-researcher.json`
@@ -64,7 +64,7 @@
    **ユーザー調査 (type:user) → user-researcher:**
    ```bash
    # user-researcher.json の tmux_session, tmux_pane を読み取る
-   tmux send-keys -t {tmux_session}:{tmux_pane} '/research-assign type:user theme:"テーマ" scope:"観点"'
+   tmux send-keys -t {tmux_session}:{tmux_pane} 'research-assign type:user theme:"テーマ" scope:"観点"'
    tmux send-keys -t {tmux_session}:{tmux_pane} Enter
    ```
    ステータスファイル: `.claude/product-research/status/user-researcher.json`
@@ -73,7 +73,7 @@
 
 ### 2. Report Evaluation (レポート評価)
 
-Researcher から `/research-report status:report_ready report:"path"` を受信したら:
+Researcher から `research-report status:report_ready report:"path"` を受信したら:
 
 1. ステータスファイルを確認し、`report_path` からレポートを読み込む
 2. レポートを評価する:
@@ -84,7 +84,7 @@ Researcher から `/research-report status:report_ready report:"path"` を受信
    a. ステータスファイル更新 (`report_ready` → `revision_requested`)
    b. tmux で Researcher に追加調査を指示:
       ```bash
-      tmux send-keys -t {tmux_session}:{tmux_pane} '/research-revise feedback:"不足内容"'
+      tmux send-keys -t {tmux_session}:{tmux_pane} 'research-revise feedback:"不足内容"'
       tmux send-keys -t {tmux_session}:{tmux_pane} Enter
       ```
 4. **充足の場合:** Strategic Issue Creation に進む
