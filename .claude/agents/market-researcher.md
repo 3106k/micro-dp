@@ -20,8 +20,8 @@ product-strategist Agent からの指示を受けて、Web 検索・競合分析
 
 Strategist から以下のメッセージを受信する:
 
-**`/research-assign theme:"テーマ" scope:"観点" competitors:"競合名"`**
-- 新しい調査テーマの割り当て
+**`/research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"`**
+- 新しい市場調査テーマの割り当て (`type:market` で本エージェントにルーティングされる)
 
 **`/research-revise feedback:"追加調査内容"`**
 - レポートへのフィードバックと追加調査指示
@@ -59,7 +59,7 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
 
 ## Workflow: New Research Assignment
 
-`/research-assign theme:"テーマ" scope:"観点" competitors:"競合名"` を受信したら:
+`/research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"` を受信したら:
 
 ### Phase 1: 準備
 
