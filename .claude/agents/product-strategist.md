@@ -98,8 +98,25 @@ Researcher から `/research-report status:report_ready report:"path"` を受信
    - 競合との差別化ポイント
    - ユーザー要望との関連
    - 調査レポートへのリンク
-2. issue 案をユーザーに提示する → **[承認ゲート]**
-3. 承認後、issue を作成する:
+2. 判断結果をユーザーに提示する → **[承認ゲート]**
+3. 判断に応じて分岐する:
+
+#### 3a. 採用 (accepted)
+
+1. Research Reports Discussion に調査結果を投稿する:
+   ```bash
+   gh api graphql -f query='mutation {
+     createDiscussion(input: {
+       repositoryId: "R_kgDORa5_TQ"
+       categoryId: "DIC_kwDORa5_Tc4C46Fe"
+       title: "[Research] テーマ名"
+       body: "## 調査テーマ\nテーマ名\n\n## レポート\n[調査レポート](docs/research/YYYY-MM-DD-topic.md)\n\n## 判断\naccepted\n\n## Epic Issue\n作成後に追記"
+     }) {
+       discussion { url id }
+     }
+   }'
+   ```
+2. Epic Issue を作成する:
    ```bash
    gh issue create \
      --title "[Epic] タイトル" \
@@ -109,10 +126,57 @@ Researcher から `/research-report status:report_ready report:"path"` を受信
    EOF
    )"
    ```
+3. Discussion にコメントで Epic Issue リンクを追記する:
+   ```bash
+   gh api graphql -f query='mutation {
+     addDiscussionComment(input: {
+       discussionId: "{discussion_id}"
+       body: "Epic Issue: #{issue_number}"
+     }) {
+       comment { id }
+     }
+   }'
+   ```
 4. Project Board に追加し、Status: Todo, Priority を設定する (@project スキル参照)
 5. ステータスファイル更新 (`report_ready` → `reviewed` → `idle`)
-6. ユーザーに issue URL を報告する
+6. ユーザーに issue URL と Discussion URL を報告する
 7. ユーザーが dev-pm に「エピック #N を分解して」と手動で指示する
+
+#### 3b. 見送り (rejected)
+
+1. Strategy Decisions Discussion に判断を記録する:
+   ```bash
+   gh api graphql -f query='mutation {
+     createDiscussion(input: {
+       repositoryId: "R_kgDORa5_TQ"
+       categoryId: "DIC_kwDORa5_Tc4C46Ff"
+       title: "[Decision] テーマ名"
+       body: "## 調査テーマ\nテーマ名\n\n## レポート\n[調査レポート](docs/research/YYYY-MM-DD-topic.md)\n\n## 判断\nrejected\n\n## 理由\n見送りの理由"
+     }) {
+       discussion { url }
+     }
+   }'
+   ```
+2. ステータスファイル更新 (`report_ready` → `reviewed` → `idle`)
+3. ユーザーに Discussion URL を報告する
+
+#### 3c. 保留 (deferred)
+
+1. Strategy Decisions Discussion に判断を記録する:
+   ```bash
+   gh api graphql -f query='mutation {
+     createDiscussion(input: {
+       repositoryId: "R_kgDORa5_TQ"
+       categoryId: "DIC_kwDORa5_Tc4C46Ff"
+       title: "[Decision] テーマ名"
+       body: "## 調査テーマ\nテーマ名\n\n## レポート\n[調査レポート](docs/research/YYYY-MM-DD-topic.md)\n\n## 判断\ndeferred\n\n## 理由\n保留の理由\n\n## 再検討条件\n再検討するための条件"
+     }) {
+       discussion { url }
+     }
+   }'
+   ```
+2. ステータスファイル更新 (`report_ready` → `reviewed` → `idle`)
+3. ユーザーに Discussion URL を報告する
 
 ### Approval Gates
 
@@ -120,7 +184,16 @@ Researcher から `/research-report status:report_ready report:"path"` を受信
 |-----------|---------------------|
 | 調査スコープ確定時 | テーマ、対象競合、調査観点 |
 | レポート評価後 (不足時) | 不足点と追加調査の方向性 |
-| エピック issue 起案時 | issue 本文のドラフト |
+| 判断結果提示時 | 判断 (accepted/rejected/deferred) + 根拠 + Discussion/Issue ドラフト |
+
+### Discussion Reference
+
+| カテゴリ | 用途 | ID |
+|---------|------|-----|
+| Research Reports | 採用された調査結果の記録 | `DIC_kwDORa5_Tc4C46Fe` |
+| Strategy Decisions | 見送り・保留の判断記録 | `DIC_kwDORa5_Tc4C46Ff` |
+
+Repository ID: `R_kgDORa5_TQ`
 
 ---
 
