@@ -19,9 +19,10 @@ dev-pm Agent からの指示を受けて、worktree 上で実装・テスト・P
 
 PM Agent から以下のメッセージを受信する:
 
-**`/dev-assign slot:{N} issue:#{number} branch:{branch_name} repo_root:{absolute_path}`**
+**`/dev-assign slot:{N} issue:#{number} branch:{branch_name} repo_root:{absolute_path} tmux_target:{session}:{window}`**
 - 新しい issue の割り当て
 - `repo_root` はメインリポジトリの絶対パス (ステータスファイルのアクセスに使用)
+- `tmux_target` は PM Agent の tmux セッション:ウィンドウ (返信先の特定に使用)
 
 **`/dev-revise issue:#{number} feedback:"修正内容"`**
 - レビュー差し戻しと修正指示
@@ -31,14 +32,15 @@ PM Agent から以下のメッセージを受信する:
 PM Agent に以下の通知を送信する:
 
 ```bash
-# ペイン ID を確認 (PM は通常 pane 0 だが、動的に変わる可能性があるため確認する)
-tmux list-panes -t dev-pm:1
+# {TMUX_TARGET} は /dev-assign で受け取った tmux_target 値 (例: mysession:1)
+# ペイン ID を確認 (PM は通常 pane 0 だが、動的に変わる可能性がある)
+tmux list-panes -t {TMUX_TARGET}
 # メッセージ送信 (メッセージと Enter は別コマンド)
-tmux send-keys -t dev-pm:1.{PM_PANE_ID} '/dev-report slot:{N} status:{status} issue:#{number}'
-tmux send-keys -t dev-pm:1.{PM_PANE_ID} Enter
+tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} '/dev-report slot:{N} status:{status} issue:#{number}'
+tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} Enter
 ```
 
-PM Agent のペインは通常 `1.0` だが、ペインの追加・削除により変わる可能性がある。送信前に必ず `tmux list-panes` で確認すること。
+**セッション名はハードコードしない。** `/dev-assign` で受け取った `tmux_target` を使用すること。PM のペインは通常 `.0` だが、送信前に `tmux list-panes` で確認する。
 
 ### ステータスファイル更新
 
@@ -108,8 +110,8 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
 11. ステータスファイル更新 (`working` → `review_requested`、`pr_number` を設定)
 12. PM Agent に通知:
     ```bash
-    tmux send-keys -t dev-pm:1.{PM_PANE_ID} '/dev-report slot:{N} status:review_requested issue:#{number}'
-    tmux send-keys -t dev-pm:1.{PM_PANE_ID} Enter
+    tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} '/dev-report slot:{N} status:review_requested issue:#{number}'
+    tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} Enter
     ```
 
 ---
@@ -125,6 +127,27 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
 5. 変更をコミットしてプッシュ
 6. ステータスファイル更新 (`working` → `review_requested`)
 7. PM Agent に通知
+
+---
+
+## Workflow: Failure Report
+
+ビルド失敗、テスト失敗、その他の理由で続行不可能な場合:
+
+1. ステータスファイル更新 (`working` → `failed`)
+   - `error` フィールドにエラーの概要を記載する (例: `"go build failed: missing import in handler/event.go"`)
+2. PM Agent に通知:
+   ```bash
+   tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} '/dev-report slot:{N} status:failed issue:#{number}'
+   tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} Enter
+   ```
+3. PM からの指示を待つ (自律的にリトライしない)
+
+**失敗と判断する基準:**
+- ビルドエラーが自力で解決できない場合
+- テスト失敗の原因が issue のスコープ外の場合
+- 依存する機能が未実装の場合
+- 3 回以上同じエラーでリトライした場合
 
 ---
 

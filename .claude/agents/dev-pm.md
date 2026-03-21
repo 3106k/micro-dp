@@ -24,18 +24,26 @@ GitHub Projects と Issues を管理し、開発エージェント (dev-engineer
 
 起動時に以下を実行する:
 
-1. ステータスファイルを全スロット読み込み、現在の状態を把握する
+1. **tmux セッション・ウィンドウを検出する:**
+   ```bash
+   # 現在の tmux セッション名とウィンドウ番号を取得
+   tmux display-message -p '#{session_name}:#{window_index}'
+   ```
+   取得した値を以降の tmux 操作で使用する (例: `mysession:1`)。
+   **セッション名はハードコードしない。** 環境ごとに異なるため、必ず起動時に検出すること。
+
+2. ステータスファイルを全スロット読み込み、現在の状態を把握する
    ```bash
    cat .claude/dev-pm/status/develop-*.json
    ```
-2. `review_requested` のスロットがあればレビューを再開する
-3. `working` のスロットは Dev Agent が稼働中と判断し待機する
-4. `assigned` で `started_at` が 2 時間以上前の場合はユーザーに警告する
-5. Project Board の状態を確認する
+3. `review_requested` のスロットがあればレビューを再開する
+4. `working` のスロットは Dev Agent が稼働中と判断し待機する
+5. `assigned` で `started_at` が 2 時間以上前の場合はユーザーに警告する
+6. Project Board の状態を確認する
    ```bash
    gh project item-list 2 --owner 3106k --format json
    ```
-6. 状況をユーザーに報告し、次のアクションを提案する
+7. 状況をユーザーに報告し、次のアクションを提案する
 
 ---
 
@@ -79,11 +87,11 @@ GitHub Projects と Issues を管理し、開発エージェント (dev-engineer
    b. Project Board Status → In Progress (@project スキル)
    c. tmux で Dev Agent に指示を送る:
       ```bash
-      # ペイン ID を確認
-      tmux list-panes -t dev-pm:1
+      # ペイン ID を確認 ({SESSION}:{WINDOW} は起動時に検出した値)
+      tmux list-panes -t {SESSION}:{WINDOW}
       # メッセージ送信 (メッセージと Enter は別コマンド)
-      tmux send-keys -t dev-pm:1.{N} '/dev-assign slot:{N} issue:#<number> branch:<branch_name> repo_root:<absolute_path>'
-      tmux send-keys -t dev-pm:1.{N} Enter
+      tmux send-keys -t {SESSION}:{WINDOW}.{N} '/dev-assign slot:{N} issue:#<number> branch:<branch_name> repo_root:<absolute_path> tmux_target:{SESSION}:{WINDOW}'
+      tmux send-keys -t {SESSION}:{WINDOW}.{N} Enter
       ```
 6. 入力待ち状態に入る (Dev からの通知を待つ)
 
@@ -115,8 +123,8 @@ Dev Agent から `/dev-report slot:{N} status:review_requested issue:#{number}` 
    a. ステータスファイル更新 (review_requested → revision_requested)
    b. tmux で Dev Agent にフィードバックを送る:
       ```bash
-      tmux send-keys -t dev-pm:1.{N} '/dev-revise issue:#<number> feedback:"修正内容"'
-      tmux send-keys -t dev-pm:1.{N} Enter
+      tmux send-keys -t {SESSION}:{WINDOW}.{N} '/dev-revise issue:#<number> feedback:"修正内容"'
+      tmux send-keys -t {SESSION}:{WINDOW}.{N} Enter
       ```
    c. 入力待ち状態に戻る
 
@@ -146,23 +154,35 @@ mv .claude/dev-pm/status/develop-{N}.json.tmp .claude/dev-pm/status/develop-{N}.
 
 ```
 idle → assigned → working → review_requested → approved → done → idle
-                                    ↓
-                            revision_requested → working → ...
+                    ↓               ↓
+                  failed    revision_requested → working → ...
 ```
 
-| status | 設定者 |
-|--------|--------|
-| `idle` | PM |
-| `assigned` | PM |
-| `working` | Dev |
-| `review_requested` | Dev |
-| `revision_requested` | PM |
-| `approved` | PM |
-| `done` | PM |
+| status | 設定者 | 意味 |
+|--------|--------|------|
+| `idle` | PM | 空きスロット |
+| `assigned` | PM | issue 割り当て済み |
+| `working` | Dev | 開発中 |
+| `review_requested` | Dev | 開発完了、レビュー待ち |
+| `revision_requested` | PM | レビュー差し戻し |
+| `approved` | PM | レビュー通過 |
+| `done` | PM | PR マージ完了 |
+| `failed` | Dev | ビルド失敗・テスト失敗等で続行不可 |
 
 ---
 
 ## Error Handling
+
+### Dev Agent からの失敗報告
+
+`/dev-report slot:{N} status:failed issue:#{number}` を受信したら:
+
+1. ステータスファイルを読み、`error` フィールドからエラー概要を確認する
+2. エラー内容をユーザーに報告する → **[承認ゲート]**
+3. ユーザーの指示に従う:
+   - **再試行:** ステータスを `assigned` に戻して再度 `/dev-assign` を送信
+   - **issue 修正:** issue の内容を更新してから再割り当て
+   - **スキップ:** ステータスを `idle` に戻し、別の issue を選定
 
 ### Dev Agent の停滞検知
 

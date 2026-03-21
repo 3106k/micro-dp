@@ -94,19 +94,20 @@ tmux session: dev-pm / window 1
 
 ```
 idle → assigned → working → review_requested → approved → done → idle
-                                    ↓
-                            revision_requested → working → ...
+                    ↓               ↓
+                  failed    revision_requested → working → ...
 ```
 
-| status               | 意味                   | 設定者 |
-| -------------------- | ---------------------- | ------ |
-| `idle`               | 空きスロット           | PM     |
-| `assigned`           | issue 割り当て済み     | PM     |
-| `working`            | 開発中                 | Dev    |
-| `review_requested`   | 開発完了、レビュー待ち | Dev    |
-| `revision_requested` | レビュー差し戻し       | PM     |
-| `approved`           | レビュー通過           | PM     |
-| `done`               | PR マージ完了          | PM     |
+| status               | 意味                             | 設定者 |
+| -------------------- | -------------------------------- | ------ |
+| `idle`               | 空きスロット                     | PM     |
+| `assigned`           | issue 割り当て済み               | PM     |
+| `working`            | 開発中                           | Dev    |
+| `review_requested`   | 開発完了、レビュー待ち           | Dev    |
+| `revision_requested` | レビュー差し戻し                 | PM     |
+| `approved`           | レビュー通過                     | PM     |
+| `done`               | PR マージ完了                    | PM     |
+| `failed`             | ビルド/テスト失敗等で続行不可    | Dev    |
 
 ### tmux メッセージフォーマット
 
@@ -114,12 +115,14 @@ idle → assigned → working → review_requested → approved → done → idl
 
 ```
 /dev-report slot:{N} status:{status} issue:#{issue_number}
+
+status に `failed` を使用可。error の詳細はステータスファイルの `error` フィールドに記載する。
 ```
 
 **PM → Dev (指示):**
 
 ```
-/dev-assign slot:{N} issue:#{issue_number} branch:{branch_name} repo_root:{absolute_path}
+/dev-assign slot:{N} issue:#{issue_number} branch:{branch_name} repo_root:{absolute_path} tmux_target:{session}:{window}
 /dev-revise issue:#{issue_number} feedback:"修正内容"
 ```
 
