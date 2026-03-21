@@ -1493,8 +1493,17 @@ export interface components {
             credential_id?: string;
         };
         TestConnectionResponse: {
+            validation: components["schemas"]["ValidationResult"];
+            connectivity: components["schemas"]["ConnectivityResult"];
+        };
+        ValidationResult: {
             /** @enum {string} */
             status: "ok" | "failed";
+            message?: string;
+        };
+        ConnectivityResult: {
+            /** @enum {string} */
+            status: "ok" | "failed" | "skipped";
             message?: string;
             code?: string;
         };

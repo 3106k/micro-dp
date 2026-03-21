@@ -180,8 +180,23 @@ func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate config against JSON Schema
+	validationResult := openapi.ValidationResult{Status: openapi.ValidationResultStatusOk}
 	if err := h.registry.ValidateConfig(req.Type, req.ConfigJson); err != nil {
-		writeError(w, http.StatusUnprocessableEntity, err.Error())
+		msg := err.Error()
+		validationResult = openapi.ValidationResult{
+			Status:  openapi.ValidationResultStatusFailed,
+			Message: &msg,
+		}
+		// Return early: no point testing connectivity with invalid config
+		skipMsg := "skipped due to validation failure"
+		writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
+			Validation: validationResult,
+			Connectivity: openapi.ConnectivityResult{
+				Status:  openapi.ConnectivityResultStatusSkipped,
+				Message: &skipMsg,
+			},
+		})
 		return
 	}
 
@@ -200,9 +215,12 @@ func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
 				code := "unauthorized"
 				msg := "failed to retrieve access token"
 				writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
-					Status:  openapi.TestConnectionResponseStatusFailed,
-					Code:    &code,
-					Message: &msg,
+					Validation: validationResult,
+					Connectivity: openapi.ConnectivityResult{
+						Status:  openapi.ConnectivityResultStatusFailed,
+						Code:    &code,
+						Message: &msg,
+					},
 				})
 				return
 			}
@@ -210,21 +228,29 @@ func (h *ConnectionHandler) Test(w http.ResponseWriter, r *http.Request) {
 		}
 
 		result := tester.Test(r.Context(), req.ConfigJson, accessToken)
-		status := openapi.TestConnectionResponseStatusOk
+		connStatus := openapi.ConnectivityResultStatusOk
 		if !result.OK {
-			status = openapi.TestConnectionResponseStatusFailed
+			connStatus = openapi.ConnectivityResultStatusFailed
 		}
 		writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
-			Status:  status,
-			Code:    &result.Code,
-			Message: &result.Message,
+			Validation: validationResult,
+			Connectivity: openapi.ConnectivityResult{
+				Status:  connStatus,
+				Code:    &result.Code,
+				Message: &result.Message,
+			},
 		})
 		return
 	}
 
-	// Fallback: schema validation only
+	// No tester registered: report connectivity as skipped
+	skipMsg := "no connectivity test available for this connector type"
 	writeJSON(w, http.StatusOK, openapi.TestConnectionResponse{
-		Status: openapi.TestConnectionResponseStatusOk,
+		Validation: validationResult,
+		Connectivity: openapi.ConnectivityResult{
+			Status:  openapi.ConnectivityResultStatusSkipped,
+			Message: &skipMsg,
+		},
 	})
 }
 

@@ -165,12 +165,24 @@ export function ConnectionsManager({
         pushToast({ variant: "error", message: data.error ?? "Test failed" });
         return;
       }
-      if (data.status === "ok") {
+      const { validation, connectivity } = data;
+      if (validation.status === "failed") {
+        pushToast({
+          variant: "error",
+          message: `Validation failed: ${validation.message ?? "invalid configuration"}`,
+        });
+      } else if (connectivity.status === "ok") {
         pushToast({ variant: "success", message: "Connection test passed" });
+      } else if (connectivity.status === "skipped") {
+        pushToast({
+          variant: "info",
+          message:
+            "Configuration is valid. Connectivity test is not available for this connector type.",
+        });
       } else {
         pushToast({
           variant: "error",
-          message: `Test failed: ${data.message ?? "unknown error"}`,
+          message: `Connectivity failed: ${connectivity.message ?? "unknown error"}`,
         });
       }
     } catch (e) {
