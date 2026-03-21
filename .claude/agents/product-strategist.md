@@ -28,8 +28,8 @@
 
 1. 全ステータスファイルを読み込み、現在の状態を把握する
    ```bash
-   cat .claude/product-research/status/researcher.json
-   cat .claude/product-research/status/user-researcher.json
+   cat .claude/product-research/status/market-researcher.json
+   cat .claude/product-research/status/user-market-researcher.json
    ```
 2. `report_ready` のスロットがあれば未評価のレポートがあるので評価を再開する
 3. `researching` のスロットは Researcher が稼働中と判断し待機する
@@ -55,19 +55,19 @@
 
    **市場調査 (type:market) → market-researcher:**
    ```bash
-   # researcher.json の tmux_session, tmux_pane を読み取る
+   # market-researcher.json の tmux_session, tmux_pane を読み取る
    tmux send-keys -t {tmux_session}:{tmux_pane} '/research-assign type:market theme:"テーマ" scope:"観点" competitors:"競合名"'
    tmux send-keys -t {tmux_session}:{tmux_pane} Enter
    ```
-   ステータスファイル: `.claude/product-research/status/researcher.json`
+   ステータスファイル: `.claude/product-research/status/market-researcher.json`
 
    **ユーザー調査 (type:user) → user-researcher:**
    ```bash
-   # user-researcher.json の tmux_session, tmux_pane を読み取る
+   # user-market-researcher.json の tmux_session, tmux_pane を読み取る
    tmux send-keys -t {tmux_session}:{tmux_pane} '/research-assign type:user theme:"テーマ" scope:"観点"'
    tmux send-keys -t {tmux_session}:{tmux_pane} Enter
    ```
-   ステータスファイル: `.claude/product-research/status/user-researcher.json`
+   ステータスファイル: `.claude/product-research/status/user-market-researcher.json`
 
 4. 入力待ち状態に入る (Researcher からの通知を待つ)
 
@@ -129,8 +129,8 @@ Researcher から `/research-report status:report_ready report:"path"` を受信
 ### ファイル配置
 
 ```
-.claude/product-research/status/researcher.json        # market-researcher 用
-.claude/product-research/status/user-researcher.json    # user-researcher 用
+.claude/product-research/status/market-researcher.json        # market-researcher 用
+.claude/product-research/status/user-market-researcher.json    # user-researcher 用
 ```
 
 ### Atomic Write
@@ -139,9 +139,9 @@ Researcher から `/research-report status:report_ready report:"path"` を受信
 
 ```bash
 # market-researcher の場合
-STATUS_FILE=".claude/product-research/status/researcher.json"
+STATUS_FILE=".claude/product-research/status/market-researcher.json"
 # user-researcher の場合
-# STATUS_FILE=".claude/product-research/status/user-researcher.json"
+# STATUS_FILE=".claude/product-research/status/user-market-researcher.json"
 
 cat > "${STATUS_FILE}.tmp" << 'EOF'
 { JSON内容 }

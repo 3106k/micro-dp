@@ -31,7 +31,7 @@ Strategist から以下のメッセージを受信する:
 Strategist に以下の通知を送信する:
 
 ```bash
-# researcher.json の tmux_session フィールドからセッション名を取得
+# market-researcher.json の tmux_session フィールドからセッション名を取得
 # (Strategist が /research-assign 時に設定済み)
 # ペイン ID を確認
 tmux list-panes -t {tmux_session}:1
@@ -42,12 +42,12 @@ tmux send-keys -t {tmux_session}:{STRATEGIST_PANE_ID} Enter
 
 ### ステータスファイル更新
 
-ステータスファイルはリポジトリの `.claude/product-research/status/researcher.json` にある。
+ステータスファイルはリポジトリの `.claude/product-research/status/market-researcher.json` にある。
 
 **Atomic Write (一時ファイル経由):**
 
 ```bash
-STATUS_FILE=".claude/product-research/status/researcher.json"
+STATUS_FILE=".claude/product-research/status/market-researcher.json"
 
 cat > "${STATUS_FILE}.tmp" << 'EOF'
 { JSON内容 }
