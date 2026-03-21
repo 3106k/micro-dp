@@ -119,7 +119,7 @@ idle → assigned → working → review_requested → approved → done → idl
 **PM → Dev (指示):**
 
 ```
-/dev-assign issue:#{issue_number} branch:{branch_name} repo_root:{absolute_path}
+/dev-assign slot:{N} issue:#{issue_number} branch:{branch_name} repo_root:{absolute_path}
 /dev-revise issue:#{issue_number} feedback:"修正内容"
 ```
 
@@ -320,7 +320,7 @@ docs/superpowers/specs/
 
 | ファイル                             | 変更内容                                    |
 | ------------------------------------ | ------------------------------------------- |
-| `.gitignore`                         | `.claude/dev-pm/status/` 追加               |
+| `.gitignore`                         | `.claude/dev-pm/status/*` + `!.gitkeep` 追加 |
 | `.claude/skills/project/SKILL.md`    | WIP 制限 2 → 4                              |
 | `.claude/skills/plan-issue/SKILL.md` | WIP 制限 2 → 4                              |
 | `.claude/skills/post-merge/SKILL.md` | WIP 制限 2 → 4                              |
