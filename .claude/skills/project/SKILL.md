@@ -63,8 +63,8 @@ Blocked ステータスと併用する。
 
 ### WIP 制限
 
-- In Progress は **最大 2 件** (API 系 1 件 + 非 API 系 1 件)
-- 3 件目を入れる前に 1 件を Review か Blocked へ移動する
+- In Progress は **最大 4 件** (develop 1〜4 スロットに対応)
+- 5 件目を入れる前に 1 件を Review か Blocked へ移動する
 
 ### issue 作成時
 1. Status: **Todo**

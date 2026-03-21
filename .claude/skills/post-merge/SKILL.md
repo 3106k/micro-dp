@@ -112,7 +112,7 @@ gh pr diff <pr_number> | head -500
 
 Project Board を確認し、次の着手候補を提案する:
 
-1. 現在の In Progress 件数を確認 (WIP 制限: 最大 2 件)
+1. 現在の In Progress 件数を確認 (WIP 制限: 最大 4 件)
 2. ブロック解除された issue があればそれを優先提示
 3. なければ Ready の Priority 高い順に提案
 4. 候補の issue 番号・タイトル・Priority・Area を一覧表示
