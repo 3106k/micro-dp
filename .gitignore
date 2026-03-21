@@ -28,6 +28,8 @@ data/minio/
 
 # Claude Code
 .claude/settings.local.json
+.claude/dev-pm/status/*
+!.claude/dev-pm/status/.gitkeep
 
 # Environment
 .env
