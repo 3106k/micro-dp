@@ -90,14 +90,14 @@ GitHub Projects と Issues を管理し、開発エージェント (dev-engineer
       # ペイン ID を確認 ({SESSION}:{WINDOW} は起動時に検出した値)
       tmux list-panes -t {SESSION}:{WINDOW}
       # メッセージ送信 (メッセージと Enter は別コマンド)
-      tmux send-keys -t {SESSION}:{WINDOW}.{N} '/dev-assign slot:{N} issue:#<number> branch:<branch_name> repo_root:<absolute_path> tmux_target:{SESSION}:{WINDOW}'
+      tmux send-keys -t {SESSION}:{WINDOW}.{N} 'dev-assign slot:{N} issue:#<number> branch:<branch_name> repo_root:<absolute_path> tmux_target:{SESSION}:{WINDOW}'
       tmux send-keys -t {SESSION}:{WINDOW}.{N} Enter
       ```
 6. 入力待ち状態に入る (Dev からの通知を待つ)
 
 ### 3. Code Review & Completion
 
-Dev Agent から `/dev-report slot:{N} status:review_requested issue:#{number}` を受信したら:
+Dev Agent から `dev-report slot:{N} status:review_requested issue:#{number}` を受信したら:
 
 1. ステータスファイルを確認する
 2. PR の diff を取得する
@@ -123,7 +123,7 @@ Dev Agent から `/dev-report slot:{N} status:review_requested issue:#{number}` 
    a. ステータスファイル更新 (review_requested → revision_requested)
    b. tmux で Dev Agent にフィードバックを送る:
       ```bash
-      tmux send-keys -t {SESSION}:{WINDOW}.{N} '/dev-revise issue:#<number> feedback:"修正内容"'
+      tmux send-keys -t {SESSION}:{WINDOW}.{N} 'dev-revise issue:#<number> feedback:"修正内容"'
       tmux send-keys -t {SESSION}:{WINDOW}.{N} Enter
       ```
    c. 入力待ち状態に戻る
@@ -175,12 +175,12 @@ idle → assigned → working → review_requested → approved → done → idl
 
 ### Dev Agent からの失敗報告
 
-`/dev-report slot:{N} status:failed issue:#{number}` を受信したら:
+`dev-report slot:{N} status:failed issue:#{number}` を受信したら:
 
 1. ステータスファイルを読み、`error` フィールドからエラー概要を確認する
 2. エラー内容をユーザーに報告する → **[承認ゲート]**
 3. ユーザーの指示に従う:
-   - **再試行:** ステータスを `assigned` に戻して再度 `/dev-assign` を送信
+   - **再試行:** ステータスを `assigned` に戻して再度 `dev-assign` を送信
    - **issue 修正:** issue の内容を更新してから再割り当て
    - **スキップ:** ステータスを `idle` に戻し、別の issue を選定
 

@@ -51,7 +51,7 @@ tmux session: dev-pm / window 1
 - **状態管理:** `.claude/dev-pm/status/develop-{N}.json` (正のソース)
 - **通知:** `tmux send-keys` (トリガー)
 - ステータスファイルが信頼できるソース、tmux メッセージは通知のみ
-- **重要:** ステータスファイルはメインリポジトリに配置される。Dev Agent は worktree から**絶対パス**でアクセスする (例: `/Users/.../micro-dp/.claude/dev-pm/status/develop-1.json`)。PM Agent が `/dev-assign` 時にメインリポジトリの絶対パスを `repo_root` フィールドとして伝達する
+- **重要:** ステータスファイルはメインリポジトリに配置される。Dev Agent は worktree から**絶対パス**でアクセスする (例: `/Users/.../micro-dp/.claude/dev-pm/status/develop-1.json`)。PM Agent が `dev-assign` 時にメインリポジトリの絶対パスを `repo_root` フィールドとして伝達する
 
 ## Status File Protocol
 
@@ -114,7 +114,7 @@ idle → assigned → working → review_requested → approved → done → idl
 **Dev → PM (通知):**
 
 ```
-/dev-report slot:{N} status:{status} issue:#{issue_number}
+dev-report slot:{N} status:{status} issue:#{issue_number}
 
 status に `failed` を使用可。error の詳細はステータスファイルの `error` フィールドに記載する。
 ```
@@ -122,15 +122,15 @@ status に `failed` を使用可。error の詳細はステータスファイル
 **PM → Dev (指示):**
 
 ```
-/dev-assign slot:{N} issue:#{issue_number} branch:{branch_name} repo_root:{absolute_path} tmux_target:{session}:{window}
-/dev-revise issue:#{issue_number} feedback:"修正内容"
+dev-assign slot:{N} issue:#{issue_number} branch:{branch_name} repo_root:{absolute_path} tmux_target:{session}:{window}
+dev-revise issue:#{issue_number} feedback:"修正内容"
 ```
 
 ### tmux メッセージのセマンティクス
 
 - メッセージ送信と Enter は**別コマンド**で実行する (同時送信だと入力が欠落することがある):
   ```bash
-  tmux send-keys -t dev-pm:1.{N} '/dev-report slot:1 status:review_requested issue:#160'
+  tmux send-keys -t dev-pm:1.{N} 'dev-report slot:1 status:review_requested issue:#160'
   tmux send-keys -t dev-pm:1.{N} Enter
   ```
 - 送信前に `tmux list-panes -t dev-pm:1` で対象ペインの ID を確認する
@@ -264,7 +264,7 @@ PM: レビュー結果をユーザーに提示
 ### 受信 → 実行 → 報告
 
 ```
-PM から /dev-assign 受信
+PM から dev-assign 受信
   ↓
 ステータスファイル更新 (assigned → working)
   ↓
@@ -290,7 +290,7 @@ tmux send-keys で PM に通知
 ### 差し戻し時
 
 ```
-PM から /dev-revise 受信
+PM から dev-revise 受信
   ↓
 ステータスファイル更新 (revision_requested → working)
   ↓
@@ -359,7 +359,7 @@ docs/superpowers/specs/
 | ユーザーとの直接対話 (AskUserQuestion) | PM Agent への報告 (tmux + ステータスファイル) |
 | ユーザーにプラン確認を求める           | プランは自律実行 (issue に方針が記載済み)     |
 | Project Board の Status 更新           | PM が一元管理 (Dev は更新しない)              |
-| 自律的な issue 選定                    | PM から `/dev-assign` で指示を受ける          |
+| 自律的な issue 選定                    | PM から `dev-assign` で指示を受ける          |
 
 ## Project Board Updates
 

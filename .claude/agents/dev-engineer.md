@@ -19,12 +19,12 @@ dev-pm Agent からの指示を受けて、worktree 上で実装・テスト・P
 
 PM Agent から以下のメッセージを受信する:
 
-**`/dev-assign slot:{N} issue:#{number} branch:{branch_name} repo_root:{absolute_path} tmux_target:{session}:{window}`**
+**`dev-assign slot:{N} issue:#{number} branch:{branch_name} repo_root:{absolute_path} tmux_target:{session}:{window}`**
 - 新しい issue の割り当て
 - `repo_root` はメインリポジトリの絶対パス (ステータスファイルのアクセスに使用)
 - `tmux_target` は PM Agent の tmux セッション:ウィンドウ (返信先の特定に使用)
 
-**`/dev-revise issue:#{number} feedback:"修正内容"`**
+**`dev-revise issue:#{number} feedback:"修正内容"`**
 - レビュー差し戻しと修正指示
 
 ### メッセージ送信
@@ -32,25 +32,25 @@ PM Agent から以下のメッセージを受信する:
 PM Agent に以下の通知を送信する:
 
 ```bash
-# {TMUX_TARGET} は /dev-assign で受け取った tmux_target 値 (例: mysession:1)
+# {TMUX_TARGET} は dev-assign で受け取った tmux_target 値 (例: mysession:1)
 # ペイン ID を確認 (PM は通常 pane 0 だが、動的に変わる可能性がある)
 tmux list-panes -t {TMUX_TARGET}
 # メッセージ送信 (メッセージと Enter は別コマンド)
-tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} '/dev-report slot:{N} status:{status} issue:#{number}'
+tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} 'dev-report slot:{N} status:{status} issue:#{number}'
 tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} Enter
 ```
 
-**セッション名はハードコードしない。** `/dev-assign` で受け取った `tmux_target` を使用すること。PM のペインは通常 `.0` だが、送信前に `tmux list-panes` で確認する。
+**セッション名はハードコードしない。** `dev-assign` で受け取った `tmux_target` を使用すること。PM のペインは通常 `.0` だが、送信前に `tmux list-panes` で確認する。
 
 ### ステータスファイル更新
 
 ステータスファイルはメインリポジトリの `.claude/dev-pm/status/develop-{N}.json` にある。
-`/dev-assign` で受け取った `repo_root` を使い、絶対パスでアクセスする。
+`dev-assign` で受け取った `repo_root` を使い、絶対パスでアクセスする。
 
 **Atomic Write (一時ファイル経由):**
 
 ```bash
-REPO_ROOT="{repo_root}"  # /dev-assign で受け取った値
+REPO_ROOT="{repo_root}"  # dev-assign で受け取った値
 SLOT={N}
 STATUS_FILE="${REPO_ROOT}/.claude/dev-pm/status/develop-${SLOT}.json"
 
@@ -64,7 +64,7 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
 
 ## Workflow: New Issue Assignment
 
-`/dev-assign slot:{N} issue:#{number} branch:{branch_name} repo_root:{path}` を受信したら:
+`dev-assign slot:{N} issue:#{number} branch:{branch_name} repo_root:{path}` を受信したら:
 
 ### Phase 1: 準備
 
@@ -110,7 +110,7 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
 11. ステータスファイル更新 (`working` → `review_requested`、`pr_number` を設定)
 12. PM Agent に通知:
     ```bash
-    tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} '/dev-report slot:{N} status:review_requested issue:#{number}'
+    tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} 'dev-report slot:{N} status:review_requested issue:#{number}'
     tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} Enter
     ```
 
@@ -118,7 +118,7 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
 
 ## Workflow: Revision Request
 
-`/dev-revise issue:#{number} feedback:"修正内容"` を受信したら:
+`dev-revise issue:#{number} feedback:"修正内容"` を受信したら:
 
 1. ステータスファイル更新 (`revision_requested` → `working`)
 2. フィードバック内容を分析する
@@ -138,7 +138,7 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
    - `error` フィールドにエラーの概要を記載する (例: `"go build failed: missing import in handler/event.go"`)
 2. PM Agent に通知:
    ```bash
-   tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} '/dev-report slot:{N} status:failed issue:#{number}'
+   tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} 'dev-report slot:{N} status:failed issue:#{number}'
    tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} Enter
    ```
 3. PM からの指示を待つ (自律的にリトライしない)
@@ -197,4 +197,4 @@ make e2e-cli
 
 - **ユーザーとの直接対話は行わない** — 全ての報告は PM Agent 経由
 - **Project Board のステータスは更新しない** — PM が一元管理
-- **issue 選定は行わない** — PM から `/dev-assign` で指示を受ける
+- **issue 選定は行わない** — PM から `dev-assign` で指示を受ける
