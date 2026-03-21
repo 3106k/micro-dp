@@ -165,21 +165,29 @@ func (s *Scenario) Run(ctx context.Context, client *httpclient.Client) error {
 	if code != 200 {
 		return fmt.Errorf("test connection (valid): status=%d body=%s", code, string(body))
 	}
-	if testResp.Status != openapi.TestConnectionResponseStatusOk {
-		return fmt.Errorf("test connection: expected status=ok got=%s", testResp.Status)
+	if testResp.Validation.Status != openapi.ValidationResultStatusOk {
+		return fmt.Errorf("test connection: expected validation.status=ok got=%s", testResp.Validation.Status)
+	}
+	// source-postgres has no tester registered → connectivity should be skipped
+	if testResp.Connectivity.Status != openapi.ConnectivityResultStatusSkipped {
+		return fmt.Errorf("test connection: expected connectivity.status=skipped got=%s", testResp.Connectivity.Status)
 	}
 
-	// 11. POST /api/v1/connections/test (invalid config) → 422
+	// 11. POST /api/v1/connections/test (invalid config) → 200 with validation.status=failed
 	testInvalidReq := openapi.TestConnectionRequest{
 		Type:       "source-postgres",
 		ConfigJson: "{}",
 	}
-	code, body, err = client.PostJSON(ctx, "/api/v1/connections/test", testInvalidReq, nil)
+	var testInvalidResp openapi.TestConnectionResponse
+	code, body, err = client.PostJSON(ctx, "/api/v1/connections/test", testInvalidReq, &testInvalidResp)
 	if err != nil {
 		return err
 	}
-	if code != 422 {
-		return fmt.Errorf("test connection (invalid): expected 422 got=%d body=%s", code, string(body))
+	if code != 200 {
+		return fmt.Errorf("test connection (invalid): expected 200 got=%d body=%s", code, string(body))
+	}
+	if testInvalidResp.Validation.Status != openapi.ValidationResultStatusFailed {
+		return fmt.Errorf("test connection (invalid): expected validation.status=failed got=%s", testInvalidResp.Validation.Status)
 	}
 
 	return nil

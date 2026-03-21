@@ -3098,11 +3098,28 @@ components:
           type: string
     TestConnectionResponse:
       type: object
+      required: [validation, connectivity]
+      properties:
+        validation:
+          $ref: "#/components/schemas/ValidationResult"
+        connectivity:
+          $ref: "#/components/schemas/ConnectivityResult"
+    ValidationResult:
+      type: object
       required: [status]
       properties:
         status:
           type: string
           enum: [ok, failed]
+        message:
+          type: string
+    ConnectivityResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, failed, skipped]
         message:
           type: string
         code:

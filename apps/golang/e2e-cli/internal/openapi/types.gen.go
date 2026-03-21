@@ -28,6 +28,13 @@ const (
 	Pie  ChartType = "pie"
 )
 
+// Defines values for ConnectivityResultStatus.
+const (
+	ConnectivityResultStatusFailed  ConnectivityResultStatus = "failed"
+	ConnectivityResultStatusOk      ConnectivityResultStatus = "ok"
+	ConnectivityResultStatusSkipped ConnectivityResultStatus = "skipped"
+)
+
 // Defines values for ConnectorKind.
 const (
 	ConnectorKindDestination ConnectorKind = "destination"
@@ -128,9 +135,9 @@ const (
 
 // Defines values for TemplateRunStatus.
 const (
-	Failed  TemplateRunStatus = "failed"
-	Skipped TemplateRunStatus = "skipped"
-	Success TemplateRunStatus = "success"
+	TemplateRunStatusFailed  TemplateRunStatus = "failed"
+	TemplateRunStatusSkipped TemplateRunStatus = "skipped"
+	TemplateRunStatusSuccess TemplateRunStatus = "success"
 )
 
 // Defines values for TenantInvitationStatus.
@@ -147,12 +154,6 @@ const (
 	Owner  TenantRole = "owner"
 )
 
-// Defines values for TestConnectionResponseStatus.
-const (
-	TestConnectionResponseStatusFailed TestConnectionResponseStatus = "failed"
-	TestConnectionResponseStatusOk     TestConnectionResponseStatus = "ok"
-)
-
 // Defines values for TransformExecution.
 const (
 	TransformExecutionImmediate TransformExecution = "immediate"
@@ -164,6 +165,12 @@ const (
 const (
 	Presigned UploadStatus = "presigned"
 	Uploaded  UploadStatus = "uploaded"
+)
+
+// Defines values for ValidationResultStatus.
+const (
+	ValidationResultStatusFailed ValidationResultStatus = "failed"
+	ValidationResultStatusOk     ValidationResultStatus = "ok"
 )
 
 // AdminCreateTenantRequest defines model for AdminCreateTenantRequest.
@@ -279,6 +286,16 @@ type ConnectionSchemasResponse struct {
 	Items []SchemaItem `json:"items"`
 	Title string       `json:"title"`
 }
+
+// ConnectivityResult defines model for ConnectivityResult.
+type ConnectivityResult struct {
+	Code    *string                  `json:"code,omitempty"`
+	Message *string                  `json:"message,omitempty"`
+	Status  ConnectivityResultStatus `json:"status"`
+}
+
+// ConnectivityResultStatus defines model for ConnectivityResult.Status.
+type ConnectivityResultStatus string
 
 // ConnectorDefinition defines model for ConnectorDefinition.
 type ConnectorDefinition struct {
@@ -877,13 +894,9 @@ type TestConnectionRequest struct {
 
 // TestConnectionResponse defines model for TestConnectionResponse.
 type TestConnectionResponse struct {
-	Code    *string                      `json:"code,omitempty"`
-	Message *string                      `json:"message,omitempty"`
-	Status  TestConnectionResponseStatus `json:"status"`
+	Connectivity ConnectivityResult `json:"connectivity"`
+	Validation   ValidationResult   `json:"validation"`
 }
-
-// TestConnectionResponseStatus defines model for TestConnectionResponse.Status.
-type TestConnectionResponseStatus string
 
 // TransformExecution defines model for TransformExecution.
 type TransformExecution string
@@ -1024,6 +1037,15 @@ type UsageSummaryResponse struct {
 	StorageBytes int64  `json:"storage_bytes"`
 	UploadsCount int    `json:"uploads_count"`
 }
+
+// ValidationResult defines model for ValidationResult.
+type ValidationResult struct {
+	Message *string                `json:"message,omitempty"`
+	Status  ValidationResultStatus `json:"status"`
+}
+
+// ValidationResultStatus defines model for ValidationResult.Status.
+type ValidationResultStatus string
 
 // WriteKey defines model for WriteKey.
 type WriteKey struct {
