@@ -801,7 +801,7 @@ type OAuthProvider interface {
 ### 運用ルール
 
 - **着手順**: In Progress の issue から着手。空なら Ready の Priority 高い順
-- **WIP 制限**: In Progress は最大 2 件 (API 系 1 + 非 API 系 1)。3 件目を入れる前に 1 件を Review か Blocked へ
+- **WIP 制限**: In Progress は最大 4 件 (develop 1〜4 スロットに対応)。5 件目を入れる前に 1 件を Review か Blocked へ
 - **1 PR = 1 Issue**: PR 本文に `Closes #N` 必須
 - **OpenAPI 変更**: spec 更新を先行し `make openapi-check` 通過が Ready → In Progress の前提
 - **完了条件**: 実装 + 生成/テスト + PR merge + Issue close で Done
@@ -816,3 +816,30 @@ issue に着手・PR 作成・マージ時は、**必ず `/project` スキルで
 - **マージ後**: `/post-merge` スキルを実行する（Status→Done、ブロック解除、ドキュメント更新判断、次 issue 提案）
 
 詳細な操作方法・field ID は `/project` スキルを参照。
+
+## dev-pm Agent Workflow
+
+PM エージェント (`dev-pm`) と開発エージェント (`dev-engineer`) による並列開発ワークフロー。
+
+### Agent 構成
+
+| Agent | 配置場所 | 責務 |
+|-------|---------|------|
+| dev-pm | メインリポジトリ | issue 管理、開発依頼、コードレビュー、ボード管理 |
+| dev-engineer | 各 worktree (`../micro-dp-develop-{N}/`) | 実装、テスト、PR 作成 |
+
+### 通信プロトコル
+
+- **状態管理:** `.claude/dev-pm/status/develop-{N}.json` (正のソース)
+- **通知:** `tmux send-keys` (メッセージと Enter は別コマンドで送信)
+- ステータス遷移: `idle → assigned → working → review_requested → approved → done → idle`
+
+### 承認ゲート
+
+エピック分解後、issue 選定時、レビュー完了後、PR マージ前にユーザー承認を求める。
+
+### 開発方針
+
+feature flag + トランクベース開発。1 issue = 半日〜1日。小さい PR を頻繁にマージ。
+
+詳細: `docs/superpowers/specs/2026-03-21-dev-pm-agent-design.md`
