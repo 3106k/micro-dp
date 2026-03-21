@@ -666,6 +666,46 @@ emailSender := notification.NewEmailSender(notifCfg)
 notification.LogStartup(notifCfg)
 ```
 
+## Product Research Agent Workflow
+
+product-strategist と market-researcher による市場調査・戦略 issue 作成ワークフロー。dev-pm の上流に位置し、「何を作るべきか」を探る。
+
+### Agent 構成
+
+| Agent | 責務 | 主要ツール |
+|-------|------|-----------|
+| product-strategist | 調査テーマ設定、レポート評価、エピック issue 作成 | Bash (gh), Read, Write, Agent |
+| market-researcher | Web 検索、競合分析、レポート作成 | WebSearch, WebFetch, Read, Write |
+
+### 位置づけ
+
+```
+[market-researcher] → [product-strategist] → [dev-pm] → [dev-engineer] x 4
+   調査・分析            評価・issue作成        分解・管理    実装
+```
+
+### 通信プロトコル
+
+- **状態管理:** `.claude/product-research/status/researcher.json` (正のソース)
+- **通知:** `tmux send-keys` (メッセージと Enter は別コマンドで送信)
+- **tmux 情報:** ステータスファイルの `tmux_session` / `tmux_pane` フィールドで管理 (セッション名は固定しない)
+- ステータス遷移: `idle → assigned → researching → report_ready → reviewed → idle`
+
+### 成果物
+
+- 調査レポート: `docs/research/{date}-{topic}.md` (git 管理、frontmatter に鮮度情報)
+- エピック issue: `epic` + `research` ラベル付きで Project Board に追加
+
+### 承認ゲート
+
+調査スコープ確定時、レポート評価後 (不足時)、エピック issue 起案時にユーザー承認を求める。
+
+### dev-pm との接続
+
+Strategist がエピック issue 作成後、ユーザーが dev-pm に「エピック #N を分解して」と手動で指示する。
+
+詳細: `docs/superpowers/specs/2026-03-21-product-research-agent-design.md`
+
 ## Cleanup
 
 Playwright で `browser_take_screenshot` を使用した場合、確認完了後にスクリーンショットファイルを削除すること。リポジトリに残さない。
