@@ -102,13 +102,18 @@ mv "${STATUS_FILE}.tmp" "${STATUS_FILE}"
    ```bash
    make e2e-cli
    ```
+9. **フロントエンド変更がある場合:** Playwright MCP でブラウザ上の動作確認を行う
+   - 変更した画面にアクセスし、期待通りの表示・操作ができることを確認
+   - スクリーンショットを撮って目視確認
+   - 確認完了後はスクリーンショットファイルを削除する (リポジトリに残さない)
+   - フロントエンド変更がない場合はスキップ
 
 ### Phase 4: PR 作成・報告
 
-9. 変更をコミットしてプッシュ (@commit-push スキル)
-10. PR を作成 (@create-pr スキル、`Closes #{number}` を含める)
-11. ステータスファイル更新 (`working` → `review_requested`、`pr_number` を設定)
-12. PM Agent に通知:
+10. 変更をコミットしてプッシュ (@commit-push スキル)
+11. PR を作成 (@create-pr スキル、`Closes #{number}` を含める)
+12. ステータスファイル更新 (`working` → `review_requested`、`pr_number` を設定)
+13. PM Agent に通知:
     ```bash
     tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} 'dev-report slot:{N} status:review_requested issue:#{number}'
     tmux send-keys -t {TMUX_TARGET}.{PM_PANE_ID} Enter
