@@ -30,6 +30,8 @@ data/minio/
 .claude/settings.local.json
 .claude/dev-pm/status/*
 !.claude/dev-pm/status/.gitkeep
+.claude/product-research/status/*
+!.claude/product-research/status/.gitkeep
 
 # Environment
 .env
