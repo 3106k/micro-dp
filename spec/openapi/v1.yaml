@@ -3708,6 +3708,22 @@ components:
         job_run:
           $ref: "#/components/schemas/JobRun"
     # ---- Connection Schemas ----
+    SchemaColumn:
+      type: object
+      required: [name, type]
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+          description: Column data type (e.g. "integer", "varchar", "timestamp")
+        nullable:
+          type: boolean
+        primary_key:
+          type: boolean
+        cursor_candidate:
+          type: boolean
+          description: Whether this column can be used as an incremental cursor
     SchemaItem:
       type: object
       required: [name, type]
@@ -3717,6 +3733,21 @@ components:
         type:
           type: string
           enum: [sheet, table, view]
+        columns:
+          type: array
+          items:
+            $ref: "#/components/schemas/SchemaColumn"
+        primary_key:
+          type: array
+          items:
+            type: string
+          description: Column names forming the primary key
+        cursor_field:
+          type: string
+          description: Suggested column name for incremental sync
+        supports_incremental:
+          type: boolean
+          description: Whether this entity supports incremental sync
         metadata:
           type: object
           additionalProperties: true

@@ -816,11 +816,33 @@ type RegisterResponse struct {
 	UserId   string `json:"user_id"`
 }
 
+// SchemaColumn defines model for SchemaColumn.
+type SchemaColumn struct {
+	// CursorCandidate Whether this column can be used as an incremental cursor
+	CursorCandidate *bool  `json:"cursor_candidate,omitempty"`
+	Name            string `json:"name"`
+	Nullable        *bool  `json:"nullable,omitempty"`
+	PrimaryKey      *bool  `json:"primary_key,omitempty"`
+
+	// Type Column data type (e.g. "integer", "varchar", "timestamp")
+	Type string `json:"type"`
+}
+
 // SchemaItem defines model for SchemaItem.
 type SchemaItem struct {
-	Metadata *map[string]interface{} `json:"metadata,omitempty"`
-	Name     string                  `json:"name"`
-	Type     SchemaItemType          `json:"type"`
+	Columns *[]SchemaColumn `json:"columns,omitempty"`
+
+	// CursorField Suggested column name for incremental sync
+	CursorField *string                 `json:"cursor_field,omitempty"`
+	Metadata    *map[string]interface{} `json:"metadata,omitempty"`
+	Name        string                  `json:"name"`
+
+	// PrimaryKey Column names forming the primary key
+	PrimaryKey *[]string `json:"primary_key,omitempty"`
+
+	// SupportsIncremental Whether this entity supports incremental sync
+	SupportsIncremental *bool          `json:"supports_incremental,omitempty"`
+	Type                SchemaItemType `json:"type"`
 }
 
 // SchemaItemType defines model for SchemaItem.Type.

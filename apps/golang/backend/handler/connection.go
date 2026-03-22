@@ -321,6 +321,34 @@ func (h *ConnectionHandler) ListSchemas(w http.ResponseWriter, r *http.Request) 
 			Name: item.Name,
 			Type: openapi.SchemaItemType(item.Type),
 		}
+		if len(item.Columns) > 0 {
+			cols := make([]openapi.SchemaColumn, len(item.Columns))
+			for j, c := range item.Columns {
+				cols[j] = openapi.SchemaColumn{
+					Name: c.Name,
+					Type: c.Type,
+				}
+				if c.Nullable {
+					cols[j].Nullable = &c.Nullable
+				}
+				if c.PrimaryKey {
+					cols[j].PrimaryKey = &c.PrimaryKey
+				}
+				if c.CursorCandidate {
+					cols[j].CursorCandidate = &c.CursorCandidate
+				}
+			}
+			items[i].Columns = &cols
+		}
+		if len(item.PrimaryKey) > 0 {
+			items[i].PrimaryKey = &item.PrimaryKey
+		}
+		if item.CursorField != "" {
+			items[i].CursorField = &item.CursorField
+		}
+		if item.SupportsIncremental {
+			items[i].SupportsIncremental = &item.SupportsIncremental
+		}
 		if len(item.Metadata) > 0 {
 			m := map[string]interface{}(item.Metadata)
 			items[i].Metadata = &m
