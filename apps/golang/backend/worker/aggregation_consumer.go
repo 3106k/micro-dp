@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"log"
 	"time"
 
@@ -10,71 +11,80 @@ import (
 )
 
 type AggregationConsumer struct {
-	tenants  domain.TenantRepository
-	writer   *AggregationWriter
-	metrics  *observability.AggregationMetrics
-	interval time.Duration
+	queue   domain.AggregationQueue
+	writer  *AggregationWriter
+	metrics *observability.AggregationMetrics
 }
 
 func NewAggregationConsumer(
-	tenants domain.TenantRepository,
+	queue domain.AggregationQueue,
 	writer *AggregationWriter,
 	metrics *observability.AggregationMetrics,
-	interval time.Duration,
 ) *AggregationConsumer {
 	return &AggregationConsumer{
-		tenants:  tenants,
-		writer:   writer,
-		metrics:  metrics,
-		interval: interval,
+		queue:   queue,
+		writer:  writer,
+		metrics: metrics,
 	}
 }
 
 func (c *AggregationConsumer) Run(ctx context.Context) {
-	log.Printf("aggregation consumer started (interval=%s)", c.interval)
-
-	// Run once on startup after a short delay
-	timer := time.NewTimer(10 * time.Second)
-	defer timer.Stop()
+	log.Println("aggregation consumer started")
 
 	for {
 		select {
 		case <-ctx.Done():
 			log.Println("aggregation consumer stopped")
 			return
-		case <-timer.C:
-			c.runAggregation(ctx)
-			timer.Reset(c.interval)
+		default:
+			msg, err := c.queue.Dequeue(ctx)
+			if err != nil {
+				if ctx.Err() != nil {
+					log.Println("aggregation consumer stopped")
+					return
+				}
+				log.Printf("aggregation dequeue error: %v", err)
+				continue
+			}
+			if msg == nil {
+				continue
+			}
+
+			c.processMessage(ctx, msg)
 		}
 	}
 }
 
-func (c *AggregationConsumer) runAggregation(ctx context.Context) {
-	tenants, err := c.tenants.ListAll(ctx)
-	if err != nil {
-		log.Printf("aggregation: list tenants error: %v", err)
+func (c *AggregationConsumer) processMessage(ctx context.Context, msg *domain.AggregationMessage) {
+	start := time.Now()
+
+	// Idempotency check
+	if err := c.queue.MarkProcessed(ctx, msg.TenantID, msg.Date); err != nil {
+		if errors.Is(err, domain.ErrAggregationAlreadyProcessed) {
+			log.Printf("aggregation: skipping duplicate tenant=%s date=%s", msg.TenantID, msg.Date)
+			c.metrics.DuplicateTotal.Add(ctx, 1)
+			return
+		}
+		log.Printf("aggregation: mark processed error tenant=%s date=%s: %v", msg.TenantID, msg.Date, err)
+		c.enqueueDLQ(ctx, msg, err.Error())
 		return
 	}
 
-	// Aggregate today's and yesterday's data
-	today := time.Now().UTC().Format("2006-01-02")
-	yesterday := time.Now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
-	dates := []string{yesterday, today}
+	if err := c.writer.AggregateEvents(ctx, msg.TenantID, msg.Date); err != nil {
+		log.Printf("aggregation: tenant=%s date=%s error: %v", msg.TenantID, msg.Date, err)
+		c.metrics.FailedTotal.Add(ctx, 1)
+		c.enqueueDLQ(ctx, msg, err.Error())
+		return
+	}
 
-	for _, tenant := range tenants {
-		for _, date := range dates {
-			start := time.Now()
+	duration := time.Since(start)
+	c.metrics.ProcessedTotal.Add(ctx, 1)
+	c.metrics.Duration.Record(ctx, duration.Seconds())
+	log.Printf("aggregation: tenant=%s date=%s completed in %s", msg.TenantID, msg.Date, duration)
+}
 
-			if err := c.writer.AggregateEvents(ctx, tenant.ID, date); err != nil {
-				log.Printf("aggregation: tenant=%s date=%s error: %v", tenant.ID, date, err)
-				c.metrics.FailedTotal.Add(ctx, 1)
-				continue
-			}
-
-			duration := time.Since(start)
-			c.metrics.ProcessedTotal.Add(ctx, 1)
-			c.metrics.Duration.Record(ctx, duration.Seconds())
-			log.Printf("aggregation: tenant=%s date=%s completed in %s", tenant.ID, date, duration)
-		}
+func (c *AggregationConsumer) enqueueDLQ(ctx context.Context, msg *domain.AggregationMessage, reason string) {
+	if err := c.queue.EnqueueDLQ(ctx, *msg, reason); err != nil {
+		log.Printf("aggregation: enqueue dlq error tenant=%s date=%s: %v", msg.TenantID, msg.Date, err)
 	}
 }

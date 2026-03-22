@@ -1,6 +1,11 @@
 package domain
 
-import "context"
+import (
+	"context"
+	"errors"
+)
+
+var ErrAggregationAlreadyProcessed = errors.New("aggregation already processed")
 
 type AggregationMessage struct {
 	TenantID string `json:"tenant_id"`

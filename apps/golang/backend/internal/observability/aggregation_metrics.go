@@ -8,6 +8,7 @@ import (
 type AggregationMetrics struct {
 	ProcessedTotal metric.Int64Counter
 	FailedTotal    metric.Int64Counter
+	DuplicateTotal metric.Int64Counter
 	Duration       metric.Float64Histogram
 }
 
@@ -18,12 +19,15 @@ func NewAggregationMetrics() *AggregationMetrics {
 		metric.WithDescription("Total aggregation runs completed"))
 	failed, _ := meter.Int64Counter("aggregation_failed_total",
 		metric.WithDescription("Total aggregation runs failed"))
+	duplicate, _ := meter.Int64Counter("aggregation_duplicate_total",
+		metric.WithDescription("Total aggregation runs skipped as duplicate"))
 	duration, _ := meter.Float64Histogram("aggregation_duration_seconds",
 		metric.WithDescription("Time to run an aggregation"))
 
 	return &AggregationMetrics{
 		ProcessedTotal: processed,
 		FailedTotal:    failed,
+		DuplicateTotal: duplicate,
 		Duration:       duration,
 	}
 }
