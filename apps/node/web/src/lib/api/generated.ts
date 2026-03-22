@@ -1805,10 +1805,26 @@ export interface components {
             version: components["schemas"]["JobVersion"];
             job_run?: components["schemas"]["JobRun"];
         };
+        SchemaColumn: {
+            name: string;
+            /** @description Column data type (e.g. "integer", "varchar", "timestamp") */
+            type: string;
+            nullable?: boolean;
+            primary_key?: boolean;
+            /** @description Whether this column can be used as an incremental cursor */
+            cursor_candidate?: boolean;
+        };
         SchemaItem: {
             name: string;
             /** @enum {string} */
             type: "sheet" | "table" | "view";
+            columns?: components["schemas"]["SchemaColumn"][];
+            /** @description Column names forming the primary key */
+            primary_key?: string[];
+            /** @description Suggested column name for incremental sync */
+            cursor_field?: string;
+            /** @description Whether this entity supports incremental sync */
+            supports_incremental?: boolean;
             metadata?: {
                 [key: string]: unknown;
             };
