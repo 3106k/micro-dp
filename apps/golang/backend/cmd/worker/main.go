@@ -66,10 +66,13 @@ func main() {
 	usageRepo := db.NewUsageRepo(sqlDB)
 	meteringService := usecase.NewMeteringService(usageRepo)
 
+	// Aggregation queue (shared: EventConsumer enqueues, AggregationConsumer dequeues)
+	aggregationQueue := queue.NewAggregationQueue(valkeyClient)
+
 	// Event consumer
 	eventMetrics := observability.NewEventMetrics()
 	parquetWriter := worker.NewParquetWriter(minioClient)
-	consumer := worker.NewEventConsumer(eventQueue, parquetWriter, eventMetrics, meteringService)
+	consumer := worker.NewEventConsumer(eventQueue, parquetWriter, eventMetrics, meteringService, aggregationQueue)
 
 	go consumer.Run(ctx)
 
@@ -126,7 +129,6 @@ func main() {
 	go jobRunConsumer.Run(ctx)
 
 	// Aggregation consumer (raw → events/visits)
-	aggregationQueue := queue.NewAggregationQueue(valkeyClient)
 	aggregationWriter := worker.NewAggregationWriter(minioClient)
 	aggregationMetrics := observability.NewAggregationMetrics()
 	aggregationConsumer := worker.NewAggregationConsumer(aggregationQueue, aggregationWriter, aggregationMetrics)
