@@ -69,6 +69,7 @@ func main() {
 	}
 	defer valkeyClient.Close()
 	eventQueue := queue.NewEventQueue(valkeyClient)
+	aggregationQueue := queue.NewAggregationQueue(valkeyClient)
 
 	// Repositories
 	userRepo := db.NewUserRepo(sqlDB)
@@ -195,6 +196,7 @@ func main() {
 		jobRunRepo, jobVersionRepo, jobModuleRepo, transformQueue,
 	)
 	writeKeyService := usecase.NewWriteKeyService(writeKeyRepo, tenantRepo)
+	aggregationBackfillService := usecase.NewAggregationBackfillService(aggregationQueue, tenantRepo)
 	importJobService := usecase.NewImportJobService(jobService, jobRunService, moduleTypeRepo, jobVersionRepo, jobModuleRepo, connectionRepo)
 	dashboardService := usecase.NewDashboardService(dashboardRepo, dashboardWidgetRepo, chartRepo)
 	chartService := usecase.NewChartService(chartRepo, datasetRepo, minioClient)
@@ -227,6 +229,7 @@ func main() {
 	dashboardH := handler.NewDashboardHandler(dashboardService)
 	chartH := handler.NewChartHandler(chartService)
 	templateRunH := handler.NewTemplateRunHandler(templateRunService)
+	adminAggregationH := handler.NewAdminAggregationHandler(aggregationBackfillService)
 
 	// Middleware
 	authMW := handler.AuthMiddleware(jwtSecret)
@@ -392,6 +395,9 @@ func main() {
 	mux.Handle("POST /api/v1/admin/tenants", adminProtected(adminTenantH.Create))
 	mux.Handle("GET /api/v1/admin/tenants", adminProtected(adminTenantH.List))
 	mux.Handle("PATCH /api/v1/admin/tenants/{id}", adminProtected(adminTenantH.Patch))
+
+	// Admin aggregation
+	mux.Handle("POST /api/v1/admin/aggregations/backfill", adminProtected(adminAggregationH.TriggerBackfill))
 
 	// Admin plans
 	mux.Handle("POST /api/v1/admin/plans", adminProtected(adminPlanH.Create))

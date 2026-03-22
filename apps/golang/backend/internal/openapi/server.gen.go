@@ -17,6 +17,9 @@ import (
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Trigger aggregation backfill (superadmin only)
+	// (POST /api/v1/admin/aggregations/backfill)
+	AdminTriggerBackfill(w http.ResponseWriter, r *http.Request)
 	// List plans (superadmin only)
 	// (GET /api/v1/admin/plans)
 	AdminListPlans(w http.ResponseWriter, r *http.Request)
@@ -303,6 +306,26 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// AdminTriggerBackfill operation middleware
+func (siw *ServerInterfaceWrapper) AdminTriggerBackfill(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AdminTriggerBackfill(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // AdminListPlans operation middleware
 func (siw *ServerInterfaceWrapper) AdminListPlans(w http.ResponseWriter, r *http.Request) {
@@ -5084,6 +5107,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/admin/aggregations/backfill", wrapper.AdminTriggerBackfill)
 	m.HandleFunc("GET "+options.BaseURL+"/api/v1/admin/plans", wrapper.AdminListPlans)
 	m.HandleFunc("POST "+options.BaseURL+"/api/v1/admin/plans", wrapper.AdminCreatePlan)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/v1/admin/plans/{id}", wrapper.AdminUpdatePlan)
@@ -5181,6 +5205,50 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 }
 
 type ErrorResponseJSONResponse ErrorResponse
+
+type AdminTriggerBackfillRequestObject struct {
+	Body *AdminTriggerBackfillJSONRequestBody
+}
+
+type AdminTriggerBackfillResponseObject interface {
+	VisitAdminTriggerBackfillResponse(w http.ResponseWriter) error
+}
+
+type AdminTriggerBackfill200JSONResponse BackfillResponse
+
+func (response AdminTriggerBackfill200JSONResponse) VisitAdminTriggerBackfillResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminTriggerBackfill400JSONResponse struct{ ErrorResponseJSONResponse }
+
+func (response AdminTriggerBackfill400JSONResponse) VisitAdminTriggerBackfillResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(400)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminTriggerBackfill401JSONResponse ErrorResponse
+
+func (response AdminTriggerBackfill401JSONResponse) VisitAdminTriggerBackfillResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(401)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type AdminTriggerBackfill403JSONResponse ErrorResponse
+
+func (response AdminTriggerBackfill403JSONResponse) VisitAdminTriggerBackfillResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(403)
+
+	return json.NewEncoder(w).Encode(response)
+}
 
 type AdminListPlansRequestObject struct {
 }
@@ -8675,6 +8743,9 @@ func (response GetHealthz200JSONResponse) VisitGetHealthzResponse(w http.Respons
 
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
+	// Trigger aggregation backfill (superadmin only)
+	// (POST /api/v1/admin/aggregations/backfill)
+	AdminTriggerBackfill(ctx context.Context, request AdminTriggerBackfillRequestObject) (AdminTriggerBackfillResponseObject, error)
 	// List plans (superadmin only)
 	// (GET /api/v1/admin/plans)
 	AdminListPlans(ctx context.Context, request AdminListPlansRequestObject) (AdminListPlansResponseObject, error)
@@ -8980,6 +9051,37 @@ type strictHandler struct {
 	ssi         StrictServerInterface
 	middlewares []StrictMiddlewareFunc
 	options     StrictHTTPServerOptions
+}
+
+// AdminTriggerBackfill operation middleware
+func (sh *strictHandler) AdminTriggerBackfill(w http.ResponseWriter, r *http.Request) {
+	var request AdminTriggerBackfillRequestObject
+
+	var body AdminTriggerBackfillJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AdminTriggerBackfill(ctx, request.(AdminTriggerBackfillRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AdminTriggerBackfill")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AdminTriggerBackfillResponseObject); ok {
+		if err := validResponse.VisitAdminTriggerBackfillResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
 }
 
 // AdminListPlans operation middleware

@@ -66,6 +66,20 @@ func (q *AggregationQueueImpl) MarkProcessed(ctx context.Context, tenantID, date
 	return nil
 }
 
+func (q *AggregationQueueImpl) ResetProcessed(ctx context.Context, tenantID, date string) error {
+	key := aggSeenPrefix + tenantID + ":" + date
+	return q.rdb.Del(ctx, key).Err()
+}
+
+func (q *AggregationQueueImpl) IsProcessed(ctx context.Context, tenantID, date string) (bool, error) {
+	key := aggSeenPrefix + tenantID + ":" + date
+	n, err := q.rdb.Exists(ctx, key).Result()
+	if err != nil {
+		return false, fmt.Errorf("check aggregation processed: %w", err)
+	}
+	return n > 0, nil
+}
+
 func (q *AggregationQueueImpl) EnqueueDLQ(ctx context.Context, msg domain.AggregationMessage, reason string) error {
 	wrapper := struct {
 		Message domain.AggregationMessage `json:"message"`

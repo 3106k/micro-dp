@@ -656,6 +656,34 @@ paths:
         "404":
           $ref: "#/components/responses/ErrorResponse"
 
+  # ---- Aggregation Backfill ----
+  /api/v1/admin/aggregations/backfill:
+    post:
+      tags: [admin]
+      summary: Trigger aggregation backfill (superadmin only)
+      operationId: adminTriggerBackfill
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BackfillRequest"
+      responses:
+        "200":
+          description: Backfill jobs enqueued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BackfillResponse"
+        "400":
+          $ref: "#/components/responses/ErrorResponse"
+        "401":
+          $ref: "#/components/responses/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/ErrorResponse"
+
   # ---- Jobs ----
   /api/v1/jobs:
     post:
@@ -3558,6 +3586,36 @@ components:
           type: integer
         max_uploads_per_day:
           type: integer
+    # ---- Aggregation Backfill ----
+    BackfillRequest:
+      type: object
+      required: [start_date, end_date]
+      properties:
+        tenant_id:
+          type: string
+          description: Target tenant ID (omit for all tenants)
+        start_date:
+          type: string
+          format: date
+          description: Start date (YYYY-MM-DD)
+        end_date:
+          type: string
+          format: date
+          description: End date (YYYY-MM-DD)
+        force:
+          type: boolean
+          default: false
+          description: Force re-aggregation even if already processed
+    BackfillResponse:
+      type: object
+      required: [enqueued, skipped]
+      properties:
+        enqueued:
+          type: integer
+          description: Number of aggregation jobs enqueued
+        skipped:
+          type: integer
+          description: Number of jobs skipped (already processed)
     AssignPlanRequest:
       type: object
       required: [plan_id]

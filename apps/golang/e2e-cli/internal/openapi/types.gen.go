@@ -189,6 +189,30 @@ type AssignPlanRequest struct {
 	PlanId string `json:"plan_id"`
 }
 
+// BackfillRequest defines model for BackfillRequest.
+type BackfillRequest struct {
+	// EndDate End date (YYYY-MM-DD)
+	EndDate openapi_types.Date `json:"end_date"`
+
+	// Force Force re-aggregation even if already processed
+	Force *bool `json:"force,omitempty"`
+
+	// StartDate Start date (YYYY-MM-DD)
+	StartDate openapi_types.Date `json:"start_date"`
+
+	// TenantId Target tenant ID (omit for all tenants)
+	TenantId *string `json:"tenant_id,omitempty"`
+}
+
+// BackfillResponse defines model for BackfillResponse.
+type BackfillResponse struct {
+	// Enqueued Number of aggregation jobs enqueued
+	Enqueued int `json:"enqueued"`
+
+	// Skipped Number of jobs skipped (already processed)
+	Skipped int `json:"skipped"`
+}
+
 // BillingSubscriptionResponse defines model for BillingSubscriptionResponse.
 type BillingSubscriptionResponse struct {
 	CurrentPeriodEnd     *time.Time `json:"current_period_end,omitempty"`
@@ -1487,6 +1511,9 @@ type DeleteWriteKeyParams struct {
 type RegenerateWriteKeyParams struct {
 	XTenantID XTenantID `json:"X-Tenant-ID"`
 }
+
+// AdminTriggerBackfillJSONRequestBody defines body for AdminTriggerBackfill for application/json ContentType.
+type AdminTriggerBackfillJSONRequestBody = BackfillRequest
 
 // AdminCreatePlanJSONRequestBody defines body for AdminCreatePlan for application/json ContentType.
 type AdminCreatePlanJSONRequestBody = CreatePlanRequest
