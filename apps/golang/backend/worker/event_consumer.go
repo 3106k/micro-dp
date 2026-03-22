@@ -12,28 +12,30 @@ import (
 )
 
 type EventConsumer struct {
-	queue         domain.EventQueue
-	writer        *ParquetWriter
-	metrics       *observability.EventMetrics
-	metering      *usecase.MeteringService
-	batchSize     int
-	flushInterval time.Duration
+	queue            domain.EventQueue
+	writer           *ParquetWriter
+	metrics          *observability.EventMetrics
+	metering         *usecase.MeteringService
+	aggregationQueue domain.AggregationQueue
+	batchSize        int
+	flushInterval    time.Duration
 
 	mu        sync.Mutex
 	buffer    []*domain.EventQueueMessage
 	lastFlush time.Time
 }
 
-func NewEventConsumer(queue domain.EventQueue, writer *ParquetWriter, metrics *observability.EventMetrics, metering *usecase.MeteringService) *EventConsumer {
+func NewEventConsumer(queue domain.EventQueue, writer *ParquetWriter, metrics *observability.EventMetrics, metering *usecase.MeteringService, aggregationQueue domain.AggregationQueue) *EventConsumer {
 	return &EventConsumer{
-		queue:         queue,
-		writer:        writer,
-		metrics:       metrics,
-		metering:      metering,
-		batchSize:     1000,
-		flushInterval: 30 * time.Second,
-		buffer:        make([]*domain.EventQueueMessage, 0, 1000),
-		lastFlush:     time.Now(),
+		queue:            queue,
+		writer:           writer,
+		metrics:          metrics,
+		metering:         metering,
+		aggregationQueue: aggregationQueue,
+		batchSize:        1000,
+		flushInterval:    30 * time.Second,
+		buffer:           make([]*domain.EventQueueMessage, 0, 1000),
+		lastFlush:        time.Now(),
 	}
 }
 
@@ -117,6 +119,20 @@ func (c *EventConsumer) flush(ctx context.Context) {
 			c.metrics.ProcessedTotal.Add(ctx, int64(len(events)))
 			if c.metering != nil {
 				c.metering.RecordEventsBestEffort(ctx, tenantID, len(events))
+			}
+
+			// Enqueue aggregation jobs for unique dates (UTC to match dt= partition)
+			if c.aggregationQueue != nil {
+				uniqueDates := make(map[string]struct{})
+				for _, e := range events {
+					uniqueDates[e.EventTime.UTC().Format("2006-01-02")] = struct{}{}
+				}
+				for date := range uniqueDates {
+					msg := domain.AggregationMessage{TenantID: tenantID, Date: date}
+					if err := c.aggregationQueue.Enqueue(ctx, msg); err != nil {
+						log.Printf("enqueue aggregation error tenant=%s date=%s: %v", tenantID, date, err)
+					}
+				}
 			}
 		}
 
