@@ -397,6 +397,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/aggregations/backfill": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Trigger aggregation backfill (superadmin only) */
+        post: operations["adminTriggerBackfill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/jobs": {
         parameters: {
             query?: never;
@@ -1731,6 +1748,31 @@ export interface components {
             max_rows_per_day?: number;
             max_uploads_per_day?: number;
         };
+        BackfillRequest: {
+            /** @description Target tenant ID (omit for all tenants) */
+            tenant_id?: string;
+            /**
+             * Format: date
+             * @description Start date (YYYY-MM-DD)
+             */
+            start_date: string;
+            /**
+             * Format: date
+             * @description End date (YYYY-MM-DD)
+             */
+            end_date: string;
+            /**
+             * @description Force re-aggregation even if already processed
+             * @default false
+             */
+            force: boolean;
+        };
+        BackfillResponse: {
+            /** @description Number of aggregation jobs enqueued */
+            enqueued: number;
+            /** @description Number of jobs skipped (already processed) */
+            skipped: number;
+        };
         AssignPlanRequest: {
             plan_id: string;
         };
@@ -2653,6 +2695,33 @@ export interface operations {
             401: components["responses"]["ErrorResponse"];
             403: components["responses"]["ErrorResponse"];
             404: components["responses"]["ErrorResponse"];
+        };
+    };
+    adminTriggerBackfill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BackfillRequest"];
+            };
+        };
+        responses: {
+            /** @description Backfill jobs enqueued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BackfillResponse"];
+                };
+            };
+            400: components["responses"]["ErrorResponse"];
+            401: components["responses"]["ErrorResponse"];
+            403: components["responses"]["ErrorResponse"];
         };
     };
     listJobs: {
